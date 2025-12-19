@@ -1,0 +1,94 @@
+2025-12-19 20:50:38.641 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-19 20:50:38.642 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-19 20:50:38.642 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-19 20:50:42.978 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-19 20:50:42.978 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-19 20:50:42.979 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-19 20:50:43.027 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-19 20:50:43.028 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-19 20:50:43.028 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-19 20:50:43.039 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-19 20:50:43.040 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-19 20:50:43.040 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-19 20:50:43.045 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.OperationalError) (1045, "Access denied for user 'root'@'localhost' (using password: YES)")
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-12-19 20:52:07.619 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-19 20:52:07.620 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-19 20:52:07.620 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-19 20:52:31.027 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-19 20:52:31.027 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-19 20:52:31.028 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-19 20:52:31.069 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-19 20:52:31.069 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-19 20:52:31.069 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-19 20:52:31.097 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.OperationalError) (1045, "Access denied for user 'root'@'localhost' (using password: YES)")
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-12-19 20:54:31.872 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-19 20:54:31.873 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-19 20:54:31.873 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-19 20:54:31.910 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-19 20:54:31.910 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-19 20:54:31.910 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-19 20:54:32.042 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.ProgrammingError) (1064, "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'JSON, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(conversation_id) REFERENCES conversation' at line 7")
+[SQL: 
+CREATE TABLE messages (
+	id BIGINT NOT NULL AUTO_INCREMENT, 
+	conversation_id VARCHAR(36) NOT NULL, 
+	`role` ENUM('user','assistant','system') NOT NULL, 
+	content TEXT NOT NULL, 
+	created_at DATETIME, 
+	msg_metadata JSON, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(conversation_id) REFERENCES conversations (id)
+)
+
+]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-19 20:56:36.633 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-19 20:56:36.634 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-19 20:56:36.634 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-19 20:56:36.671 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-19 20:56:36.671 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-19 20:56:36.671 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-19 20:56:36.912 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-19 20:56:36.912 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-19 20:56:36.913 | INFO     | src.tools.registry:init_default_tools:345 | 初始化默认工具...
+2025-12-19 20:56:36.916 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-19 20:56:36.916 | INFO     | src.tools.registry:register:63 | 注册工具: get_basin_info (类别: basin_info)
+2025-12-19 20:56:36.916 | INFO     | src.tools.registry:register:63 | 注册工具: get_river_info (类别: basin_info)
+2025-12-19 20:56:36.916 | INFO     | src.tools.registry:register:63 | 注册工具: get_water_projects (类别: basin_info)
+2025-12-19 20:56:36.917 | INFO     | src.tools.registry:register:63 | 注册工具: get_administrative_divisions (类别: basin_info)
+2025-12-19 20:56:36.917 | INFO     | src.tools.basin_info:register_basin_info_tools:419 | 流域基本信息工具注册完成
+2025-12-19 20:56:36.920 | INFO     | src.tools.registry:register:63 | 注册工具: query_water_level (类别: hydro_monitor)
+2025-12-19 20:56:36.921 | INFO     | src.tools.registry:register:63 | 注册工具: query_rainfall (类别: hydro_monitor)
+2025-12-19 20:56:36.921 | INFO     | src.tools.registry:register:63 | 注册工具: query_flow (类别: hydro_monitor)
+2025-12-19 20:56:36.921 | INFO     | src.tools.registry:register:63 | 注册工具: query_reservoir (类别: hydro_monitor)
+2025-12-19 20:56:36.921 | INFO     | src.tools.registry:register:63 | 注册工具: list_stations (类别: hydro_monitor)
+2025-12-19 20:56:36.922 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:525 | 水雨情监测工具注册完成
+2025-12-19 20:56:36.925 | INFO     | src.tools.registry:register:63 | 注册工具: run_flood_forecast (类别: flood_control)
+2025-12-19 20:56:36.925 | INFO     | src.tools.registry:register:63 | 注册工具: get_forecast_result (类别: flood_control)
+2025-12-19 20:56:36.925 | INFO     | src.tools.registry:register:63 | 注册工具: get_flood_warning (类别: flood_control)
+2025-12-19 20:56:36.926 | INFO     | src.tools.registry:register:63 | 注册工具: query_historical_flood (类别: flood_control)
+2025-12-19 20:56:36.926 | INFO     | src.tools.registry:register:63 | 注册工具: generate_emergency_plan (类别: flood_control)
+2025-12-19 20:56:36.926 | INFO     | src.tools.flood_control:register_flood_control_tools:531 | 防洪业务工具注册完成
+2025-12-19 20:56:36.928 | INFO     | src.tools.registry:register:63 | 注册工具: run_hydrological_model (类别: hydro_model)
+2025-12-19 20:56:36.929 | INFO     | src.tools.registry:register:63 | 注册工具: run_hydrodynamic_model (类别: hydro_model)
+2025-12-19 20:56:36.929 | INFO     | src.tools.registry:register:63 | 注册工具: get_model_result (类别: hydro_model)
+2025-12-19 20:56:36.929 | INFO     | src.tools.hydro_model:register_hydro_model_tools:253 | 水利专业模型工具注册完成
+2025-12-19 20:56:36.931 | INFO     | src.tools.registry:register:63 | 注册工具: assess_flood_damage (类别: damage_assess)
+2025-12-19 20:56:36.931 | INFO     | src.tools.registry:register:63 | 注册工具: get_vulnerability_data (类别: damage_assess)
+2025-12-19 20:56:36.931 | INFO     | src.tools.damage_assess:register_damage_assess_tools:185 | 灾损评估工具注册完成
+2025-12-19 20:56:36.931 | INFO     | src.tools.registry:init_default_tools:354 | 默认工具加载完成
+2025-12-19 20:56:36.932 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-19 20:56:36.932 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-19 20:56:36.935 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-19 20:56:36.935 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_forecast
+2025-12-19 20:56:36.935 | INFO     | src.workflows.registry:register:51 | 注册工作流: emergency_plan
+2025-12-19 20:56:36.935 | INFO     | src.workflows.registry:init_default_workflows:183 | 默认工作流加载完成
+2025-12-19 20:56:36.936 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-19 20:56:37.432 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-19 20:56:59.789 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-19 20:56:59.789 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-19 20:56:59.789 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-19 20:56:59.790 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-19 20:56:59.790 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...

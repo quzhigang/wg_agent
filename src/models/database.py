@@ -1,0 +1,171 @@
+"""
+SQLAlchemy数据库模型定义
+"""
+
+from datetime import datetime
+from typing import Optional
+from sqlalchemy import (
+    create_engine, Column, String, Integer, BigInteger, 
+    Text, DateTime, Boolean, Enum, ForeignKey
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker, relationship
+from ..config.settings import settings
+
+# 创建Base类
+Base = declarative_base()
+
+
+class Conversation(Base):
+    """会话表"""
+    __tablename__ = "conversations"
+    
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(100), nullable=True, index=True)
+    title = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    summary = Column(Text, nullable=True)  # 长对话摘要
+    
+    # 关系
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    async_tasks = relationship("AsyncTask", back_populates="conversation", cascade="all, delete-orphan")
+    tool_call_logs = relationship("ToolCallLog", back_populates="conversation", cascade="all, delete-orphan")
+
+
+class Message(Base):
+    """消息历史表"""
+    __tablename__ = "messages"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=False, index=True)
+    role = Column(Enum("user", "assistant", "system", name="message_role"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    msg_metadata = Column(Text, nullable=True)  # 附加元数据（JSON格式文本，兼容旧版MySQL）
+    
+    # 关系
+    conversation = relationship("Conversation", back_populates="messages")
+
+
+class AsyncTask(Base):
+    """异步任务表"""
+    __tablename__ = "async_tasks"
+    
+    id = Column(String(36), primary_key=True)
+    conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=True, index=True)
+    task_type = Column(String(100), nullable=False)
+    status = Column(
+        Enum("pending", "running", "completed", "failed", "cancelled", name="task_status"),
+        default="pending"
+    )
+    input_params = Column(Text, nullable=True)  # JSON格式文本
+    result = Column(Text, nullable=True)  # JSON格式文本
+    error_message = Column(Text, nullable=True)
+    retry_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    
+    # 关系
+    conversation = relationship("Conversation", back_populates="async_tasks")
+
+
+class GeneratedPage(Base):
+    """生成页面缓存表"""
+    __tablename__ = "generated_pages"
+    
+    id = Column(String(36), primary_key=True)
+    content_hash = Column(String(64), unique=True, index=True)  # 内容哈希，用于去重
+    page_type = Column(String(100), nullable=True)
+    template_used = Column(String(100), nullable=True)
+    file_path = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_accessed_at = Column(DateTime, nullable=True)
+    access_count = Column(Integer, default=0)
+
+
+class ToolCallLog(Base):
+    """工具调用日志表"""
+    __tablename__ = "tool_call_logs"
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=True, index=True)
+    tool_name = Column(String(100), nullable=False, index=True)
+    input_params = Column(Text, nullable=True)  # JSON格式文本
+    output_result = Column(Text, nullable=True)  # JSON格式文本
+    status = Column(Enum("success", "failed", name="tool_call_status"), nullable=False)
+    execution_time_ms = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # 关系
+    conversation = relationship("Conversation", back_populates="tool_call_logs")
+
+
+# 数据库引擎和会话工厂
+def get_engine():
+    """获取同步数据库引擎"""
+    return create_engine(
+        settings.mysql_url,
+        echo=settings.api_debug,
+        pool_pre_ping=True,
+        pool_recycle=3600
+    )
+
+
+def get_async_engine():
+    """获取异步数据库引擎"""
+    return create_async_engine(
+        settings.async_mysql_url,
+        echo=settings.api_debug,
+        pool_pre_ping=True,
+        pool_recycle=3600
+    )
+
+
+# 同步会话工厂
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+
+# 异步会话工厂
+AsyncSessionLocal = sessionmaker(
+    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
+    bind=get_async_engine()
+)
+
+
+def get_db():
+    """获取同步数据库会话"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+async def get_async_db():
+    """获取异步数据库会话"""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+
+def init_database():
+    """初始化数据库，创建所有表"""
+    engine = get_engine()
+    Base.metadata.create_all(bind=engine)
+    return engine
+
+
+async def async_init_database():
+    """异步初始化数据库"""
+    engine = get_async_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    return engine

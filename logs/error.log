@@ -1,0 +1,19 @@
+2025-12-19 20:50:43.045 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.OperationalError) (1045, "Access denied for user 'root'@'localhost' (using password: YES)")
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-12-19 20:52:31.097 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.OperationalError) (1045, "Access denied for user 'root'@'localhost' (using password: YES)")
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2025-12-19 20:54:32.042 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.ProgrammingError) (1064, "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'JSON, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(conversation_id) REFERENCES conversation' at line 7")
+[SQL: 
+CREATE TABLE messages (
+	id BIGINT NOT NULL AUTO_INCREMENT, 
+	conversation_id VARCHAR(36) NOT NULL, 
+	`role` ENUM('user','assistant','system') NOT NULL, 
+	content TEXT NOT NULL, 
+	created_at DATETIME, 
+	msg_metadata JSON, 
+	PRIMARY KEY (id), 
+	FOREIGN KEY(conversation_id) REFERENCES conversations (id)
+)
+
+]
+(Background on this error at: https://sqlalche.me/e/20/f405)

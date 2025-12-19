@@ -1,0 +1,40 @@
+# Core Framework
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-community>=0.3.0
+
+# Web Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+websockets>=13.0
+python-multipart>=0.0.12
+
+# Database
+sqlalchemy>=2.0.0
+pymysql>=1.1.0
+aiomysql>=0.2.0
+
+# Vector Database & Embeddings
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
+
+# HTTP Client
+aiohttp>=3.10.0
+httpx>=0.27.0
+
+# Data Processing
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+python-dotenv>=1.0.0
+
+# Utilities
+tenacity>=9.0.0
+python-dateutil>=2.9.0
+uuid6>=2024.7.10
+
+# Logging
+loguru>=0.7.0
+
+# For Web Search (optional)
+duckduckgo-search>=6.3.0
