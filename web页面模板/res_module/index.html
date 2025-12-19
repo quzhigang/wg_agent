@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水库洪水预报结果展示 - 主内容区</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/echarts.min.js"></script>
+    <script src="https://js.arcgis.com/4.29/"></script>
+    <link rel="icon" href="data:;base64,=">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Main Content -->
+        <main class="right-main">
+            <!-- Top Row -->
+            <div class="top-section">
+                <div class="conclusion-box panel-style">
+                    <div class="conclusion-inner">
+                        <div class="conclusion-title">盘石头水库洪水预报结果</div>
+                        <div id="statsGrid" class="stats-grid"></div>
+
+                    </div>
+                </div>
+
+                <!-- Horizontal Resizer (Conclusion / Map) -->
+                <div class="resizer resizer-h" id="resizer-top"></div>
+
+                <div class="map-box panel-style">
+                    <div id="viewDiv"></div>
+                </div>
+            </div>
+
+            <!-- Horizontal Resizer (Top section / Bottom section) -->
+            <div class="resizer resizer-v" id="resizer-main-v"></div>
+
+            <!-- Bottom Row -->
+            <div class="bottom-section panel-style">
+                <div id="chartDiv"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/rain.js"></script>
+    <script src="js/resizer.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
