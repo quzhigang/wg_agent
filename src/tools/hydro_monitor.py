@@ -1,6 +1,25 @@
 """
 水雨情监测数据工具
 提供水位、雨量、流量等实时和历史数据查询功能
+
+本模块包含以下15个接口工具：
+1. 雨量过程数据查询接口
+2. 雨量统计数据查询接口
+3. 雨量累计查询接口
+4. 水库最新水情查询接口
+5. 水库水情过程查询接口
+6. 河道最新水情查询接口
+7. 河道水情过程查询接口
+8. AI水情最新数据查询接口
+9. AI水情过程数据查询接口
+10. AI雨量最新数据查询接口
+11. AI雨量过程数据查询接口
+12. 视频监控预览接口
+13. 传感器数据过程查询接口
+14. 无人机设备状态查询接口
+15. 短信发送接口
+
+所有接口的基础地址为: http://10.20.2.153
 """
 
 from typing import Dict, Any, List, Optional
@@ -15,16 +34,23 @@ from .registry import register_tool
 logger = get_logger(__name__)
 
 
-class QueryWaterLevelTool(BaseTool):
-    """查询水位数据工具"""
+# =============================================================================
+# 一、雨情监测接口（3个）
+# =============================================================================
+
+class QueryRainProcessTool(BaseTool):
+    """
+    1. 雨量过程数据查询接口
+    根据测站编码和时间范围查询雨量历史过程数据
+    """
     
     @property
     def name(self) -> str:
-        return "query_water_level"
+        return "query_rain_process"
     
     @property
     def description(self) -> str:
-        return "查询指定测站的水位数据，支持实时数据和历史数据查询"
+        return "根据测站编码和时间范围查询雨量历史过程数据，返回时段降水量、日降水量、累计降水量等信息"
     
     @property
     def category(self) -> ToolCategory:
@@ -34,69 +60,50 @@ class QueryWaterLevelTool(BaseTool):
     def parameters(self) -> List[ToolParameter]:
         return [
             ToolParameter(
-                name="station_id",
+                name="stcd",
                 type="string",
                 description="测站编码",
-                required=False
+                required=True
             ),
             ToolParameter(
-                name="station_name",
+                name="search_begin_time",
                 type="string",
-                description="测站名称（模糊匹配）",
-                required=False
+                description="查询开始时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
             ),
             ToolParameter(
-                name="start_time",
+                name="search_end_time",
                 type="string",
-                description="开始时间，格式: YYYY-MM-DD HH:mm:ss",
-                required=False
-            ),
-            ToolParameter(
-                name="end_time",
-                type="string",
-                description="结束时间，格式: YYYY-MM-DD HH:mm:ss",
-                required=False
-            ),
-            ToolParameter(
-                name="latest",
-                type="boolean",
-                description="是否只查询最新数据",
-                required=False,
-                default=True
+                description="查询结束时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
             )
         ]
     
     async def execute(self, **kwargs) -> ToolResult:
-        """执行水位查询"""
-        station_id = kwargs.get('station_id')
-        station_name = kwargs.get('station_name')
-        start_time = kwargs.get('start_time')
-        end_time = kwargs.get('end_time')
-        latest = kwargs.get('latest', True)
+        """
+        执行雨量过程数据查询
+        
+        Args:
+            stcd: 测站编码
+            search_begin_time: 查询开始时间
+            search_end_time: 查询结束时间
+            
+        Returns:
+            ToolResult: 包含雨量过程数据的查询结果
+        """
+        stcd = kwargs.get('stcd')
+        search_begin_time = kwargs.get('search_begin_time')
+        search_end_time = kwargs.get('search_end_time')
         
         try:
             # 构建API请求
             base_url = settings.wg_data_server_url
-            
-            if latest:
-                # 查询最新水位
-                url = f"{base_url}/api/hydro/water_level/latest"
-                params = {}
-                if station_id:
-                    params['stcd'] = station_id
-                if station_name:
-                    params['stnm'] = station_name
-            else:
-                # 查询历史水位
-                url = f"{base_url}/api/hydro/water_level/history"
-                params = {
-                    'start_time': start_time or (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S'),
-                    'end_time': end_time or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                }
-                if station_id:
-                    params['stcd'] = station_id
-                if station_name:
-                    params['stnm'] = station_name
+            url = f"{base_url}/api/basin/rwdb/rain/processList"
+            params = {
+                'STCD': stcd,
+                'searchBeginTime': search_begin_time,
+                'searchEndTime': search_end_time
+            }
             
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url, params=params)
@@ -104,268 +111,275 @@ class QueryWaterLevelTool(BaseTool):
                 data = response.json()
             
             # 处理返回数据
-            if isinstance(data, dict) and 'data' in data:
-                result_data = data['data']
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "rain_process",
+                        "stcd": stcd,
+                        "time_range": f"{search_begin_time} ~ {search_end_time}",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
             else:
-                result_data = data
-            
-            return ToolResult(
-                success=True,
-                data=result_data,
-                metadata={
-                    "query_type": "latest" if latest else "history",
-                    "station_id": station_id,
-                    "record_count": len(result_data) if isinstance(result_data, list) else 1
-                }
-            )
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
             
         except httpx.HTTPError as e:
-            logger.error(f"水位查询HTTP错误: {e}")
-            # 返回模拟数据用于测试
-            return self._get_mock_data(station_id, station_name, latest)
+            logger.error(f"雨量过程数据查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
         except Exception as e:
-            logger.error(f"水位查询失败: {e}")
+            logger.error(f"雨量过程数据查询失败: {e}")
             return ToolResult(success=False, error=str(e))
+
+
+class QueryRainStatisticsTool(BaseTool):
+    """
+    2. 雨量统计数据查询接口
+    根据测站编码查询雨量统计数据，包含1小时、3小时、6小时、12小时、24小时等多时段的雨量统计信息
+    """
     
-    def _get_mock_data(self, station_id: str, station_name: str, latest: bool) -> ToolResult:
-        """返回模拟数据（用于API不可用时的测试）"""
-        mock_data = [
-            {
-                "stcd": station_id or "60105400",
-                "stnm": station_name or "卫辉站",
-                "tm": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                "z": 78.52,  # 水位
-                "warning_level": 79.00,
-                "guarantee_level": 80.50
+    @property
+    def name(self) -> str:
+        return "query_rain_statistics"
+    
+    @property
+    def description(self) -> str:
+        return "根据测站编码查询雨量统计数据，返回1小时、3小时、6小时、12小时、24小时等多时段的雨量统计信息"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行雨量统计数据查询
+        
+        Args:
+            stcd: 测站编码
+            
+        Returns:
+            ToolResult: 包含不同时段雨量统计数据的查询结果
+        """
+        stcd = kwargs.get('stcd')
+        
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/rwdb/rain/statistics"
+            params = {'STCD': stcd}
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', {})
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "rain_statistics",
+                        "stcd": stcd,
+                        "time_periods": ["1hour", "3hour", "6hour", "12hour", "24hour"]
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"雨量统计数据查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"雨量统计数据查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+class QueryRainSumTool(BaseTool):
+    """
+    3. 雨量累计查询接口
+    根据时间范围查询所有测站的雨量累计数据
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_rain_sum"
+    
+    @property
+    def description(self) -> str:
+        return "根据时间范围查询所有测站的雨量累计数据，返回测站编码、名称、累计降水量、测站位置等信息"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="search_begin_time",
+                type="string",
+                description="查询开始时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            ),
+            ToolParameter(
+                name="search_end_time",
+                type="string",
+                description="查询结束时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行雨量累计查询
+        
+        Args:
+            search_begin_time: 查询开始时间
+            search_end_time: 查询结束时间
+            
+        Returns:
+            ToolResult: 包含所有测站雨量累计数据的查询结果
+        """
+        search_begin_time = kwargs.get('search_begin_time')
+        search_end_time = kwargs.get('search_end_time')
+        
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/rwdb/rain/sum"
+            params = {
+                'searchBeginTime': search_begin_time,
+                'searchEndTime': search_end_time
             }
-        ]
-        return ToolResult(
-            success=True,
-            data=mock_data,
-            metadata={"is_mock": True}
-        )
-
-
-class QueryRainfallTool(BaseTool):
-    """查询雨量数据工具"""
-    
-    @property
-    def name(self) -> str:
-        return "query_rainfall"
-    
-    @property
-    def description(self) -> str:
-        return "查询指定测站或区域的雨量数据，支持时段雨量和累计雨量"
-    
-    @property
-    def category(self) -> ToolCategory:
-        return ToolCategory.HYDRO_MONITOR
-    
-    @property
-    def parameters(self) -> List[ToolParameter]:
-        return [
-            ToolParameter(
-                name="station_id",
-                type="string",
-                description="测站编码",
-                required=False
-            ),
-            ToolParameter(
-                name="station_name",
-                type="string",
-                description="测站名称",
-                required=False
-            ),
-            ToolParameter(
-                name="start_time",
-                type="string",
-                description="开始时间",
-                required=False
-            ),
-            ToolParameter(
-                name="end_time",
-                type="string",
-                description="结束时间",
-                required=False
-            ),
-            ToolParameter(
-                name="period",
-                type="string",
-                description="统计周期: 1h(1小时), 3h(3小时), 6h(6小时), 12h(12小时), 24h(24小时)",
-                required=False,
-                default="24h",
-                enum=["1h", "3h", "6h", "12h", "24h"]
-            )
-        ]
-    
-    async def execute(self, **kwargs) -> ToolResult:
-        """执行雨量查询"""
-        station_id = kwargs.get('station_id')
-        station_name = kwargs.get('station_name')
-        start_time = kwargs.get('start_time')
-        end_time = kwargs.get('end_time')
-        period = kwargs.get('period', '24h')
-        
-        try:
-            base_url = settings.wg_data_server_url
-            url = f"{base_url}/api/hydro/rainfall"
-            
-            params = {'period': period}
-            if station_id:
-                params['stcd'] = station_id
-            if station_name:
-                params['stnm'] = station_name
-            if start_time:
-                params['start_time'] = start_time
-            if end_time:
-                params['end_time'] = end_time
             
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
                 data = response.json()
             
-            result_data = data.get('data', data)
-            
-            return ToolResult(
-                success=True,
-                data=result_data,
-                metadata={
-                    "period": period,
-                    "record_count": len(result_data) if isinstance(result_data, list) else 1
-                }
-            )
-            
-        except httpx.HTTPError as e:
-            logger.error(f"雨量查询HTTP错误: {e}")
-            return self._get_mock_data(period)
-        except Exception as e:
-            logger.error(f"雨量查询失败: {e}")
-            return ToolResult(success=False, error=str(e))
-    
-    def _get_mock_data(self, period: str) -> ToolResult:
-        """返回模拟数据"""
-        mock_data = [
-            {"stcd": "60105400", "stnm": "卫辉站", "drp": 12.5, "period": period},
-            {"stcd": "60105410", "stnm": "淇县站", "drp": 8.2, "period": period},
-            {"stcd": "60105420", "stnm": "浚县站", "drp": 15.8, "period": period}
-        ]
-        return ToolResult(success=True, data=mock_data, metadata={"is_mock": True})
-
-
-class QueryFlowTool(BaseTool):
-    """查询流量数据工具"""
-    
-    @property
-    def name(self) -> str:
-        return "query_flow"
-    
-    @property
-    def description(self) -> str:
-        return "查询指定测站的流量数据"
-    
-    @property
-    def category(self) -> ToolCategory:
-        return ToolCategory.HYDRO_MONITOR
-    
-    @property
-    def parameters(self) -> List[ToolParameter]:
-        return [
-            ToolParameter(
-                name="station_id",
-                type="string",
-                description="测站编码",
-                required=False
-            ),
-            ToolParameter(
-                name="station_name",
-                type="string",
-                description="测站名称",
-                required=False
-            ),
-            ToolParameter(
-                name="start_time",
-                type="string",
-                description="开始时间",
-                required=False
-            ),
-            ToolParameter(
-                name="end_time",
-                type="string",
-                description="结束时间",
-                required=False
-            ),
-            ToolParameter(
-                name="latest",
-                type="boolean",
-                description="是否只查询最新数据",
-                required=False,
-                default=True
-            )
-        ]
-    
-    async def execute(self, **kwargs) -> ToolResult:
-        """执行流量查询"""
-        station_id = kwargs.get('station_id')
-        station_name = kwargs.get('station_name')
-        latest = kwargs.get('latest', True)
-        
-        try:
-            base_url = settings.wg_data_server_url
-            
-            if latest:
-                url = f"{base_url}/api/hydro/flow/latest"
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "rain_sum",
+                        "time_range": f"{search_begin_time} ~ {search_end_time}",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
             else:
-                url = f"{base_url}/api/hydro/flow/history"
-            
-            params = {}
-            if station_id:
-                params['stcd'] = station_id
-            if station_name:
-                params['stnm'] = station_name
-            
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
-            
-            result_data = data.get('data', data)
-            
-            return ToolResult(
-                success=True,
-                data=result_data,
-                metadata={"query_type": "latest" if latest else "history"}
-            )
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
             
         except httpx.HTTPError as e:
-            logger.error(f"流量查询HTTP错误: {e}")
-            return self._get_mock_data(station_id, station_name)
+            logger.error(f"雨量累计查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
         except Exception as e:
-            logger.error(f"流量查询失败: {e}")
+            logger.error(f"雨量累计查询失败: {e}")
             return ToolResult(success=False, error=str(e))
-    
-    def _get_mock_data(self, station_id: str, station_name: str) -> ToolResult:
-        """返回模拟数据"""
-        mock_data = [{
-            "stcd": station_id or "60105400",
-            "stnm": station_name or "卫辉站",
-            "tm": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            "q": 156.8,  # 流量 m³/s
-            "z": 78.52   # 水位
-        }]
-        return ToolResult(success=True, data=mock_data, metadata={"is_mock": True})
 
 
-class QueryReservoirTool(BaseTool):
-    """查询水库数据工具"""
+# =============================================================================
+# 二、水库水情监测接口（2个）
+# =============================================================================
+
+class QueryReservoirLastTool(BaseTool):
+    """
+    4. 水库最新水情查询接口
+    获取所有水库的最新实时水情数据，包括水位、蓄水量、入库流量、出库流量等
+    """
     
     @property
     def name(self) -> str:
-        return "query_reservoir"
+        return "query_reservoir_last"
     
     @property
     def description(self) -> str:
-        return "查询水库的库容、水位、蓄水量等信息"
+        return "获取所有水库的最新实时水情数据，包括库水位、蓄水量、入库流量、出库流量等信息"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        # 该接口无需参数
+        return []
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行水库最新水情查询
+        
+        Returns:
+            ToolResult: 包含所有水库最新水情数据的查询结果
+        """
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/rwdb/rsvr/last"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "reservoir_last",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"水库最新水情查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"水库最新水情查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+class QueryReservoirProcessTool(BaseTool):
+    """
+    5. 水库水情过程查询接口
+    根据测站编码和时间范围查询水库的历史水情过程数据
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_reservoir_process"
+    
+    @property
+    def description(self) -> str:
+        return "根据测站编码和时间范围查询水库的历史水情过程数据，返回库水位、蓄水量、入库流量、出库流量等时序数据"
     
     @property
     def category(self) -> ToolCategory:
@@ -375,78 +389,161 @@ class QueryReservoirTool(BaseTool):
     def parameters(self) -> List[ToolParameter]:
         return [
             ToolParameter(
-                name="reservoir_id",
+                name="stcd",
                 type="string",
-                description="水库编码",
-                required=False
+                description="测站编码",
+                required=True
             ),
             ToolParameter(
-                name="reservoir_name",
+                name="search_begin_time",
                 type="string",
-                description="水库名称",
-                required=False
+                description="查询开始时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            ),
+            ToolParameter(
+                name="search_end_time",
+                type="string",
+                description="查询结束时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
             )
         ]
     
     async def execute(self, **kwargs) -> ToolResult:
-        """执行水库查询"""
-        reservoir_id = kwargs.get('reservoir_id')
-        reservoir_name = kwargs.get('reservoir_name')
+        """
+        执行水库水情过程查询
+        
+        Args:
+            stcd: 测站编码
+            search_begin_time: 查询开始时间
+            search_end_time: 查询结束时间
+            
+        Returns:
+            ToolResult: 包含水库历史水情过程数据的查询结果
+        """
+        stcd = kwargs.get('stcd')
+        search_begin_time = kwargs.get('search_begin_time')
+        search_end_time = kwargs.get('search_end_time')
         
         try:
             base_url = settings.wg_data_server_url
-            url = f"{base_url}/api/hydro/reservoir"
-            
-            params = {}
-            if reservoir_id:
-                params['rscd'] = reservoir_id
-            if reservoir_name:
-                params['rsnm'] = reservoir_name
+            url = f"{base_url}/api/basin/rwdb/rsvr/processList"
+            params = {
+                'STCD': stcd,
+                'searchBeginTime': search_begin_time,
+                'searchEndTime': search_end_time
+            }
             
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
                 data = response.json()
             
-            return ToolResult(
-                success=True,
-                data=data.get('data', data)
-            )
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "reservoir_process",
+                        "stcd": stcd,
+                        "time_range": f"{search_begin_time} ~ {search_end_time}",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
             
         except httpx.HTTPError as e:
-            logger.error(f"水库查询HTTP错误: {e}")
-            return self._get_mock_data(reservoir_name)
+            logger.error(f"水库水情过程查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
         except Exception as e:
-            logger.error(f"水库查询失败: {e}")
+            logger.error(f"水库水情过程查询失败: {e}")
             return ToolResult(success=False, error=str(e))
-    
-    def _get_mock_data(self, reservoir_name: str) -> ToolResult:
-        """返回模拟数据"""
-        mock_data = [{
-            "rscd": "41050100011",
-            "rsnm": reservoir_name or "良相水库",
-            "tm": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            "rz": 125.6,  # 库水位
-            "w": 1580.5,  # 蓄水量(万m³)
-            "inq": 12.5,  # 入库流量
-            "otq": 8.2,   # 出库流量
-            "flood_limit_level": 128.0,  # 汛限水位
-            "normal_level": 130.0,  # 正常蓄水位
-            "design_level": 132.5   # 设计洪水位
-        }]
-        return ToolResult(success=True, data=mock_data, metadata={"is_mock": True})
 
 
-class ListStationsTool(BaseTool):
-    """列出测站工具"""
+# =============================================================================
+# 三、河道水情监测接口（2个）
+# =============================================================================
+
+class QueryRiverLastTool(BaseTool):
+    """
+    6. 河道最新水情查询接口
+    获取所有河道测站的最新实时水情数据，包括水位、流量等
+    """
     
     @property
     def name(self) -> str:
-        return "list_stations"
+        return "query_river_last"
     
     @property
     def description(self) -> str:
-        return "列出流域内的测站信息，可按类型筛选"
+        return "获取所有河道测站的最新实时水情数据，包括水位、流量、水势、告警级别等信息"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        # 该接口无需参数
+        return []
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行河道最新水情查询
+        
+        Returns:
+            ToolResult: 包含所有河道测站最新水情数据的查询结果
+        """
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/rwdb/river/last"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "river_last",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"河道最新水情查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"河道最新水情查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+class QueryRiverProcessTool(BaseTool):
+    """
+    7. 河道水情过程查询接口
+    根据测站编码和时间范围查询河道水情历史过程数据
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_river_process"
+    
+    @property
+    def description(self) -> str:
+        return "根据测站编码和时间范围查询河道水情历史过程数据，返回水位、流量、水势等时序数据"
     
     @property
     def category(self) -> ToolCategory:
@@ -456,73 +553,809 @@ class ListStationsTool(BaseTool):
     def parameters(self) -> List[ToolParameter]:
         return [
             ToolParameter(
-                name="station_type",
+                name="stcd",
                 type="string",
-                description="测站类型: PP(雨量站), ZZ(水位站), ZQ(水文站), RR(水库)",
-                required=False,
-                enum=["PP", "ZZ", "ZQ", "RR"]
+                description="测站编码",
+                required=True
             ),
             ToolParameter(
-                name="river_name",
+                name="search_begin_time",
                 type="string",
-                description="河流名称",
-                required=False
+                description="查询开始时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            ),
+            ToolParameter(
+                name="search_end_time",
+                type="string",
+                description="查询结束时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
             )
         ]
     
     async def execute(self, **kwargs) -> ToolResult:
-        """列出测站"""
-        station_type = kwargs.get('station_type')
-        river_name = kwargs.get('river_name')
+        """
+        执行河道水情过程查询
+        
+        Args:
+            stcd: 测站编码
+            search_begin_time: 查询开始时间
+            search_end_time: 查询结束时间
+            
+        Returns:
+            ToolResult: 包含河道历史水情过程数据的查询结果
+        """
+        stcd = kwargs.get('stcd')
+        search_begin_time = kwargs.get('search_begin_time')
+        search_end_time = kwargs.get('search_end_time')
         
         try:
             base_url = settings.wg_data_server_url
-            url = f"{base_url}/api/station/list"
-            
-            params = {}
-            if station_type:
-                params['sttp'] = station_type
-            if river_name:
-                params['rvnm'] = river_name
+            url = f"{base_url}/api/basin/rwdb/river/processList"
+            params = {
+                'STCD': stcd,
+                'searchBeginTime': search_begin_time,
+                'searchEndTime': search_end_time
+            }
             
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
                 data = response.json()
             
-            return ToolResult(
-                success=True,
-                data=data.get('data', data)
-            )
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "river_process",
+                        "stcd": stcd,
+                        "time_range": f"{search_begin_time} ~ {search_end_time}",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
             
         except httpx.HTTPError as e:
-            logger.error(f"测站列表查询HTTP错误: {e}")
-            return self._get_mock_data(station_type)
+            logger.error(f"河道水情过程查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
         except Exception as e:
-            logger.error(f"测站列表查询失败: {e}")
+            logger.error(f"河道水情过程查询失败: {e}")
             return ToolResult(success=False, error=str(e))
+
+
+# =============================================================================
+# 四、AI智能监测数据接口（4个）
+# =============================================================================
+
+class QueryAiWaterLastTool(BaseTool):
+    """
+    8. AI水情最新数据查询接口
+    获取AI智能监测设备的最新水情数据
+    """
     
-    def _get_mock_data(self, station_type: str) -> ToolResult:
-        """返回模拟数据"""
-        mock_data = [
-            {"stcd": "60105400", "stnm": "卫辉站", "sttp": "ZQ", "rvnm": "卫河", "lgtd": 114.05, "lttd": 35.42},
-            {"stcd": "60105410", "stnm": "淇县站", "sttp": "ZZ", "rvnm": "淇河", "lgtd": 114.18, "lttd": 35.58},
-            {"stcd": "60105420", "stnm": "浚县站", "sttp": "ZQ", "rvnm": "卫河", "lgtd": 114.32, "lttd": 35.68}
+    @property
+    def name(self) -> str:
+        return "query_ai_water_last"
+    
+    @property
+    def description(self) -> str:
+        return "获取AI智能监测设备的最新水情数据，返回测站编码、名称、水位、数据时间等信息"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        # 该接口无需参数
+        return []
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行AI水情最新数据查询
+        
+        Returns:
+            ToolResult: 包含AI智能监测设备最新水情数据的查询结果
+        """
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/monitor/ai/water/last"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "ai_water_last",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"AI水情最新数据查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"AI水情最新数据查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+class QueryAiWaterProcessTool(BaseTool):
+    """
+    9. AI水情过程数据查询接口
+    根据测站编码和时间范围查询AI智能监测设备的水情历史过程数据
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_ai_water_process"
+    
+    @property
+    def description(self) -> str:
+        return "根据测站编码和时间范围查询AI智能监测设备的水情历史过程数据"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码",
+                required=True
+            ),
+            ToolParameter(
+                name="st",
+                type="string",
+                description="开始时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            ),
+            ToolParameter(
+                name="ed",
+                type="string",
+                description="结束时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            )
         ]
-        if station_type:
-            mock_data = [s for s in mock_data if s['sttp'] == station_type]
-        return ToolResult(success=True, data=mock_data, metadata={"is_mock": True})
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行AI水情过程数据查询
+        
+        Args:
+            stcd: 测站编码
+            st: 开始时间
+            ed: 结束时间
+            
+        Returns:
+            ToolResult: 包含AI智能监测设备水情历史过程数据的查询结果
+        """
+        stcd = kwargs.get('stcd')
+        st = kwargs.get('st')
+        ed = kwargs.get('ed')
+        
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/monitor/ai/water/process"
+            params = {
+                'stcd': stcd,
+                'st': st,
+                'ed': ed
+            }
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "ai_water_process",
+                        "stcd": stcd,
+                        "time_range": f"{st} ~ {ed}",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"AI水情过程数据查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"AI水情过程数据查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
 
 
-# 注册工具
+class QueryAiRainLastTool(BaseTool):
+    """
+    10. AI雨量最新数据查询接口
+    获取AI智能监测设备的最新雨量数据
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_ai_rain_last"
+    
+    @property
+    def description(self) -> str:
+        return "获取AI智能监测设备的最新雨量数据，返回测站编码、名称、时段降水量、数据时间等信息"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        # 该接口无需参数
+        return []
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行AI雨量最新数据查询
+        
+        Returns:
+            ToolResult: 包含AI智能监测设备最新雨量数据的查询结果
+        """
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/monitor/ai/rain/last"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "ai_rain_last",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"AI雨量最新数据查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"AI雨量最新数据查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+class QueryAiRainProcessTool(BaseTool):
+    """
+    11. AI雨量过程数据查询接口
+    根据测站编码和时间范围查询AI智能监测设备的雨量历史过程数据
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_ai_rain_process"
+    
+    @property
+    def description(self) -> str:
+        return "根据测站编码和时间范围查询AI智能监测设备的雨量历史过程数据"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码",
+                required=True
+            ),
+            ToolParameter(
+                name="st",
+                type="string",
+                description="开始时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            ),
+            ToolParameter(
+                name="ed",
+                type="string",
+                description="结束时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行AI雨量过程数据查询
+        
+        Args:
+            stcd: 测站编码
+            st: 开始时间
+            ed: 结束时间
+            
+        Returns:
+            ToolResult: 包含AI智能监测设备雨量历史过程数据的查询结果
+        """
+        stcd = kwargs.get('stcd')
+        st = kwargs.get('st')
+        ed = kwargs.get('ed')
+        
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/monitor/ai/rain/process"
+            params = {
+                'stcd': stcd,
+                'st': st,
+                'ed': ed
+            }
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "ai_rain_process",
+                        "stcd": stcd,
+                        "time_range": f"{st} ~ {ed}",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"AI雨量过程数据查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"AI雨量过程数据查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# =============================================================================
+# 五、视频监控接口（1个）
+# =============================================================================
+
+class QueryCameraPreviewTool(BaseTool):
+    """
+    12. 视频监控预览接口
+    根据摄像头编码获取实时视频预览地址
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_camera_preview"
+    
+    @property
+    def description(self) -> str:
+        return "根据摄像头编码获取实时视频预览流地址"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="code",
+                type="string",
+                description="摄像头编码",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行视频监控预览查询
+        
+        Args:
+            code: 摄像头编码
+            
+        Returns:
+            ToolResult: 包含视频预览流地址的查询结果
+        """
+        code = kwargs.get('code')
+        
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/camera/preview"
+            params = {'code': code}
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', {})
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "camera_preview",
+                        "camera_code": code
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"视频监控预览查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"视频监控预览查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# =============================================================================
+# 六、传感器监测接口（1个）
+# =============================================================================
+
+class QuerySensorDataProcessTool(BaseTool):
+    """
+    13. 传感器数据过程查询接口
+    根据传感器ID和时间范围查询传感器的历史监测数据
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_sensor_data_process"
+    
+    @property
+    def description(self) -> str:
+        return "根据传感器ID和时间范围查询传感器的历史监测数据"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="sensor_id",
+                type="string",
+                description="传感器ID",
+                required=True
+            ),
+            ToolParameter(
+                name="st",
+                type="string",
+                description="开始时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            ),
+            ToolParameter(
+                name="ed",
+                type="string",
+                description="结束时间，格式：yyyy-MM-dd HH:mm:ss",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行传感器数据过程查询
+        
+        Args:
+            sensor_id: 传感器ID
+            st: 开始时间
+            ed: 结束时间
+            
+        Returns:
+            ToolResult: 包含传感器历史监测数据的查询结果
+        """
+        sensor_id = kwargs.get('sensor_id')
+        st = kwargs.get('st')
+        ed = kwargs.get('ed')
+        
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/monitor/sensor/data/process"
+            params = {
+                'sensorId': sensor_id,
+                'st': st,
+                'ed': ed
+            }
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', [])
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "sensor_data_process",
+                        "sensor_id": sensor_id,
+                        "time_range": f"{st} ~ {ed}",
+                        "record_count": len(result_data) if isinstance(result_data, list) else 1
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"传感器数据过程查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"传感器数据过程查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# =============================================================================
+# 七、无人机监测接口（1个）
+# =============================================================================
+
+class QueryDroneStatusTool(BaseTool):
+    """
+    14. 无人机设备状态查询接口
+    查询大疆无人机设备的实时状态
+    """
+    
+    @property
+    def name(self) -> str:
+        return "query_drone_status"
+    
+    @property
+    def description(self) -> str:
+        return "查询大疆无人机设备的实时状态，包括设备序列号、状态、电量、位置等信息"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="device_sn",
+                type="string",
+                description="无人机设备序列号",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行无人机设备状态查询
+        
+        Args:
+            device_sn: 无人机设备序列号
+            
+        Returns:
+            ToolResult: 包含无人机设备实时状态的查询结果
+        """
+        device_sn = kwargs.get('device_sn')
+        
+        try:
+            base_url = settings.wg_data_server_url
+            # 注意：设备序列号作为URL路径参数
+            url = f"{base_url}/api/djiuav/openapi/v0.1/device/{device_sn}/state"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                result_data = data.get('data', {})
+                return ToolResult(
+                    success=True,
+                    data=result_data,
+                    metadata={
+                        "query_type": "drone_status",
+                        "device_sn": device_sn
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '查询失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"无人机设备状态查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"无人机设备状态查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# =============================================================================
+# 八、告警短信接口（1个）
+# =============================================================================
+
+class SendSmsTool(BaseTool):
+    """
+    15. 短信发送接口
+    发送告警短信通知
+    """
+    
+    @property
+    def name(self) -> str:
+        return "send_sms"
+    
+    @property
+    def description(self) -> str:
+        return "发送告警短信通知，需要提供接收手机号码和短信内容"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="phone",
+                type="string",
+                description="接收短信的手机号码",
+                required=True
+            ),
+            ToolParameter(
+                name="content",
+                type="string",
+                description="短信内容",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """
+        执行短信发送
+        
+        Args:
+            phone: 接收短信的手机号码
+            content: 短信内容
+            
+        Returns:
+            ToolResult: 短信发送结果
+        """
+        phone = kwargs.get('phone')
+        content = kwargs.get('content')
+        
+        try:
+            base_url = settings.wg_data_server_url
+            url = f"{base_url}/api/basin/modelPlatf/sms/sendMsg"
+            
+            # 注意：这是POST请求，需要发送JSON请求体
+            json_data = {
+                'phone': phone,
+                'content': content
+            }
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    url,
+                    json=json_data,
+                    headers={'Content-Type': 'application/json'}
+                )
+                response.raise_for_status()
+                data = response.json()
+            
+            if data.get('success'):
+                return ToolResult(
+                    success=True,
+                    data={"message": "短信发送成功"},
+                    metadata={
+                        "query_type": "send_sms",
+                        "phone": phone
+                    }
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=data.get('message', '短信发送失败')
+                )
+            
+        except httpx.HTTPError as e:
+            logger.error(f"短信发送HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"短信发送失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# =============================================================================
+# 工具注册
+# =============================================================================
+
 def register_hydro_monitor_tools():
-    """注册水雨情监测工具"""
-    register_tool(QueryWaterLevelTool())
-    register_tool(QueryRainfallTool())
-    register_tool(QueryFlowTool())
-    register_tool(QueryReservoirTool())
-    register_tool(ListStationsTool())
-    logger.info("水雨情监测工具注册完成")
+    """
+    注册水雨情监测工具
+    
+    共注册15个工具：
+    - 雨情监测: 3个 (雨量过程、雨量统计、雨量累计)
+    - 水库水情: 2个 (最新水情、水情过程)
+    - 河道水情: 2个 (最新水情、水情过程)
+    - AI智能监测: 4个 (水情最新、水情过程、雨量最新、雨量过程)
+    - 视频监控: 1个 (摄像头预览)
+    - 传感器监测: 1个 (数据过程)
+    - 无人机监测: 1个 (设备状态)
+    - 告警短信: 1个 (短信发送)
+    """
+    # 一、雨情监测接口
+    register_tool(QueryRainProcessTool())
+    register_tool(QueryRainStatisticsTool())
+    register_tool(QueryRainSumTool())
+    
+    # 二、水库水情监测接口
+    register_tool(QueryReservoirLastTool())
+    register_tool(QueryReservoirProcessTool())
+    
+    # 三、河道水情监测接口
+    register_tool(QueryRiverLastTool())
+    register_tool(QueryRiverProcessTool())
+    
+    # 四、AI智能监测数据接口
+    register_tool(QueryAiWaterLastTool())
+    register_tool(QueryAiWaterProcessTool())
+    register_tool(QueryAiRainLastTool())
+    register_tool(QueryAiRainProcessTool())
+    
+    # 五、视频监控接口
+    register_tool(QueryCameraPreviewTool())
+    
+    # 六、传感器监测接口
+    register_tool(QuerySensorDataProcessTool())
+    
+    # 七、无人机监测接口
+    register_tool(QueryDroneStatusTool())
+    
+    # 八、告警短信接口
+    register_tool(SendSmsTool())
+    
+    logger.info("水雨情监测工具注册完成，共注册15个工具")
 
 
 # 模块加载时自动注册

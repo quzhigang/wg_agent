@@ -1,6 +1,9 @@
 """
 流域基本信息工具
-提供流域概况、河流信息、水利设施等基础数据查询
+基于卫共流域数字孪生系统API接口进行封装，提供流域内测站基础信息、水库/水闸配置参数、
+蓄滞洪区信息、设备列表等静态或配置类信息的查询功能
+
+接口基础地址: http://10.20.2.153
 """
 
 from typing import Dict, Any, List, Optional
@@ -13,17 +16,28 @@ from .registry import register_tool
 
 logger = get_logger(__name__)
 
+# API基础地址常量
+API_BASE_URL = "http://10.20.2.153"
 
-class GetBasinInfoTool(BaseTool):
-    """获取流域概况工具"""
+
+# ============================================================
+# 一、地图数据源接口
+# ============================================================
+
+class GetMapDataTool(BaseTool):
+    """
+    地图数据源查询工具
+    查询各类地理要素的地图数据（包含空间坐标shape字段），
+    支持测站、水库、蓄滞洪区、分洪闸堰等多种类型的查询
+    """
     
     @property
     def name(self) -> str:
-        return "get_basin_info"
+        return "get_map_data"
     
     @property
     def description(self) -> str:
-        return "获取卫共流域的基本概况信息，包括流域面积、河流长度、主要特征等"
+        return "查询各类地理要素的地图数据（包含空间坐标），支持测站、水库、蓄滞洪区、分洪闸堰等类型"
     
     @property
     def category(self) -> ToolCategory:
@@ -33,318 +47,89 @@ class GetBasinInfoTool(BaseTool):
     def parameters(self) -> List[ToolParameter]:
         return [
             ToolParameter(
-                name="info_type",
+                name="ref_table",
                 type="string",
-                description="信息类型: overview(概况), geography(地理), climate(气候), hydrology(水文)",
-                required=False,
-                default="overview",
-                enum=["overview", "geography", "climate", "hydrology"]
-            )
-        ]
-    
-    async def execute(self, **kwargs) -> ToolResult:
-        """获取流域信息"""
-        info_type = kwargs.get('info_type', 'overview')
-        
-        try:
-            base_url = settings.wg_data_server_url
-            url = f"{base_url}/api/basin/info"
-            
-            params = {'type': info_type}
-            
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
-            
-            return ToolResult(
-                success=True,
-                data=data.get('data', data)
-            )
-            
-        except httpx.HTTPError as e:
-            logger.error(f"获取流域信息HTTP错误: {e}")
-            return self._get_mock_data(info_type)
-        except Exception as e:
-            logger.error(f"获取流域信息失败: {e}")
-            return ToolResult(success=False, error=str(e))
-    
-    def _get_mock_data(self, info_type: str) -> ToolResult:
-        """返回模拟数据"""
-        mock_data = {
-            "overview": {
-                "basin_name": "卫共流域",
-                "location": "河南省北部",
-                "total_area_km2": 15600,
-                "main_rivers": ["卫河", "共渠", "淇河"],
-                "administrative_divisions": ["新乡市", "鹤壁市", "安阳市", "濮阳市"],
-                "population_million": 12.5,
-                "description": "卫共流域位于河南省北部，是海河流域的重要组成部分，流域面积约15600平方公里。"
-            },
-            "geography": {
-                "terrain": "西高东低，地势由太行山向华北平原过渡",
-                "elevation_range": "50-1500米",
-                "soil_types": ["黄土", "褐土", "潮土"],
-                "land_use": {
-                    "farmland_percent": 65,
-                    "forest_percent": 15,
-                    "urban_percent": 12,
-                    "water_percent": 8
-                }
-            },
-            "climate": {
-                "climate_type": "温带大陆性季风气候",
-                "annual_precipitation_mm": 580,
-                "precipitation_distribution": "60%-70%集中在7-8月",
-                "annual_temperature_c": 14.2,
-                "frost_free_days": 200
-            },
-            "hydrology": {
-                "main_river": "卫河",
-                "river_length_km": 283,
-                "multi_year_avg_flow_m3s": 35.6,
-                "annual_runoff_billion_m3": 8.5,
-                "flood_season": "7月-9月",
-                "major_floods": ["1963年", "1996年", "2021年"]
-            }
-        }
-        
-        result = mock_data.get(info_type, mock_data["overview"])
-        return ToolResult(success=True, data=result, metadata={"is_mock": True})
-
-
-class GetRiverInfoTool(BaseTool):
-    """获取河流信息工具"""
-    
-    @property
-    def name(self) -> str:
-        return "get_river_info"
-    
-    @property
-    def description(self) -> str:
-        return "获取流域内河流的详细信息，包括河流长度、流域面积、主要支流等"
-    
-    @property
-    def category(self) -> ToolCategory:
-        return ToolCategory.BASIN_INFO
-    
-    @property
-    def parameters(self) -> List[ToolParameter]:
-        return [
-            ToolParameter(
-                name="river_name",
-                type="string",
-                description="河流名称",
-                required=False
-            )
-        ]
-    
-    async def execute(self, **kwargs) -> ToolResult:
-        """获取河流信息"""
-        river_name = kwargs.get('river_name')
-        
-        try:
-            base_url = settings.wg_data_server_url
-            url = f"{base_url}/api/basin/rivers"
-            
-            params = {}
-            if river_name:
-                params['name'] = river_name
-            
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
-            
-            return ToolResult(
-                success=True,
-                data=data.get('data', data)
-            )
-            
-        except httpx.HTTPError as e:
-            logger.error(f"获取河流信息HTTP错误: {e}")
-            return self._get_mock_data(river_name)
-        except Exception as e:
-            logger.error(f"获取河流信息失败: {e}")
-            return ToolResult(success=False, error=str(e))
-    
-    def _get_mock_data(self, river_name: str) -> ToolResult:
-        """返回模拟数据"""
-        mock_rivers = [
-            {
-                "river_name": "卫河",
-                "river_code": "HAI-WEI",
-                "length_km": 283,
-                "basin_area_km2": 8560,
-                "source": "太行山东麓",
-                "outlet": "汇入漳卫河",
-                "main_tributaries": ["淇河", "共渠", "汤河"],
-                "warning_sections": ["卫辉", "浚县", "道口"],
-                "description": "卫河是海河水系南运河的支流，发源于太行山东麓，流经新乡、鹤壁、安阳等地。"
-            },
-            {
-                "river_name": "淇河",
-                "river_code": "HAI-QI",
-                "length_km": 165,
-                "basin_area_km2": 2380,
-                "source": "山西省陵川县",
-                "outlet": "汇入卫河",
-                "main_tributaries": ["淅河", "沧河"],
-                "description": "淇河发源于山西省陵川县，流经河南省林州市、鹤壁市，在淇县注入卫河。"
-            },
-            {
-                "river_name": "共渠",
-                "river_code": "HAI-GQ",
-                "length_km": 85,
-                "basin_area_km2": 1250,
-                "source": "辉县市",
-                "outlet": "汇入卫河",
-                "description": "共渠是卫河的重要支流，主要承担排涝和灌溉功能。"
-            }
-        ]
-        
-        if river_name:
-            result = [r for r in mock_rivers if river_name in r['river_name']]
-        else:
-            result = mock_rivers
-        
-        return ToolResult(success=True, data=result, metadata={"is_mock": True})
-
-
-class GetWaterProjectsTool(BaseTool):
-    """获取水利工程信息工具"""
-    
-    @property
-    def name(self) -> str:
-        return "get_water_projects"
-    
-    @property
-    def description(self) -> str:
-        return "获取流域内水利工程信息，包括水库、闸坝、蓄滞洪区等"
-    
-    @property
-    def category(self) -> ToolCategory:
-        return ToolCategory.BASIN_INFO
-    
-    @property
-    def parameters(self) -> List[ToolParameter]:
-        return [
-            ToolParameter(
-                name="project_type",
-                type="string",
-                description="工程类型: reservoir(水库), sluice(水闸), dam(堤坝), detention(蓄滞洪区)",
-                required=False,
-                enum=["reservoir", "sluice", "dam", "detention"]
+                description="数据表名: geo_st_base(测站), geo_res_base(水库), geo_fld_stor(蓄滞洪区), geo_flo_dam(分洪闸堰)",
+                required=True,
+                enum=["geo_st_base", "geo_res_base", "geo_fld_stor", "geo_flo_dam"]
             ),
             ToolParameter(
-                name="project_name",
+                name="filter_field",
                 type="string",
-                description="工程名称",
+                description="查询字段名（如stcd、stnm等）",
+                required=False
+            ),
+            ToolParameter(
+                name="filter_operator",
+                type="string",
+                description="关系运算符: =, in, like, >, <",
+                required=False,
+                enum=["=", "in", "like", ">", "<"]
+            ),
+            ToolParameter(
+                name="filter_value",
+                type="string",
+                description="查询值",
                 required=False
             )
         ]
     
     async def execute(self, **kwargs) -> ToolResult:
-        """获取水利工程信息"""
-        project_type = kwargs.get('project_type')
-        project_name = kwargs.get('project_name')
+        """执行地图数据源查询"""
+        ref_table = kwargs.get('ref_table')
+        filter_field = kwargs.get('filter_field')
+        filter_operator = kwargs.get('filter_operator')
+        filter_value = kwargs.get('filter_value')
         
         try:
-            base_url = settings.wg_data_server_url
-            url = f"{base_url}/api/basin/projects"
+            url = f"{API_BASE_URL}/api/basin/map/dataSource/table/map"
             
-            params = {}
-            if project_type:
-                params['type'] = project_type
-            if project_name:
-                params['name'] = project_name
+            # 构建请求参数
+            params = {'refTable': ref_table}
+            if filter_field and filter_operator and filter_value:
+                params['where[0][filed]'] = filter_field
+                params['where[0][rela]'] = filter_operator
+                params['where[0][value]'] = filter_value
             
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
-                data = response.json()
+                result = response.json()
             
-            return ToolResult(
-                success=True,
-                data=data.get('data', data)
-            )
-            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
         except httpx.HTTPError as e:
-            logger.error(f"获取水利工程信息HTTP错误: {e}")
-            return self._get_mock_data(project_type)
+            logger.error(f"地图数据源查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
         except Exception as e:
-            logger.error(f"获取水利工程信息失败: {e}")
+            logger.error(f"地图数据源查询失败: {e}")
             return ToolResult(success=False, error=str(e))
-    
-    def _get_mock_data(self, project_type: str) -> ToolResult:
-        """返回模拟数据"""
-        mock_projects = {
-            "reservoir": [
-                {
-                    "name": "良相水库",
-                    "type": "reservoir",
-                    "location": "辉县市",
-                    "total_capacity_million_m3": 1580,
-                    "flood_control_capacity_million_m3": 850,
-                    "normal_level_m": 130.0,
-                    "flood_limit_level_m": 128.0,
-                    "design_flood_level_m": 132.5,
-                    "built_year": 1958
-                },
-                {
-                    "name": "石门水库",
-                    "type": "reservoir",
-                    "location": "林州市",
-                    "total_capacity_million_m3": 2350,
-                    "flood_control_capacity_million_m3": 1200,
-                    "normal_level_m": 185.0,
-                    "flood_limit_level_m": 182.0,
-                    "built_year": 1966
-                }
-            ],
-            "sluice": [
-                {
-                    "name": "卫辉枢纽",
-                    "type": "sluice",
-                    "location": "卫辉市",
-                    "design_flow_m3s": 1500,
-                    "gates_count": 12,
-                    "function": "防洪、灌溉、航运"
-                }
-            ],
-            "detention": [
-                {
-                    "name": "良相蓄滞洪区",
-                    "type": "detention",
-                    "location": "辉县市-卫辉市",
-                    "design_capacity_million_m3": 3500,
-                    "area_km2": 120,
-                    "population_thousand": 15,
-                    "activation_condition": "卫辉站水位超82.0m"
-                }
-            ]
-        }
-        
-        if project_type:
-            result = mock_projects.get(project_type, [])
-        else:
-            result = []
-            for projects in mock_projects.values():
-                result.extend(projects)
-        
-        return ToolResult(success=True, data=result, metadata={"is_mock": True})
 
 
-class GetAdministrativeDivisionsTool(BaseTool):
-    """获取行政区划信息工具"""
+class GetListDataTool(BaseTool):
+    """
+    列表数据源查询工具
+    查询各类要素的列表数据（不含空间坐标），支持水库扩展信息、防洪责任人等查询
+    """
     
     @property
     def name(self) -> str:
-        return "get_administrative_divisions"
+        return "get_list_data"
     
     @property
     def description(self) -> str:
-        return "获取流域涉及的行政区划信息"
+        return "查询各类要素的列表数据（不含空间坐标），如水库防洪责任人扩展信息"
     
     @property
     def category(self) -> ToolCategory:
@@ -354,69 +139,933 @@ class GetAdministrativeDivisionsTool(BaseTool):
     def parameters(self) -> List[ToolParameter]:
         return [
             ToolParameter(
-                name="city_name",
+                name="ref_table",
                 type="string",
-                description="城市名称",
+                description="数据表名，如geo_res_flood_ext(水库防洪责任人扩展信息)",
+                required=True,
+                enum=["geo_res_flood_ext"]
+            ),
+            ToolParameter(
+                name="filter_field",
+                type="string",
+                description="查询字段名",
+                required=False
+            ),
+            ToolParameter(
+                name="filter_operator",
+                type="string",
+                description="关系运算符: =, in, like",
+                required=False,
+                enum=["=", "in", "like"]
+            ),
+            ToolParameter(
+                name="filter_value",
+                type="string",
+                description="查询值",
                 required=False
             )
         ]
     
     async def execute(self, **kwargs) -> ToolResult:
-        """获取行政区划信息"""
-        city_name = kwargs.get('city_name')
+        """执行列表数据源查询"""
+        ref_table = kwargs.get('ref_table')
+        filter_field = kwargs.get('filter_field')
+        filter_operator = kwargs.get('filter_operator')
+        filter_value = kwargs.get('filter_value')
         
-        # 直接返回模拟数据
-        return self._get_mock_data(city_name)
+        try:
+            url = f"{API_BASE_URL}/api/basin/map/dataSource/table/list"
+            
+            # 构建请求参数
+            params = {'refTable': ref_table}
+            if filter_field and filter_operator and filter_value:
+                params['where[0][filed]'] = filter_field
+                params['where[0][rela]'] = filter_operator
+                params['where[0][value]'] = filter_value
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"列表数据源查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"列表数据源查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 二、水库基础信息接口
+# ============================================================
+
+class GetReservoirInfoTool(BaseTool):
+    """
+    水库基础信息查询工具
+    查询水库的基础属性信息，包括位置、所属水系、工程等级、库容等静态配置
+    """
     
-    def _get_mock_data(self, city_name: str) -> ToolResult:
-        """返回模拟数据"""
-        mock_divisions = [
-            {
-                "city": "新乡市",
-                "counties": ["辉县市", "卫辉市", "获嘉县", "原阳县"],
-                "basin_area_km2": 5200,
-                "population_million": 4.5,
-                "main_rivers": ["卫河", "共渠"]
-            },
-            {
-                "city": "鹤壁市",
-                "counties": ["淇县", "浚县", "淇滨区"],
-                "basin_area_km2": 3800,
-                "population_million": 1.6,
-                "main_rivers": ["淇河", "卫河"]
-            },
-            {
-                "city": "安阳市",
-                "counties": ["林州市", "安阳县", "滑县"],
-                "basin_area_km2": 4200,
-                "population_million": 3.8,
-                "main_rivers": ["淇河", "洹河"]
-            },
-            {
-                "city": "濮阳市",
-                "counties": ["濮阳县", "清丰县"],
-                "basin_area_km2": 2400,
-                "population_million": 2.6,
-                "main_rivers": ["卫河"]
-            }
+    @property
+    def name(self) -> str:
+        return "get_reservoir_info"
+    
+    @property
+    def description(self) -> str:
+        return "查询水库的基础属性信息，包括位置、工程等级、流域面积、库容、校核洪水位等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码，可选，不传则查询所有水库",
+                required=False
+            )
         ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行水库基础信息查询"""
+        stcd = kwargs.get('stcd')
         
-        if city_name:
-            result = [d for d in mock_divisions if city_name in d['city']]
-        else:
-            result = mock_divisions
-        
-        return ToolResult(success=True, data=result, metadata={"is_mock": True})
+        try:
+            url = f"{API_BASE_URL}/api/basin/map/dataSource/table/map"
+            
+            # 构建请求参数
+            params = {'refTable': 'geo_res_base'}
+            if stcd:
+                params['where[0][filed]'] = 'stcd'
+                params['where[0][rela]'] = '='
+                params['where[0][value]'] = stcd
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"水库基础信息查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"水库基础信息查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
 
 
-# 注册工具
+class GetReservoirFloodDetailTool(BaseTool):
+    """
+    水库防洪特征值详情查询工具
+    根据测站编码查询单个水库的防洪特征值详情，包括校核洪水位、设计洪水位、正常蓄水位、死水位等
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_reservoir_flood_detail"
+    
+    @property
+    def description(self) -> str:
+        return "查询单个水库的防洪特征值详情，包括校核洪水位、设计洪水位、正常蓄水位、死水位、库容等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码（必填）",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行水库防洪特征值详情查询"""
+        stcd = kwargs.get('stcd')
+        
+        try:
+            url = f"{API_BASE_URL}/api/basin/rwdb/rsvr/fcch/detail"
+            params = {'STCD': stcd}
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', {}),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"水库防洪特征值详情查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"水库防洪特征值详情查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+class GetReservoirFloodListTool(BaseTool):
+    """
+    水库防洪特征值列表查询工具
+    获取所有水库的防洪特征值信息列表，包括校核洪水位、设计洪水位、正常蓄水位、死水位等
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_reservoir_flood_list"
+    
+    @property
+    def description(self) -> str:
+        return "获取所有水库的防洪特征值信息列表，包含各水库的校核洪水位、设计洪水位、正常蓄水位、库容等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return []  # 无参数
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行水库防洪特征值列表查询"""
+        try:
+            url = f"{API_BASE_URL}/api/basin/rwdb/rsvr/fcch/list"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"水库防洪特征值列表查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"水库防洪特征值列表查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 三、水闸堰基础信息接口
+# ============================================================
+
+class GetSluiceInfoTool(BaseTool):
+    """
+    水闸基础信息查询工具
+    查询水闸的基础属性信息，包括位置、所属水系、工程规模、设计流量等
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_sluice_info"
+    
+    @property
+    def description(self) -> str:
+        return "查询水闸的基础属性信息，包括位置、河流名称、工程规模、设计流量等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码，可选，不传则查询所有水闸",
+                required=False
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行水闸基础信息查询"""
+        stcd = kwargs.get('stcd')
+        
+        try:
+            url = f"{API_BASE_URL}/api/basin/map/dataSource/table/map"
+            
+            # 构建请求参数
+            params = {'refTable': 'geo_sluice_base'}
+            if stcd:
+                params['where[0][filed]'] = 'stcd'
+                params['where[0][rela]'] = '='
+                params['where[0][value]'] = stcd
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"水闸基础信息查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"水闸基础信息查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+class GetFloodDamInfoTool(BaseTool):
+    """
+    分洪闸堰信息查询工具
+    查询分洪闸堰的基础信息，包括设计分洪流量、启用条件等
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_flood_dam_info"
+    
+    @property
+    def description(self) -> str:
+        return "查询分洪闸堰的基础信息，包括位置、设计分洪流量等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="name",
+                type="string",
+                description="分洪闸堰名称，可选，支持模糊查询",
+                required=False
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行分洪闸堰信息查询"""
+        name = kwargs.get('name')
+        
+        try:
+            url = f"{API_BASE_URL}/api/basin/map/dataSource/table/map"
+            
+            # 构建请求参数
+            params = {'refTable': 'geo_flo_dam'}
+            if name:
+                params['where[0][filed]'] = 'name'
+                params['where[0][rela]'] = 'like'
+                params['where[0][value]'] = name
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"分洪闸堰信息查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"分洪闸堰信息查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 四、蓄滞洪区接口
+# ============================================================
+
+class GetFloodStorageAreaTool(BaseTool):
+    """
+    蓄滞洪区信息查询工具
+    查询蓄滞洪区的基础信息，包括面积、进洪设施、设计蓄洪水位等
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_flood_storage_area"
+    
+    @property
+    def description(self) -> str:
+        return "查询蓄滞洪区的基础信息，包括面积、进洪设施、设计蓄洪库容、设计蓄洪水位等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="name",
+                type="string",
+                description="蓄滞洪区名称，可选，支持模糊查询",
+                required=False
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行蓄滞洪区信息查询"""
+        name = kwargs.get('name')
+        
+        try:
+            url = f"{API_BASE_URL}/api/basin/map/dataSource/table/map"
+            
+            # 构建请求参数
+            params = {'refTable': 'geo_fld_stor'}
+            if name:
+                params['where[0][filed]'] = 'name'
+                params['where[0][rela]'] = 'like'
+                params['where[0][value]'] = name
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"蓄滞洪区信息查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"蓄滞洪区信息查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 五、河道基础信息接口
+# ============================================================
+
+class GetRiverFloodListTool(BaseTool):
+    """
+    河道防洪特征值列表查询工具
+    获取所有河道测站的防洪特征值信息列表，包括警戒水位、保证水位等
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_river_flood_list"
+    
+    @property
+    def description(self) -> str:
+        return "获取所有河道测站的防洪特征值信息列表，包括警戒水位、保证水位、左右堤高程、实测最高水位等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return []  # 无参数
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行河道防洪特征值列表查询"""
+        try:
+            url = f"{API_BASE_URL}/api/basin/rwdb/river/fcch/list"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"河道防洪特征值列表查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"河道防洪特征值列表查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 六、测站基础信息接口
+# ============================================================
+
+class GetStationListTool(BaseTool):
+    """
+    测站列表查询工具
+    按测站类型查询测站的基础信息列表
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_station_list"
+    
+    @property
+    def description(self) -> str:
+        return "按测站类型查询测站的基础信息列表，包括测站编码、名称、位置、河流名称等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="sttp",
+                type="string",
+                description="测站类型: ZQ(水文站), ZZ(水位站), PP(雨量站), RR(水库站), DD(闸坝站), ZB(水位遥测站), AI(智能监测站)",
+                required=True,
+                enum=["ZQ", "ZZ", "PP", "RR", "DD", "ZB", "AI"]
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行测站列表查询"""
+        sttp = kwargs.get('sttp')
+        
+        try:
+            url = f"{API_BASE_URL}/api/basin/rwdb/station/list"
+            params = {'STTP': sttp}
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"测站列表查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"测站列表查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 七、视频监控基础信息接口
+# ============================================================
+
+class GetCameraListTool(BaseTool):
+    """
+    视频监控列表查询工具
+    获取视频监控摄像头列表，可根据测站编码筛选
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_camera_list"
+    
+    @property
+    def description(self) -> str:
+        return "获取视频监控摄像头列表，包括摄像头编码、名称、关联测站、视频流地址等"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码，可选，不传则查询所有摄像头",
+                required=False
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行视频监控列表查询"""
+        stcd = kwargs.get('stcd')
+        
+        try:
+            url = f"{API_BASE_URL}/api/basin/camera/list"
+            params = {}
+            if stcd:
+                params['stcd'] = stcd
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"视频监控列表查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"视频监控列表查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 八、无人机基础信息接口
+# ============================================================
+
+class GetDroneProjectListTool(BaseTool):
+    """
+    无人机项目列表查询工具
+    查询无人机项目列表
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_drone_project_list"
+    
+    @property
+    def description(self) -> str:
+        return "查询无人机项目列表，获取项目ID和项目名称"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return []  # 无参数
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行无人机项目列表查询"""
+        try:
+            url = f"{API_BASE_URL}/api/djiuav/openapi/v0.1/project"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"无人机项目列表查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"无人机项目列表查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+class GetDroneDeviceListTool(BaseTool):
+    """
+    无人机项目设备列表查询工具
+    查询指定项目下的无人机设备列表
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_drone_device_list"
+    
+    @property
+    def description(self) -> str:
+        return "查询无人机设备列表，获取设备序列号、名称、类型、状态等信息"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return []  # 无参数
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行无人机设备列表查询"""
+        try:
+            url = f"{API_BASE_URL}/api/djiuav/openapi/v0.1/project/device"
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', []),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"无人机设备列表查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"无人机设备列表查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 九、遥感任务接口
+# ============================================================
+
+class GetRemoteSensingTaskListTool(BaseTool):
+    """
+    遥感任务列表查询工具
+    查询各类遥感监测任务列表
+    """
+    
+    @property
+    def name(self) -> str:
+        return "get_remote_sensing_task_list"
+    
+    @property
+    def description(self) -> str:
+        return "查询遥感监测任务列表，支持洪涝水淹、洪涝监测、水利工程变形、小流域监测等任务类型"
+    
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.BASIN_INFO
+    
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="task_type",
+                type="string",
+                description="任务类型: HHSL(洪涝水淹), HLJC(洪涝监测), SLGCBX(水利工程变形), XDMJC(小流域监测)",
+                required=True,
+                enum=["HHSL", "HLJC", "SLGCBX", "XDMJC"]
+            ),
+            ToolParameter(
+                name="task_name",
+                type="string",
+                description="任务名称，支持模糊查询",
+                required=False
+            ),
+            ToolParameter(
+                name="page",
+                type="integer",
+                description="页码，从1开始",
+                required=True,
+                default=1
+            ),
+            ToolParameter(
+                name="limit",
+                type="integer",
+                description="每页条数",
+                required=True,
+                default=10
+            ),
+            ToolParameter(
+                name="user_id",
+                type="string",
+                description="用户ID",
+                required=True
+            )
+        ]
+    
+    async def execute(self, **kwargs) -> ToolResult:
+        """执行遥感任务列表查询"""
+        task_type = kwargs.get('task_type')
+        task_name = kwargs.get('task_name')
+        page = kwargs.get('page', 1)
+        limit = kwargs.get('limit', 10)
+        user_id = kwargs.get('user_id')
+        
+        try:
+            url = f"{API_BASE_URL}/api/rs/datamanager/task/getTaskList"
+            
+            # 构建请求参数
+            params = {
+                'tasktype': task_type,
+                'page': page,
+                'limit': limit,
+                'userId': user_id
+            }
+            if task_name:
+                params['taskname'] = task_name
+            
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+            
+            if result.get('success'):
+                return ToolResult(
+                    success=True,
+                    data=result.get('data', {}),
+                    metadata={"code": result.get('code'), "message": result.get('message')}
+                )
+            else:
+                return ToolResult(
+                    success=False,
+                    error=result.get('message', '请求失败'),
+                    metadata={"code": result.get('code')}
+                )
+                
+        except httpx.HTTPError as e:
+            logger.error(f"遥感任务列表查询HTTP错误: {e}")
+            return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
+        except Exception as e:
+            logger.error(f"遥感任务列表查询失败: {e}")
+            return ToolResult(success=False, error=str(e))
+
+
+# ============================================================
+# 工具注册
+# ============================================================
+
 def register_basin_info_tools():
-    """注册流域基本信息工具"""
-    register_tool(GetBasinInfoTool())
-    register_tool(GetRiverInfoTool())
-    register_tool(GetWaterProjectsTool())
-    register_tool(GetAdministrativeDivisionsTool())
-    logger.info("流域基本信息工具注册完成")
+    """
+    注册流域基本信息工具
+    共14个工具对应接口文档中的14个API接口
+    """
+    # 一、地图数据源接口（2个）
+    register_tool(GetMapDataTool())
+    register_tool(GetListDataTool())
+    
+    # 二、水库基础信息接口（3个）
+    register_tool(GetReservoirInfoTool())
+    register_tool(GetReservoirFloodDetailTool())
+    register_tool(GetReservoirFloodListTool())
+    
+    # 三、水闸堰基础信息接口（2个）
+    register_tool(GetSluiceInfoTool())
+    register_tool(GetFloodDamInfoTool())
+    
+    # 四、蓄滞洪区接口（1个）
+    register_tool(GetFloodStorageAreaTool())
+    
+    # 五、河道基础信息接口（1个）
+    register_tool(GetRiverFloodListTool())
+    
+    # 六、测站基础信息接口（1个）
+    register_tool(GetStationListTool())
+    
+    # 七、视频监控基础信息接口（1个）
+    register_tool(GetCameraListTool())
+    
+    # 八、无人机基础信息接口（2个）
+    register_tool(GetDroneProjectListTool())
+    register_tool(GetDroneDeviceListTool())
+    
+    # 九、遥感任务接口（1个）
+    register_tool(GetRemoteSensingTaskListTool())
+    
+    logger.info("流域基本信息工具注册完成，共注册14个工具")
 
 
 # 模块加载时自动注册

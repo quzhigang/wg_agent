@@ -65,8 +65,12 @@ class Settings(BaseSettings):
     # ===========================================
     # External API Base URLs (卫共流域业务系统)
     # ===========================================
+    # .NET模型服务接口地址
     wg_model_server_url: str = "http://172.16.16.253/wg_modelserver/hd_mike11server/Model_Ser.ashx"
-    wg_data_server_url: str = "http://10.20.2.153:8089"
+    # 基础数据服务接口地址
+    wg_data_server_url: str = "http://10.20.2.153"
+    # 防洪业务服务接口地址（Java Spring Boot）
+    wg_flood_server_url: str = "http://10.20.2.153:8089/modelPlatf"
     
     # ===========================================
     # Session Configuration

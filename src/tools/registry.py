@@ -348,7 +348,7 @@ def init_default_tools():
     try:
         from . import basin_info
         from . import hydro_monitor
-        from . import flood_control
+        from . import modelplan_control
         from . import hydro_model
         from . import damage_assess
         logger.info("默认工具加载完成")
