@@ -183,6 +183,7 @@ def init_default_workflows():
         from . import get_history_autoforecast_result
         from . import flood_autoforecast_getresult
         from . import get_manualforecast_result
+        from . import flood_manualforecast_getresult
         logger.info("默认工作流加载完成")
     except ImportError as e:
         logger.warning(f"部分工作流模块加载失败: {e}")
