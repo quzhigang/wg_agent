@@ -179,7 +179,10 @@ def init_default_workflows():
     
     # 导入工作流模块，触发自动注册
     try:
-        from . import flood_forecast
+        from . import get_autoforecast_result
+        from . import get_history_autoforecast_result
+        from . import flood_autoforecast_getresult
+        from . import get_manualforecast_result
         logger.info("默认工作流加载完成")
     except ImportError as e:
         logger.warning(f"部分工作流模块加载失败: {e}")
