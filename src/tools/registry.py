@@ -345,15 +345,18 @@ def init_default_tools():
     logger.info("初始化默认工具...")
     
     # 导入各类工具模块，触发自动注册
-    # 基础信息、监测数据、模型方案、降雨处理、洪水模型、洪灾损失、其他辅助业务
+    # 基础信息、监测数据、模型方案、降雨处理、洪水模型、洪灾损失、其他辅助业务、模型新建及参数设置
     try:
         from . import basin_info
         from . import hydro_monitor
         from . import modelplan_control
         from . import rain_control
-        from . import hydro_model
         from . import damage_assess
-        from . import flood_otherbusiness 
+        from . import flood_otherbusiness
+        from . import hydromodel_set  # 水利专业模型-方案新建计算及参数设置
+        from . import hydromodel_baseinfo  # 水利专业模型-获取与专业模型相关的基础信息        
+        from . import hydromodel_parget  # 水利专业模型-获取专业模型参数及边界条件信息        
+        from . import hydromodel_resultget  # 水利专业模型-获取专业模型方案及结果信息接口
         logger.info("默认工具加载完成")
     except ImportError as e:
         logger.warning(f"部分工具模块加载失败: {e}")
