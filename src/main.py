@@ -134,6 +134,15 @@ def create_app() -> FastAPI:
         StaticFiles(directory=str(generated_pages_path)),
         name="generated_pages"
     )
+
+    # Web界面静态资源
+    web_templates_path = Path(settings.web_templates_dir)
+    if web_templates_path.exists():
+        app.mount(
+            "/ui",
+            StaticFiles(directory=str(web_templates_path), html=True),
+            name="ui"
+        )
     
     @app.get("/", tags=["根路径"])
     async def root():

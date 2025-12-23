@@ -197,21 +197,50 @@ class Controller:
         """
         logger.info("准备生成Web页面...")
         
-        # TODO: 调用output模块生成Web页面
-        # 这里预留接口，后续实现
-        
-        # 临时返回文本响应
-        text_response = f"""根据您的查询，我已整理好相关数据。
+        try:
+            from ..output.page_generator import generate_report_page
+            
+            # 整合所有执行结果数据
+            combined_data = {}
+            results = state.get('execution_results', [])
+            for result in results:
+                if result.get('success'):
+                    output = result.get('output')
+                    if isinstance(output, dict):
+                        combined_data.update(output)
+            
+            # 确定报告类型 (简单逻辑，可扩展)
+            report_type = "generic"
+            intent = state.get('intent', '')
+            if '洪水' in intent or '预报' in intent:
+                report_type = 'flood_forecast'
+            elif '预案' in intent:
+                report_type = 'emergency_plan'
+            
+            # 生成页面
+            page_url = await generate_report_page(
+                report_type=report_type,
+                data=combined_data,
+                title=f"{intent}报告"
+            )
+            
+            text_response = f"""根据您的查询，我已为您生成了详细报告。
 
 {execution_summary}
 
-数据展示页面正在生成中，请稍候...
-（Web页面生成功能待实现）"""
-        
-        return {
-            "text_response": text_response,
-            "page_url": None  # 待实现
-        }
+您可以点击右侧查看完整报告。"""
+            
+            return {
+                "text_response": text_response,
+                "page_url": page_url
+            }
+            
+        except Exception as e:
+            logger.error(f"生成Web页面失败: {e}")
+            return {
+                "text_response": f"{execution_summary}\n\n(Web页面生成失败: {e})",
+                "page_url": None
+            }
     
     async def handle_error_response(self, state: AgentState) -> Dict[str, Any]:
         """
