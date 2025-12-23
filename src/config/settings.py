@@ -28,7 +28,9 @@ class Settings(BaseSettings):
     openai_max_tokens: int = 4096
     
     # Embedding Model
-    embedding_model_name: str = "text-embedding-ada-002"
+    embedding_model_name: str = "bge-m3:latest"
+    embedding_model_api_url: str = "http://10.20.2.135:11434"
+    embedding_model_type: str = "ollama"
     
     # ===========================================
     # MySQL Database Configuration
