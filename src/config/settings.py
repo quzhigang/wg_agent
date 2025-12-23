@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     wg_flood_server_url: str = "http://10.20.2.153:8089/modelPlatf"
     
     # ===========================================
+    # Auth Configuration
+    # ===========================================
+    basin_auth_account: str = "admin"
+    basin_auth_password: str = "Pwd@6915"
+    
+    # ===========================================
     # Session Configuration
     # ===========================================
     session_timeout_minutes: int = 30

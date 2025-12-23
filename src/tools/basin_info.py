@@ -13,6 +13,7 @@ from ..config.settings import settings
 from ..config.logging_config import get_logger
 from .base import BaseTool, ToolCategory, ToolParameter, ToolResult
 from .registry import register_tool
+from .auth import LoginTool
 
 logger = get_logger(__name__)
 
@@ -91,8 +92,10 @@ class GetMapDataTool(BaseTool):
                 params['where[0][rela]'] = filter_operator
                 params['where[0][value]'] = filter_value
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -183,8 +186,10 @@ class GetListDataTool(BaseTool):
                 params['where[0][rela]'] = filter_operator
                 params['where[0][value]'] = filter_value
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -256,8 +261,10 @@ class GetReservoirInfoTool(BaseTool):
                 params['where[0][rela]'] = '='
                 params['where[0][value]'] = stcd
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -319,8 +326,10 @@ class GetReservoirFloodDetailTool(BaseTool):
             url = f"{API_BASE_URL}/api/basin/rwdb/rsvr/fcch/detail"
             params = {'STCD': stcd}
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -372,8 +381,10 @@ class GetReservoirFloodListTool(BaseTool):
         try:
             url = f"{API_BASE_URL}/api/basin/rwdb/rsvr/fcch/list"
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -445,8 +456,10 @@ class GetSluiceInfoTool(BaseTool):
                 params['where[0][rela]'] = '='
                 params['where[0][value]'] = stcd
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -514,8 +527,10 @@ class GetFloodDamInfoTool(BaseTool):
                 params['where[0][rela]'] = 'like'
                 params['where[0][value]'] = name
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -587,8 +602,10 @@ class GetFloodStorageAreaTool(BaseTool):
                 params['where[0][rela]'] = 'like'
                 params['where[0][value]'] = name
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -644,8 +661,10 @@ class GetRiverFloodListTool(BaseTool):
         try:
             url = f"{API_BASE_URL}/api/basin/rwdb/river/fcch/list"
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -712,8 +731,10 @@ class GetStationListTool(BaseTool):
             url = f"{API_BASE_URL}/api/basin/rwdb/station/list"
             params = {'STTP': sttp}
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -838,8 +859,10 @@ class GetDroneProjectListTool(BaseTool):
         try:
             url = f"{API_BASE_URL}/api/djiuav/openapi/v0.1/project"
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -891,8 +914,10 @@ class GetDroneDeviceListTool(BaseTool):
         try:
             url = f"{API_BASE_URL}/api/djiuav/openapi/v0.1/project/device"
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
@@ -998,8 +1023,10 @@ class GetRemoteSensingTaskListTool(BaseTool):
             if task_name:
                 params['taskname'] = task_name
             
+            headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
