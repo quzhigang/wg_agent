@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>水库洪水预报结果展示</title>
-    <link rel="stylesheet" href="css/style.css?v=1.1">
+    <link rel="stylesheet" href="css/style.css?v=1.3">
     <link rel="icon" href="data:;base64,=">
 </head>
 <body>
@@ -108,7 +108,7 @@
             if (!message) return;
 
             // 添加用户消息到日志
-            addLog(`用户: ${message}`);
+            addLog(message, 'user');
             chatInput.value = '';
 
             try {
@@ -135,7 +135,7 @@
                 currentConversationId = data.conversation_id;
                 
                 // 处理响应
-                addLog(`智能体: ${data.content}`);
+                addLog(data.content, 'assistant');
                 
                 if (data.page_url) {
                     mainContentFrame.src = data.page_url;
@@ -148,9 +148,30 @@
             }
         }
 
-        function addLog(text) {
+        function addLog(text, type = 'system') {
             const li = document.createElement('li');
-            li.textContent = text;
+            li.className = `message-item message-${type}`;
+            
+            if (type === 'user') {
+                li.innerHTML = `
+                    <div class="message-content">
+                        <div class="message-icon user-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                        </div>
+                        <div class="message-bubble">${text}</div>
+                    </div>`;
+            } else if (type === 'assistant') {
+                li.innerHTML = `
+                    <div class="message-content">
+                        <img src="img/xw.png" alt="小卫" class="message-icon assistant-icon-img">
+                        <div class="message-bubble">${text}</div>
+                    </div>`;
+            } else {
+                li.innerHTML = `<span class="message-text">${text}</span>`;
+            }
+            
             logList.appendChild(li);
             // 滚动到底部
             const processContent = document.querySelector('.process-content');
@@ -160,8 +181,7 @@
         // 新对话功能
         document.getElementById('newChatBtn').addEventListener('click', () => {
             currentConversationId = null;
-            logList.innerHTML = '<li>> 开启新对话...</li>';
-            addLog('系统: 已开启新会话');
+            logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 开启新对话...</span></li>';
             // 重置iframe到初始模板
             mainContentFrame.src = 'res_module/index.html';
         });
@@ -218,7 +238,7 @@
         async function loadConversation(id) {
             currentConversationId = id;
             historyModal.style.display = 'none';
-            logList.innerHTML = '<li>> 正在加载历史对话...</li>';
+            logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 正在加载历史对话...</span></li>';
             
             try {
                 const response = await fetch(`/chat/conversations/${id}/messages`);
@@ -226,15 +246,14 @@
                 if (result.success) {
                     logList.innerHTML = '';
                     result.data.forEach(msg => {
-                        const roleName = msg.role === 'user' ? '用户' : '智能体';
-                        addLog(`${roleName}: ${msg.content}`);
+                        const type = msg.role === 'user' ? 'user' : 'assistant';
+                        addLog(msg.content, type);
                         
                         // 如果最后一条助手消息包含页面URL，尝试加载它
                         if (msg.role === 'assistant' && msg.metadata && msg.metadata.page_url) {
                             mainContentFrame.src = msg.metadata.page_url;
                         }
                     });
-                    addLog('系统: 已加载历史会话');
                 }
             } catch (error) {
                 console.error('加载消息失败:', error);

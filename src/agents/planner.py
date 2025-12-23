@@ -33,11 +33,11 @@ class TaskPlan(BaseModel):
     output_type: str = Field(default="text", description="输出类型")
 
 
-# 意图分析提示词
-INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手，负责分析用户意图。
+# 意图分析提示词（带直接回复功能）
+INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"小卫"，负责分析用户意图。
 
 ## 用户意图类别
-1. general_chat - 一般对话、闲聊
+1. general_chat - 一般对话、闲聊（如问候、感谢、闲聊、询问你的信息等）
 2. knowledge_qa - 流域知识问答（关于流域概况、水利设施、防洪知识等）
 3. data_query - 数据查询（水雨情、水位、流量等实时或历史数据）
 4. flood_forecast - 洪水预报（调用预报模型）
@@ -56,6 +56,16 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手�
 
 ## 输出要求
 请分析用户意图，返回JSON格式:
+
+**如果是 general_chat（一般对话/闲聊），请直接生成回复内容：**
+{{
+    "intent": "general_chat",
+    "confidence": 0.95,
+    "direct_response": "你的友好回复内容（控制在100字以内）",
+    "output_type": "text"
+}}
+
+**如果是其他业务意图，返回：**
 {{
     "intent": "意图类别",
     "confidence": 0.95,
@@ -66,6 +76,7 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手�
 }}
 
 注意:
+- 对于一般对话，你需要友好地回复用户，可以简要介绍自己的能力（流域介绍、工程信息查询、实时水雨情查询、洪水预报预演及应急预案生成等）
 - 如果涉及图表展示（如水位趋势图、雨量分布图等），output_type应为"web_page"
 - 如果只是简单文字回答，output_type应为"text"
 """
@@ -111,6 +122,23 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
 """
 
 
+# 快速意图识别关键词（不需要调用LLM）
+QUICK_CHAT_KEYWORDS = [
+    # 问候语
+    "你好", "您好", "hi", "hello", "嗨", "早上好", "下午好", "晚上好", "早安", "晚安",
+    # 感谢语
+    "谢谢", "感谢", "多谢", "thanks", "thank you",
+    # 告别语
+    "再见", "拜拜", "bye", "goodbye", "回见",
+    # 简单问答
+    "你是谁", "你叫什么", "你能做什么", "你会什么", "介绍一下你自己",
+    "你多大", "几岁", "年龄", "生日",
+    # 闲聊
+    "今天天气", "吃了吗", "在吗", "忙吗", "怎么样", "好吗", "还好吗",
+    "干嘛", "干什么", "做什么", "聊聊", "无聊", "开心", "高兴", "难过"
+]
+
+
 class Planner:
     """规划调度器"""
     
@@ -133,6 +161,40 @@ class Planner:
         self.plan_chain = self.plan_prompt | self.llm | self.json_parser
         
         logger.info("Planner初始化完成")
+    
+    def _is_quick_chat(self, message: str) -> bool:
+        """
+        快速判断是否为一般闲聊（不需要调用LLM）
+        
+        Args:
+            message: 用户消息
+            
+        Returns:
+            是否为一般闲聊
+        """
+        message_lower = message.lower().strip()
+        
+        # 检查是否包含业务关键词（如果包含则不是闲聊）
+        business_keywords = [
+            "水位", "雨量", "流量", "洪水", "预报", "预演", "预案", 
+            "监测", "站点", "流域", "卫共", "河道", "水库", "闸门",
+            "降雨", "汛期", "防洪", "灾损", "淹没", "模型", "方案",
+            "查询", "数据", "统计", "分析", "报告"
+        ]
+        for keyword in business_keywords:
+            if keyword in message_lower:
+                return False
+        
+        # 消息较短（<=15字符）且不包含业务关键词，很可能是闲聊
+        if len(message_lower) <= 15:
+            return True
+        
+        # 检查闲聊关键词
+        for keyword in QUICK_CHAT_KEYWORDS:
+            if keyword in message_lower:
+                return True
+        
+        return False
     
     async def analyze_intent(self, state: AgentState) -> Dict[str, Any]:
         """
@@ -159,10 +221,25 @@ class Planner:
             
             logger.info(f"意图分析结果: {result}")
             
+            intent = result.get("intent", "general_chat")
+            
+            # 如果是一般对话且有直接回复，标记为快速响应
+            if intent == "general_chat" and result.get("direct_response"):
+                logger.info("意图为一般对话，使用直接回复")
+                return {
+                    "intent": "general_chat",
+                    "intent_confidence": result.get("confidence", 0.95),
+                    "output_type": "text",
+                    "direct_response": result.get("direct_response"),
+                    "is_quick_chat": True,
+                    "next_action": "quick_respond"
+                }
+            
             return {
-                "intent": result.get("intent", "general_chat"),
+                "intent": intent,
                 "intent_confidence": result.get("confidence", 0.5),
-                "output_type": result.get("output_type", "text")
+                "output_type": result.get("output_type", "text"),
+                "entities": result.get("entities", {})
             }
             
         except Exception as e:
@@ -358,9 +435,14 @@ async def planner_node(state: AgentState) -> Dict[str, Any]:
     """
     planner = get_planner()
     
-    # 1. 分析意图
+    # 1. 分析意图（LLM会判断是否为闲聊，如果是闲聊会直接返回回复）
     intent_result = await planner.analyze_intent(state)
     state.update(intent_result)
+    
+    # 如果意图分析已经返回了直接回复（一般对话），直接跳转到快速响应
+    if intent_result.get('is_quick_chat') and intent_result.get('direct_response'):
+        logger.info("LLM判断为一般对话，使用直接回复")
+        return state
     
     # 2. 检查工作流匹配
     workflow_result = await planner.check_workflow_match(state)

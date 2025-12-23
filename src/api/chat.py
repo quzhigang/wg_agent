@@ -79,11 +79,11 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
             conversation_id=conversation_id,
             role="assistant",
             content=result.get("response", ""),
-            msg_metadata={
+            msg_metadata=json.dumps({
                 "output_type": result.get("output_type", "text"),
                 "page_url": result.get("page_url"),
                 "intent": result.get("intent")
-            }
+            }, ensure_ascii=False)
         )
         db.add(assistant_message)
         db.commit()
@@ -186,10 +186,10 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                     conversation_id=conversation_id,
                     role="assistant",
                     content=full_response,
-                    msg_metadata={
+                    msg_metadata=json.dumps({
                         "output_type": output_type,
                         "page_url": page_url
-                    }
+                    }, ensure_ascii=False)
                 )
                 db.add(assistant_message)
                 db.commit()

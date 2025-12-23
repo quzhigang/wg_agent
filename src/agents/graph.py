@@ -6,14 +6,30 @@ LangGraph状态图定义
 from typing import Dict, Any, Optional, Literal
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
 
 from ..config.logging_config import get_logger
-from .state import AgentState, create_initial_state
+from ..config.settings import settings
+from .state import AgentState, create_initial_state, OutputType
 from .planner import planner_node, get_planner
 from .executor import executor_node, get_executor
 from .controller import controller_node, get_controller
 
 logger = get_logger(__name__)
+
+
+# 快速对话提示词模板
+QUICK_CHAT_PROMPT = """你是卫共流域数字孪生系统的智能助手"小卫"。
+
+你的职责是：
+1. 友好地与用户进行日常对话
+2. 简要介绍自己的能力（流域介绍、工程查询、水雨情查询、洪水预报、洪水预演等）
+3. 简要引导用户提出与流域相关的问题
+
+用户消息: {user_message}
+
+请用简洁友好的语气回复用户，回复不要太长（控制在100字以内）。"""
 
 
 def should_continue(state: AgentState) -> Literal["plan", "execute", "respond", "wait_async", "end"]:
@@ -96,6 +112,58 @@ async def workflow_executor_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
+async def quick_chat_node(state: AgentState) -> Dict[str, Any]:
+    """
+    快速对话节点
+    
+    对于一般闲聊，使用意图分析时LLM已生成的直接回复，无需再次调用LLM
+    """
+    logger.info("执行快速对话响应...")
+    
+    # 优先使用意图分析时LLM已生成的直接回复
+    direct_response = state.get('direct_response')
+    if direct_response:
+        logger.info("使用LLM意图分析时生成的直接回复")
+        return {
+            "final_response": direct_response,
+            "output_type": OutputType.TEXT.value,
+            "next_action": "end"
+        }
+    
+    # 如果没有直接回复（兜底情况），调用LLM生成
+    try:
+        llm = ChatOpenAI(
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_api_base,
+            model=settings.openai_model_name,
+            temperature=0.7
+        )
+        
+        prompt = ChatPromptTemplate.from_template(QUICK_CHAT_PROMPT)
+        chain = prompt | llm
+        
+        response = await chain.ainvoke({
+            "user_message": state.get('user_message', '')
+        })
+        
+        logger.info("快速对话响应生成完成")
+        
+        return {
+            "final_response": response.content,
+            "output_type": OutputType.TEXT.value,
+            "next_action": "end"
+        }
+        
+    except Exception as e:
+        logger.error(f"快速对话响应失败: {e}")
+        return {
+            "final_response": "你好！我是卫共流域数字孪生系统的智能助手，有什么可以帮助您的吗？",
+            "output_type": OutputType.TEXT.value,
+            "error": str(e),
+            "next_action": "end"
+        }
+
+
 async def async_wait_node(state: AgentState) -> Dict[str, Any]:
     """
     异步任务等待节点
@@ -153,6 +221,24 @@ async def async_wait_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
+def plan_router(state: AgentState) -> str:
+    """
+    规划节点路由函数
+    
+    根据规划结果决定下一步走向
+    """
+    # 快速闲聊路径
+    if state.get('is_quick_chat') or state.get('next_action') == 'quick_respond':
+        return "quick_chat"
+    
+    # 匹配到工作流
+    if state.get('matched_workflow'):
+        return "workflow"
+    
+    # 默认走RAG路径
+    return "rag"
+
+
 def create_agent_graph() -> StateGraph:
     """
     创建智能体状态图
@@ -167,6 +253,7 @@ def create_agent_graph() -> StateGraph:
     
     # 添加节点
     workflow.add_node("plan", planner_node)
+    workflow.add_node("quick_chat", quick_chat_node)  # 新增快速对话节点
     workflow.add_node("rag", rag_retrieval_node)
     workflow.add_node("workflow", workflow_executor_node)
     workflow.add_node("execute", executor_node)
@@ -176,15 +263,19 @@ def create_agent_graph() -> StateGraph:
     # 设置入口点
     workflow.set_entry_point("plan")
     
-    # 添加条件边
+    # 添加条件边 - 规划后的路由
     workflow.add_conditional_edges(
         "plan",
-        lambda state: "workflow" if state.get('matched_workflow') else "rag",
+        plan_router,
         {
+            "quick_chat": "quick_chat",  # 快速闲聊路径
             "workflow": "workflow",
             "rag": "rag"
         }
     )
+    
+    # 快速对话直接结束
+    workflow.add_edge("quick_chat", END)
     
     # RAG后进入执行
     workflow.add_edge("rag", "execute")
@@ -219,6 +310,14 @@ def create_agent_graph() -> StateGraph:
 # 全局图实例
 _graph_instance: Optional[StateGraph] = None
 _compiled_graph = None
+
+
+def reset_agent_graph():
+    """重置智能体图（用于热重载）"""
+    global _graph_instance, _compiled_graph
+    _graph_instance = None
+    _compiled_graph = None
+    logger.info("智能体图已重置")
 
 
 def get_agent_graph():

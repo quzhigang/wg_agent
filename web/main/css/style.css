@@ -111,6 +111,119 @@ iframe {
     word-break: break-all;
 }
 
+/* 消息样式美化 */
+.message-item {
+    display: flex;
+    margin-bottom: 12px;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message-content {
+    display: flex;
+    align-items: flex-start;
+    max-width: 100%;
+    gap: 10px;
+}
+
+.message-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+}
+
+.user-icon {
+    background: linear-gradient(135deg, #007acc, #00a8ff);
+    color: #fff;
+}
+
+.assistant-icon {
+    background: linear-gradient(135deg, #28a745, #5dd879);
+    color: #fff;
+}
+
+.assistant-icon-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+.message-bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-family: "Microsoft YaHei", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: calc(100% - 50px);
+    word-break: break-word;
+}
+
+.message-user {
+    justify-content: flex-end;
+}
+
+.message-user .message-content {
+    flex-direction: row-reverse;
+}
+
+.message-user .message-bubble {
+    background: #e3f2fd;
+    color: #333;
+    border-bottom-right-radius: 4px;
+}
+
+.message-assistant {
+    justify-content: flex-start;
+}
+
+.message-assistant .message-bubble {
+    background: #f5f7fa;
+    color: #333;
+    border-bottom-left-radius: 4px;
+    border: 1px solid #e8ecf0;
+}
+
+.message-sender {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+
+.message-user .message-sender {
+    text-align: right;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.message-text-content {
+    font-family: "Microsoft YaHei", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.message-system {
+    justify-content: center;
+}
+
+.message-system .message-text {
+    color: #999;
+    font-size: 12px;
+    background: #f0f2f5;
+    padding: 4px 12px;
+    border-radius: 10px;
+}
+
 .chat-input-box {
     height: 180px;
     padding: 0 10px 10px 10px;

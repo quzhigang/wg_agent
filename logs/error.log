@@ -18,3 +18,22 @@ CREATE TABLE messages (
 ]
 (Background on this error at: https://sqlalche.me/e/20/f405)
 2025-12-23 15:09:09.142 | ERROR    | src.api.chat:chat:109 | 对话处理失败: dict can not be used as parameter
+2025-12-23 15:42:06.088 | ERROR    | src.api.chat:chat:109 | 对话处理失败: dict can not be used as parameter
+2025-12-23 16:10:02.384 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:10:12.404 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:10:22.390 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:10:32.395 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:10:42.259 | ERROR    | src.agents.graph:run_agent:301 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2025-12-23 16:14:44.859 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:14:54.857 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:15:04.855 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:15:14.864 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:15:22.011 | ERROR    | src.agents.graph:run_agent:301 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2025-12-23 16:30:32.336 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:30:42.356 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:30:52.355 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:31:02.360 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 16:31:02.377 | ERROR    | src.agents.graph:run_agent:392 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
