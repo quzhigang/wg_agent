@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>水库洪水预报结果展示</title>
-    <link rel="stylesheet" href="css/style.css?v=1.3">
+    <link rel="stylesheet" href="css/style.css?v=1.4">
     <link rel="icon" href="data:;base64,=">
 </head>
 <body>
@@ -173,9 +173,11 @@
             }
             
             logList.appendChild(li);
-            // 滚动到底部
-            const processContent = document.querySelector('.process-content');
-            processContent.scrollTop = processContent.scrollHeight;
+            // 滚动到底部 - 使用 setTimeout 确保 DOM 更新后再滚动
+            setTimeout(() => {
+                const processBox = document.querySelector('.process-box');
+                processBox.scrollTop = processBox.scrollHeight;
+            }, 50);
         }
 
         // 新对话功能
