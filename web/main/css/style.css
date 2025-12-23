@@ -9,16 +9,31 @@ body {
 
 .layout-grid {
     display: flex;
+    justify-content: flex-end;
+    /* 内容靠右对齐，防止折叠时右侧区域左移 */
     height: 100vh;
     width: 100vw;
+    position: relative;
+    overflow: hidden;
+    background: #f0f2f5;
 }
 
 .iframe-container {
-    flex: 1;
     height: 100%;
     background: #fff;
     position: relative;
     overflow: hidden;
+    flex: 1;
+    /* 初始占据剩余空间 */
+    transition: all 1s ease;
+    /* 1s 宽度平滑动画 */
+    min-width: 0;
+}
+
+/* 折叠类：宽度变 0，flex 占比变 0 */
+.iframe-container.collapsed {
+    flex: 0 0 0;
+    width: 0;
 }
 
 iframe {
@@ -45,28 +60,29 @@ iframe {
 /* 折叠/展开按钮样式 */
 .toggle-sidebar-btn {
     position: absolute;
-    left: 50%;
+    left: -24px;
+    /* 固定在对话框的左外侧，即中间位置 */
     top: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateY(-50%);
     width: 24px;
     height: 48px;
     background: #fff;
     border: 1px solid #e0e0e0;
-    border-radius: 4px;
+    border-radius: 4px 0 0 4px;
     cursor: pointer;
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
     padding: 0;
-    z-index: 11;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.2s ease;
+    z-index: 1005;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+    transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .toggle-sidebar-btn:hover {
     background: #f5f5f5;
     border-color: #007acc;
-    box-shadow: 0 2px 8px rgba(0,122,204,0.2);
+    box-shadow: 0 2px 8px rgba(0, 122, 204, 0.2);
 }
 
 .toggle-sidebar-btn svg {
@@ -85,6 +101,9 @@ iframe {
     display: flex;
     flex-direction: column;
     color: #333;
+    flex-shrink: 0;
+    position: relative;
+    /* 极其重要：为按钮提供定位参考 */
 }
 
 .panel-style {
@@ -158,8 +177,15 @@ iframe {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .message-content {
@@ -361,24 +387,67 @@ iframe {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 300px;
-    max-height: 400px;
+    width: 450px;
+    max-height: 550px;
     background: #fff;
     border: 1px solid #ccc;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 1000;
     display: none;
     flex-direction: column;
 }
 
 .history-header {
-    padding: 10px;
+    padding: 12px 15px;
     border-bottom: 1px solid #eee;
     font-weight: bold;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-size: 16px;
+}
+
+.history-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fafafa;
+}
+
+.select-all-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+}
+
+.select-all-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.delete-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: #ff4d4f;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.delete-btn:hover {
+    background: #ff7875;
 }
 
 .history-list {
@@ -387,20 +456,157 @@ iframe {
     padding: 0;
     margin: 0;
     list-style: none;
+    max-height: 400px;
 }
 
 .history-item {
-    padding: 10px;
+    padding: 12px 15px;
     border-bottom: 1px solid #f5f5f5;
-    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .history-item:hover {
     background: #f0f7ff;
 }
 
+.history-item.no-data {
+    justify-content: center;
+    padding: 30px;
+}
+
+.history-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.history-title {
+    flex: 1;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.history-title:hover {
+    color: #007acc;
+}
+
+.delete-single-btn {
+    background: transparent;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.delete-single-btn:hover {
+    background: #ffebee;
+    color: #ff4d4f;
+}
+
 .history-close {
     cursor: pointer;
-    font-size: 20px;
+    font-size: 22px;
     color: #999;
+    line-height: 1;
+}
+
+.history-close:hover {
+    color: #666;
+}
+
+/* 通用确认/提示对话框 */
+.confirm-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.confirm-dialog {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    min-width: 320px;
+    max-width: 400px;
+    animation: dialogFadeIn 0.2s ease;
+}
+
+@keyframes dialogFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.confirm-content {
+    padding: 24px 24px 16px;
+    text-align: center;
+}
+
+.confirm-content p {
+    margin: 0;
+    font-size: 15px;
+    color: #333;
+    line-height: 1.6;
+}
+
+.confirm-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 24px 24px;
+}
+
+.confirm-btn {
+    padding: 8px 24px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 80px;
+}
+
+.confirm-btn.cancel-btn {
+    background: #f5f5f5;
+    border: 1px solid #d9d9d9;
+    color: #666;
+}
+
+.confirm-btn.cancel-btn:hover {
+    background: #e8e8e8;
+    border-color: #bbb;
+}
+
+.confirm-btn.ok-btn {
+    background: #007acc;
+    border: 1px solid #007acc;
+    color: #fff;
+}
+
+.confirm-btn.ok-btn:hover {
+    background: #0098ff;
+    border-color: #0098ff;
 }

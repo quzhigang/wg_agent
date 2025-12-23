@@ -322,6 +322,46 @@ async def get_conversation(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/conversations/{conversation_id}", response_model=APIResponse)
+async def delete_conversation(
+    conversation_id: str,
+    db: Session = Depends(get_db)
+):
+    """删除会话及其所有消息"""
+    try:
+        # 检查会话是否存在
+        conversation = db.query(Conversation).filter(
+            Conversation.id == conversation_id
+        ).first()
+        
+        if not conversation:
+            raise HTTPException(status_code=404, detail="会话不存在")
+        
+        # 删除会话相关的所有消息
+        db.query(Message).filter(
+            Message.conversation_id == conversation_id
+        ).delete()
+        
+        # 删除会话
+        db.delete(conversation)
+        db.commit()
+        
+        logger.info(f"会话已删除: {conversation_id}")
+        
+        return APIResponse(
+            success=True,
+            message="会话删除成功",
+            data={"id": conversation_id}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除会话失败: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/conversations/{conversation_id}/messages", response_model=APIResponse)
 async def get_conversation_messages(
     conversation_id: str,

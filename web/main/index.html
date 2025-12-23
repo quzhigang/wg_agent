@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>水库洪水预报结果展示</title>
-    <link rel="stylesheet" href="css/style.css?v=1.4">
+    <link rel="stylesheet" href="css/style.css?v=1.7">
     <link rel="icon" href="data:;base64,=">
 </head>
 <body>
@@ -75,11 +75,48 @@
         </aside>
     </div>
 
+    <!-- 通用确认对话框 -->
+    <div id="confirmModal" class="confirm-modal">
+        <div class="confirm-dialog">
+            <div class="confirm-content">
+                <p id="confirmMessage">确定要执行此操作吗？</p>
+            </div>
+            <div class="confirm-buttons">
+                <button id="confirmCancel" class="confirm-btn cancel-btn">取消</button>
+                <button id="confirmOk" class="confirm-btn ok-btn">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通用提示对话框 -->
+    <div id="alertModal" class="confirm-modal">
+        <div class="confirm-dialog">
+            <div class="confirm-content">
+                <p id="alertMessage">提示信息</p>
+            </div>
+            <div class="confirm-buttons">
+                <button id="alertOk" class="confirm-btn ok-btn">确定</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 历史对话模态框 -->
     <div id="historyModal" class="history-modal">
         <div class="history-header">
             <span>历史对话</span>
             <span id="closeHistory" class="history-close">&times;</span>
+        </div>
+        <div class="history-toolbar">
+            <label class="select-all-label">
+                <input type="checkbox" id="selectAllHistory">
+                <span>全选</span>
+            </label>
+            <button id="deleteSelectedBtn" class="delete-btn" title="删除选中">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+                删除选中
+            </button>
         </div>
         <ul id="historyListContainer" class="history-list">
             <!-- 动态加载 -->
@@ -89,6 +126,56 @@
     <script src="js/resizer.js"></script>
     <script>
         let currentConversationId = null;
+        
+        // 自定义确认对话框
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirmModal');
+                const msgEl = document.getElementById('confirmMessage');
+                const okBtn = document.getElementById('confirmOk');
+                const cancelBtn = document.getElementById('confirmCancel');
+                
+                msgEl.textContent = message;
+                modal.style.display = 'flex';
+                
+                const handleOk = () => {
+                    modal.style.display = 'none';
+                    okBtn.removeEventListener('click', handleOk);
+                    cancelBtn.removeEventListener('click', handleCancel);
+                    resolve(true);
+                };
+                
+                const handleCancel = () => {
+                    modal.style.display = 'none';
+                    okBtn.removeEventListener('click', handleOk);
+                    cancelBtn.removeEventListener('click', handleCancel);
+                    resolve(false);
+                };
+                
+                okBtn.addEventListener('click', handleOk);
+                cancelBtn.addEventListener('click', handleCancel);
+            });
+        }
+        
+        // 自定义提示对话框
+        function showAlert(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('alertModal');
+                const msgEl = document.getElementById('alertMessage');
+                const okBtn = document.getElementById('alertOk');
+                
+                msgEl.textContent = message;
+                modal.style.display = 'flex';
+                
+                const handleOk = () => {
+                    modal.style.display = 'none';
+                    okBtn.removeEventListener('click', handleOk);
+                    resolve();
+                };
+                
+                okBtn.addEventListener('click', handleOk);
+            });
+        }
         const chatInput = document.getElementById('chatInput');
         const chatSendBtn = document.getElementById('chatSendBtn');
         const logList = document.getElementById('logList');
@@ -196,14 +283,24 @@
                 if (result.success) {
                     const container = document.getElementById('historyListContainer');
                     container.innerHTML = '';
+                    document.getElementById('selectAllHistory').checked = false;
+                    
                     if (result.data.length === 0) {
-                        container.innerHTML = '<li class="history-item" style="text-align:center;color:#999;">暂无记录</li>';
+                        container.innerHTML = '<li class="history-item no-data" style="text-align:center;color:#999;">暂无记录</li>';
                     } else {
                         result.data.forEach(conv => {
                             const li = document.createElement('li');
                             li.className = 'history-item';
-                            li.textContent = conv.title || conv.id;
-                            li.onclick = () => loadConversation(conv.id);
+                            li.dataset.id = conv.id;
+                            li.innerHTML = `
+                                <input type="checkbox" class="history-checkbox" data-id="${conv.id}">
+                                <span class="history-title" onclick="loadConversation('${conv.id}')">${conv.title || conv.id}</span>
+                                <button class="delete-single-btn" onclick="deleteConversation('${conv.id}', event)" title="删除">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                    </svg>
+                                </button>
+                            `;
                             container.appendChild(li);
                         });
                     }
@@ -219,6 +316,71 @@
             historyModal.style.display = 'none';
         });
 
+        // 全选功能
+        document.getElementById('selectAllHistory').addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.history-checkbox');
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+        });
+
+        // 删除选中的对话
+        document.getElementById('deleteSelectedBtn').addEventListener('click', async () => {
+            const checkboxes = document.querySelectorAll('.history-checkbox:checked');
+            if (checkboxes.length === 0) {
+                showAlert('请先选择要删除的对话');
+                return;
+            }
+            
+            const confirmed = await showConfirm(`确定要删除选中的 ${checkboxes.length} 条对话吗？`);
+            if (!confirmed) {
+                return;
+            }
+            
+            const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
+            
+            try {
+                for (const id of ids) {
+                    await fetch(`/chat/conversations/${id}`, { method: 'DELETE' });
+                }
+                // 重新加载列表
+                document.getElementById('historyBtn').click();
+            } catch (error) {
+                console.error('删除失败:', error);
+                showAlert('删除失败');
+            }
+        });
+
+        // 删除单个对话
+        async function deleteConversation(id, event) {
+            event.stopPropagation();
+            const confirmed = await showConfirm('确定要删除这条对话吗？');
+            if (!confirmed) {
+                return;
+            }
+            
+            try {
+                await fetch(`/chat/conversations/${id}`, { method: 'DELETE' });
+                // 从列表中移除
+                const item = document.querySelector(`.history-item[data-id="${id}"]`);
+                if (item) item.remove();
+                
+                // 如果删除的是当前对话，清空当前会话
+                if (currentConversationId === id) {
+                    currentConversationId = null;
+                    logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 对话已删除，开启新对话...</span></li>';
+                }
+                
+                // 检查是否还有记录
+                const remaining = document.querySelectorAll('.history-item:not(.no-data)');
+                if (remaining.length === 0) {
+                    document.getElementById('historyListContainer').innerHTML = 
+                        '<li class="history-item no-data" style="text-align:center;color:#999;">暂无记录</li>';
+                }
+            } catch (error) {
+                console.error('删除失败:', error);
+                showAlert('删除失败');
+            }
+        }
+
         // 点击模态框外部关闭
         window.onclick = function(event) {
             if (event.target == historyModal) {
@@ -228,13 +390,13 @@
 
         // 工具栏功能处理
         document.getElementById('importFileBtn').addEventListener('click', () => {
-            alert('导入文件功能开发中...');
+            showAlert('导入文件功能开发中...');
         });
         document.getElementById('importImageBtn').addEventListener('click', () => {
-            alert('导入图片功能开发中...');
+            showAlert('导入图片功能开发中...');
         });
         document.getElementById('voiceInputBtn').addEventListener('click', () => {
-            alert('语音输入功能开发中...');
+            showAlert('语音输入功能开发中...');
         });
 
         async function loadConversation(id) {

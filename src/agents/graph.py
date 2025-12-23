@@ -116,52 +116,27 @@ async def quick_chat_node(state: AgentState) -> Dict[str, Any]:
     """
     快速对话节点
     
-    对于一般闲聊，使用意图分析时LLM已生成的直接回复，无需再次调用LLM
+    对于一般闲聊，直接使用意图分析时LLM已生成的回复，不再调用LLM
     """
     logger.info("执行快速对话响应...")
     
-    # 优先使用意图分析时LLM已生成的直接回复
+    # 直接使用意图分析时LLM已生成的直接回复
     direct_response = state.get('direct_response')
     if direct_response:
-        logger.info("使用LLM意图分析时生成的直接回复")
+        logger.info("使用意图分析时生成的直接回复，跳过LLM调用")
         return {
             "final_response": direct_response,
             "output_type": OutputType.TEXT.value,
             "next_action": "end"
         }
     
-    # 如果没有直接回复（兜底情况），调用LLM生成
-    try:
-        llm = ChatOpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_api_base,
-            model=settings.openai_model_name,
-            temperature=0.7
-        )
-        
-        prompt = ChatPromptTemplate.from_template(QUICK_CHAT_PROMPT)
-        chain = prompt | llm
-        
-        response = await chain.ainvoke({
-            "user_message": state.get('user_message', '')
-        })
-        
-        logger.info("快速对话响应生成完成")
-        
-        return {
-            "final_response": response.content,
-            "output_type": OutputType.TEXT.value,
-            "next_action": "end"
-        }
-        
-    except Exception as e:
-        logger.error(f"快速对话响应失败: {e}")
-        return {
-            "final_response": "你好！我是卫共流域数字孪生系统的智能助手，有什么可以帮助您的吗？",
-            "output_type": OutputType.TEXT.value,
-            "error": str(e),
-            "next_action": "end"
-        }
+    # 兜底：如果没有直接回复，返回默认回复（不再调用LLM，避免额外耗时）
+    logger.warning("未找到直接回复，使用默认回复")
+    return {
+        "final_response": "你好！我是卫共流域数字孪生系统的智能助手小卫，有什么可以帮助您的吗？",
+        "output_type": OutputType.TEXT.value,
+        "next_action": "end"
+    }
 
 
 async def async_wait_node(state: AgentState) -> Dict[str, Any]:

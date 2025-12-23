@@ -67,6 +67,10 @@ class AgentState(TypedDict):
     intent: Optional[str]
     intent_confidence: Optional[float]
     
+    # 快速对话相关
+    is_quick_chat: Optional[bool]
+    direct_response: Optional[str]
+    
     # 工作流匹配
     matched_workflow: Optional[str]
     workflow_params: Optional[Dict[str, Any]]
@@ -133,6 +137,10 @@ def create_initial_state(
         # 意图识别结果
         intent=None,
         intent_confidence=None,
+        
+        # 快速对话相关
+        is_quick_chat=None,
+        direct_response=None,
         
         # 工作流匹配
         matched_workflow=None,

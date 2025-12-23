@@ -37,3 +37,9 @@ For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/erro
 2025-12-23 16:31:02.360 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
 2025-12-23 16:31:02.377 | ERROR    | src.agents.graph:run_agent:392 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
 For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2025-12-23 20:35:35.904 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 20:35:45.915 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 20:35:55.933 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 20:36:05.940 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-23 20:36:05.957 | ERROR    | src.agents.graph:run_agent:375 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT

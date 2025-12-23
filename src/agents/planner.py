@@ -432,25 +432,32 @@ async def planner_node(state: AgentState) -> Dict[str, Any]:
     LangGraph节点函数 - 规划节点
     
     执行意图分析、工作流匹配和计划生成
+    
+    注意：LangGraph节点函数应返回字典来更新状态，而不是直接修改state对象
     """
     planner = get_planner()
     
     # 1. 分析意图（LLM会判断是否为闲聊，如果是闲聊会直接返回回复）
     intent_result = await planner.analyze_intent(state)
-    state.update(intent_result)
     
-    # 如果意图分析已经返回了直接回复（一般对话），直接跳转到快速响应
+    # 如果意图分析已经返回了直接回复（一般对话），直接返回意图分析结果
     if intent_result.get('is_quick_chat') and intent_result.get('direct_response'):
         logger.info("LLM判断为一般对话，使用直接回复")
-        return state
+        return intent_result
     
     # 2. 检查工作流匹配
-    workflow_result = await planner.check_workflow_match(state)
-    state.update(workflow_result)
+    # 先合并意图分析结果到临时状态
+    temp_state = dict(state)
+    temp_state.update(intent_result)
+    
+    workflow_result = await planner.check_workflow_match(temp_state)
     
     # 3. 如果没有匹配工作流，生成动态计划
-    if not state.get('matched_workflow'):
-        plan_result = await planner.generate_plan(state)
-        state.update(plan_result)
+    if not workflow_result.get('matched_workflow'):
+        temp_state.update(workflow_result)
+        plan_result = await planner.generate_plan(temp_state)
+        # 合并所有结果
+        return {**intent_result, **workflow_result, **plan_result}
     
-    return state
+    # 合并意图分析和工作流匹配结果
+    return {**intent_result, **workflow_result}
