@@ -97,8 +97,9 @@ class Settings(BaseSettings):
     # ===========================================
     # Web Page Generation
     # ===========================================
-    generated_pages_dir: str = "./generated_pages"
-    web_templates_dir: str = "./web_templates"
+    generated_pages_dir: str = "./web/generated_pages"
+    web_templates_dir: str = "./web/web_templates"
+    web_main_dir: str = "./web/main"
     
     # ===========================================
     # Logging

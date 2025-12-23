@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水库洪水预报结果展示</title>
+    <link rel="stylesheet" href="css/style.css?v=1.1">
+    <link rel="icon" href="data:;base64,=">
+</head>
+<body>
+    <div class="layout-grid">
+        <!-- Main Content (iframe) -->
+        <div class="iframe-container">
+            <iframe id="mainContentFrame" src="res_module/index.html" frameborder="0"></iframe>
+        </div>
+
+        <!-- Vertical Resizer (Main content / Sidebar) -->
+        <div class="resizer resizer-h" id="resizer-sidebar"></div>
+
+        <!-- Sidebar (Now on the right) -->
+        <aside class="left-sidebar">
+            <!-- 合并后的展示区 -->
+            <div class="main-display-area panel-style">
+                <!-- AI数字人区 25% -->
+                <div class="avatar-box">
+                    <div class="avatar-content">
+                        <img src="img/szr_no_bg.png" alt="AI数字人" class="avatar-image">
+                    </div>
+                </div>
+                <!-- 智能体执行过程展示区 60% -->
+                <div class="process-box">
+                    <div class="process-content">
+                        <ul class="log-list" id="logList">
+                            <li>> 系统初始化完成...</li>
+                            <li>> 等待您的提问...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <!-- 对话输入框 15% -->
+            <div class="chat-input-box panel-style">
+                <div class="toolbar">
+                    <button id="newChatBtn" class="toolbar-btn" title="新对话">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                        </svg>
+                    </button>
+                    <button id="historyBtn" class="toolbar-btn" title="历史对话">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+                        </svg>
+                    </button>
+                    <button id="voiceInputBtn" class="toolbar-btn" title="语音输入">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                    </button>
+                    <button id="importFileBtn" class="toolbar-btn" title="导入文件">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                        </svg>
+                    </button>
+                    <button id="importImageBtn" class="toolbar-btn" title="导入图片">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="chat-input-wrapper">
+                    <textarea id="chatInput" class="chat-input" placeholder="请输入您的问题..."></textarea>
+                    <button id="chatSendBtn" class="chat-send-btn">发送</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 历史对话模态框 -->
+    <div id="historyModal" class="history-modal">
+        <div class="history-header">
+            <span>历史对话</span>
+            <span id="closeHistory" class="history-close">&times;</span>
+        </div>
+        <ul id="historyListContainer" class="history-list">
+            <!-- 动态加载 -->
+        </ul>
+    </div>
+
+    <script src="js/resizer.js"></script>
+    <script>
+        let currentConversationId = null;
+        const chatInput = document.getElementById('chatInput');
+        const chatSendBtn = document.getElementById('chatSendBtn');
+        const logList = document.getElementById('logList');
+        const mainContentFrame = document.getElementById('mainContentFrame');
+        const historyModal = document.getElementById('historyModal');
+
+        chatSendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // 添加用户消息到日志
+            addLog(`用户: ${message}`);
+            chatInput.value = '';
+
+            try {
+                // 调用后端API
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        user_id: 'user123', // 示例ID
+                        conversation_id: currentConversationId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // 更新会话ID
+                currentConversationId = data.conversation_id;
+                
+                // 处理响应
+                addLog(`智能体: ${data.content}`);
+                
+                if (data.page_url) {
+                    mainContentFrame.src = data.page_url;
+                    addLog(`> 页面已更新: ${data.page_url}`);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                addLog(`> 错误: ${error.message}`);
+            }
+        }
+
+        function addLog(text) {
+            const li = document.createElement('li');
+            li.textContent = text;
+            logList.appendChild(li);
+            // 滚动到底部
+            const processContent = document.querySelector('.process-content');
+            processContent.scrollTop = processContent.scrollHeight;
+        }
+
+        // 新对话功能
+        document.getElementById('newChatBtn').addEventListener('click', () => {
+            currentConversationId = null;
+            logList.innerHTML = '<li>> 开启新对话...</li>';
+            addLog('系统: 已开启新会话');
+            // 重置iframe到初始模板
+            mainContentFrame.src = 'res_module/index.html';
+        });
+
+        // 历史对话功能
+        document.getElementById('historyBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/chat/conversations?user_id=user123');
+                const result = await response.json();
+                if (result.success) {
+                    const container = document.getElementById('historyListContainer');
+                    container.innerHTML = '';
+                    if (result.data.length === 0) {
+                        container.innerHTML = '<li class="history-item" style="text-align:center;color:#999;">暂无记录</li>';
+                    } else {
+                        result.data.forEach(conv => {
+                            const li = document.createElement('li');
+                            li.className = 'history-item';
+                            li.textContent = conv.title || conv.id;
+                            li.onclick = () => loadConversation(conv.id);
+                            container.appendChild(li);
+                        });
+                    }
+                    historyModal.style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('加载历史失败:', error);
+                alert('获取历史对话列表失败');
+            }
+        });
+
+        document.getElementById('closeHistory').addEventListener('click', () => {
+            historyModal.style.display = 'none';
+        });
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            if (event.target == historyModal) {
+                historyModal.style.display = "none";
+            }
+        }
+
+        // 工具栏功能处理
+        document.getElementById('importFileBtn').addEventListener('click', () => {
+            alert('导入文件功能开发中...');
+        });
+        document.getElementById('importImageBtn').addEventListener('click', () => {
+            alert('导入图片功能开发中...');
+        });
+        document.getElementById('voiceInputBtn').addEventListener('click', () => {
+            alert('语音输入功能开发中...');
+        });
+
+        async function loadConversation(id) {
+            currentConversationId = id;
+            historyModal.style.display = 'none';
+            logList.innerHTML = '<li>> 正在加载历史对话...</li>';
+            
+            try {
+                const response = await fetch(`/chat/conversations/${id}/messages`);
+                const result = await response.json();
+                if (result.success) {
+                    logList.innerHTML = '';
+                    result.data.forEach(msg => {
+                        const roleName = msg.role === 'user' ? '用户' : '智能体';
+                        addLog(`${roleName}: ${msg.content}`);
+                        
+                        // 如果最后一条助手消息包含页面URL，尝试加载它
+                        if (msg.role === 'assistant' && msg.metadata && msg.metadata.page_url) {
+                            mainContentFrame.src = msg.metadata.page_url;
+                        }
+                    });
+                    addLog('系统: 已加载历史会话');
+                }
+            } catch (error) {
+                console.error('加载消息失败:', error);
+                addLog('> 错误: 无法加载历史消息');
+            }
+        }
+    </script>
+</body>
+</html>

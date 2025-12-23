@@ -2,7 +2,7 @@
 聊天对话接口
 """
 
-from typing import Optional
+from typing import Optional, List
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -124,8 +124,18 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
             conversation_id = request.conversation_id or str(uuid4())
             
             # 发送开始信号
-            yield f"data: {json.dumps({'type': 'start', 'conversation_id': conversation_id}, ensure_ascii=False)}\n\n"
+            start_data = json.dumps({"type": "start", "conversation_id": conversation_id}, ensure_ascii=False)
+            yield f"data: {start_data}"
             
+            # 保存用户消息 (如果是新消息)
+            user_message = Message(
+                conversation_id=conversation_id,
+                role="user",
+                content=request.message
+            )
+            db.add(user_message)
+            db.commit()
+
             # 获取历史消息
             history_messages = db.query(Message).filter(
                 Message.conversation_id == conversation_id
@@ -133,9 +143,13 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
             
             chat_history = [
                 {"role": msg.role, "content": msg.content}
-                for msg in reversed(history_messages)
+                for msg in reversed(history_messages[1:])
             ]
             
+            full_response = ""
+            output_type = "text"
+            page_url = None
+
             # 调用流式智能体
             async for event in run_agent_stream(
                 conversation_id=conversation_id,
@@ -146,20 +160,48 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                 node = event.get("node", "")
                 
                 if node == "error":
-                    yield f"data: {json.dumps({'type': 'error', 'data': event.get('error')}, ensure_ascii=False)}\n\n"
+                    err_data = json.dumps({"type": "error", "data": event.get("error")}, ensure_ascii=False)
+                    yield f"data: {err_data}"
                 elif node == "final":
-                    yield f"data: {json.dumps({'type': 'content', 'data': event.get('response'), 'output_type': event.get('output_type'), 'page_url': event.get('page_url')}, ensure_ascii=False)}\n\n"
+                    full_response = event.get("response", "")
+                    output_type = event.get("output_type", "text")
+                    page_url = event.get("page_url")
+                    
+                    final_data = json.dumps({
+                        "type": "content", 
+                        "data": full_response, 
+                        "output_type": output_type, 
+                        "page_url": page_url
+                    }, ensure_ascii=False)
+                    yield f"data: {final_data}"
                 else:
                     progress = event.get("progress", {})
                     state = event.get("state", {})
-                    yield f"data: {json.dumps({'type': 'step', 'node': node, 'progress': progress, 'state': state}, ensure_ascii=False)}\n\n"
+                    step_data = json.dumps({"type": "step", "node": node, "progress": progress, "state": state}, ensure_ascii=False)
+                    yield f"data: {step_data}"
             
+            # 保存助手响应到数据库
+            if full_response:
+                assistant_message = Message(
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=full_response,
+                    msg_metadata={
+                        "output_type": output_type,
+                        "page_url": page_url
+                    }
+                )
+                db.add(assistant_message)
+                db.commit()
+
             # 发送完成信号
-            yield f"data: {json.dumps({'type': 'done', 'data': None}, ensure_ascii=False)}\n\n"
+            done_data = json.dumps({"type": "done", "data": None}, ensure_ascii=False)
+            yield f"data: {done_data}"
             
         except Exception as e:
             logger.error(f"流式对话处理失败: {str(e)}")
-            yield f"data: {json.dumps({'type': 'error', 'data': str(e)}, ensure_ascii=False)}\n\n"
+            err_msg = json.dumps({"type": "error", "data": str(e)}, ensure_ascii=False)
+            yield f"data: {err_msg}"
     
     return StreamingResponse(
         generate(),
@@ -171,6 +213,43 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/conversations", response_model=APIResponse)
+async def list_conversations(
+    user_id: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """获取会话列表（历史对话）"""
+    try:
+        query = db.query(Conversation)
+        if user_id:
+            query = query.filter(Conversation.user_id == user_id)
+        
+        conversations = query.order_by(Conversation.updated_at.desc()).offset(offset).limit(limit).all()
+        
+        conv_list = []
+        for conv in conversations:
+            conv_list.append({
+                "id": conv.id,
+                "user_id": conv.user_id,
+                "title": conv.title,
+                "created_at": conv.created_at.isoformat() if conv.created_at else None,
+                "updated_at": conv.updated_at.isoformat() if conv.updated_at else None,
+                "is_active": conv.is_active,
+                "summary": conv.summary
+            })
+
+        return APIResponse(
+            success=True,
+            message="获取成功",
+            data=conv_list
+        )
+    except Exception as e:
+        logger.error(f"获取会话列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/conversations", response_model=APIResponse)
 async def create_conversation(
     request: ConversationCreate,
@@ -178,9 +257,6 @@ async def create_conversation(
 ):
     """创建新会话"""
     try:
-        from uuid import uuid4
-        from ..models.database import Conversation
-        
         conversation = Conversation(
             id=str(uuid4()),
             user_id=request.user_id,
@@ -194,15 +270,15 @@ async def create_conversation(
         return APIResponse(
             success=True,
             message="会话创建成功",
-            data=ConversationResponse(
-                id=conversation.id,
-                user_id=conversation.user_id,
-                title=conversation.title,
-                created_at=conversation.created_at,
-                updated_at=conversation.updated_at,
-                is_active=conversation.is_active,
-                summary=conversation.summary
-            ).model_dump()
+            data={
+                "id": conversation.id,
+                "user_id": conversation.user_id,
+                "title": conversation.title,
+                "created_at": conversation.created_at.isoformat() if conversation.created_at else None,
+                "updated_at": conversation.updated_at.isoformat() if conversation.updated_at else None,
+                "is_active": conversation.is_active,
+                "summary": conversation.summary
+            }
         )
         
     except Exception as e:
@@ -218,8 +294,6 @@ async def get_conversation(
 ):
     """获取会话详情"""
     try:
-        from ..models.database import Conversation
-        
         conversation = db.query(Conversation).filter(
             Conversation.id == conversation_id
         ).first()
@@ -230,15 +304,15 @@ async def get_conversation(
         return APIResponse(
             success=True,
             message="获取成功",
-            data=ConversationResponse(
-                id=conversation.id,
-                user_id=conversation.user_id,
-                title=conversation.title,
-                created_at=conversation.created_at,
-                updated_at=conversation.updated_at,
-                is_active=conversation.is_active,
-                summary=conversation.summary
-            ).model_dump()
+            data={
+                "id": conversation.id,
+                "user_id": conversation.user_id,
+                "title": conversation.title,
+                "created_at": conversation.created_at.isoformat() if conversation.created_at else None,
+                "updated_at": conversation.updated_at.isoformat() if conversation.updated_at else None,
+                "is_active": conversation.is_active,
+                "summary": conversation.summary
+            }
         )
         
     except HTTPException:
@@ -257,8 +331,6 @@ async def get_conversation_messages(
 ):
     """获取会话消息历史"""
     try:
-        from ..models.database import Message, Conversation
-        
         # 检查会话是否存在
         conversation = db.query(Conversation).filter(
             Conversation.id == conversation_id
@@ -270,21 +342,21 @@ async def get_conversation_messages(
         # 获取消息
         messages = db.query(Message).filter(
             Message.conversation_id == conversation_id
-        ).order_by(Message.created_at.desc()).offset(offset).limit(limit).all()
+        ).order_by(Message.created_at.asc()).offset(offset).limit(limit).all()
         
         return APIResponse(
             success=True,
             message="获取成功",
             data=[
-                MessageResponse(
-                    id=msg.id,
-                    conversation_id=msg.conversation_id,
-                    role=msg.role,
-                    content=msg.content,
-                    created_at=msg.created_at,
-                    metadata=msg.msg_metadata
-                ).model_dump()
-                for msg in reversed(messages)
+                {
+                    "id": msg.id,
+                    "conversation_id": msg.conversation_id,
+                    "role": msg.role,
+                    "content": msg.content,
+                    "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                    "metadata": msg.msg_metadata
+                }
+                for msg in messages
             ]
         )
         

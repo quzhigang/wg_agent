@@ -37,7 +37,7 @@ class PageGenerator:
             return
         
         self._template_manager = get_template_manager()
-        self._output_dir = Path(settings.page_output_path)
+        self._output_dir = Path(settings.generated_pages_dir)
         self._output_dir.mkdir(parents=True, exist_ok=True)
         self._initialized = True
         

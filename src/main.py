@@ -126,7 +126,20 @@ def create_app() -> FastAPI:
     app.include_router(pages_router)
     app.include_router(knowledge_router)
     
-    # 静态文件服务（生成的Web页面）
+    # 静态文件挂载 (注意顺序：更具体的路径应先挂载)
+    
+    # 1. 挂载页面模板组件 (web/web_templates/res_module -> /ui/res_module)
+    # 这样 index.html 里的 res_module/ 相对路径就能正确匹配
+    web_templates_path = Path(settings.web_templates_dir)
+    if (web_templates_path / "res_module").exists():
+        app.mount("/ui/res_module", StaticFiles(directory=str(web_templates_path / "res_module")), name="ui_res_module")
+
+    # 2. 挂载主界面 (web/main -> /ui)
+    web_main_path = Path(settings.web_main_dir)
+    if web_main_path.exists():
+        app.mount("/ui", StaticFiles(directory=str(web_main_path), html=True), name="ui_main")
+
+    # 3. 挂载生成的页面 (web/generated_pages -> /static/pages)
     generated_pages_path = Path(settings.generated_pages_dir)
     generated_pages_path.mkdir(parents=True, exist_ok=True)
     app.mount(
@@ -134,15 +147,6 @@ def create_app() -> FastAPI:
         StaticFiles(directory=str(generated_pages_path)),
         name="generated_pages"
     )
-
-    # Web界面静态资源
-    web_templates_path = Path(settings.web_templates_dir)
-    if web_templates_path.exists():
-        app.mount(
-            "/ui",
-            StaticFiles(directory=str(web_templates_path), html=True),
-            name="ui"
-        )
     
     @app.get("/", tags=["根路径"])
     async def root():

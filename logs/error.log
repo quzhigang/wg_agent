@@ -17,3 +17,4 @@ CREATE TABLE messages (
 
 ]
 (Background on this error at: https://sqlalche.me/e/20/f405)
+2025-12-23 15:09:09.142 | ERROR    | src.api.chat:chat:109 | 对话处理失败: dict can not be used as parameter

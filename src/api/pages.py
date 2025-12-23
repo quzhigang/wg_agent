@@ -6,7 +6,7 @@
 from typing import Optional, List
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 
 from ..config.logging_config import get_logger
 from ..config.settings import settings
@@ -21,38 +21,15 @@ router = APIRouter(prefix="/pages", tags=["页面"])
 @router.get("/{filename}")
 async def get_page(filename: str):
     """
-    获取生成的报告页面
+    获取生成的报告页面 (重定向到静态挂载路径)
     
     Args:
         filename: 页面文件名
         
     Returns:
-        HTML页面内容
+        HTML页面重定向
     """
-    try:
-        generator = get_page_generator()
-        file_path = generator._output_dir / filename
-        
-        if not file_path.exists():
-            raise HTTPException(status_code=404, detail="页面不存在")
-        
-        # 检查文件是否在允许的目录下（安全检查）
-        try:
-            file_path.resolve().relative_to(generator._output_dir.resolve())
-        except ValueError:
-            raise HTTPException(status_code=403, detail="访问被拒绝")
-        
-        return FileResponse(
-            path=file_path,
-            media_type="text/html",
-            filename=filename
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取页面失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return RedirectResponse(url=f"/static/pages/{filename}")
 
 
 @router.get("", response_model=APIResponse)
@@ -91,9 +68,9 @@ async def delete_page(filename: str):
     """
     try:
         generator = get_page_generator()
-        page_url = f"/pages/{filename}"
-        
-        success = generator.delete_page(page_url)
+        # 同时尝试删除 /pages/ 和 /static/pages/ 前缀的匹配
+        success = generator.delete_page(f"/pages/{filename}") or \
+                  generator.delete_page(f"/static/pages/{filename}")
         
         if not success:
             raise HTTPException(status_code=404, detail="页面不存在")
