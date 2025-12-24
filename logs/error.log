@@ -30,3 +30,15 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-12-24 17:56:25.600 | ERROR    | src.agents.executor:execute_step:93 | 步骤 4 执行失败: 未找到工具: generate_response
 2025-12-24 17:56:25.619 | ERROR    | src.agents.graph:run_agent:426 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
 For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2025-12-24 19:36:08.568 | ERROR    | src.tools.basin_info:execute:117 | 地图数据源查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/map/dataSource/table/map?refTable=geo_res_base&where%5B0%5D%5Bfiled%5D=res_name&where%5B0%5D%5Brela%5D=%3D&where%5B0%5D%5Bvalue%5D=%27%E7%9B%98%E7%9F%B3%E5%A4%B4%E6%B0%B4%E5%BA%93%27'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 19:36:08.605 | ERROR    | src.tools.hydro_monitor:execute:376 | 水库最新水情查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 19:37:43.999 | ERROR    | src.tools.basin_info:execute:117 | 地图数据源查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/map/dataSource/table/map?refTable=geo_res_base&where%5B0%5D%5Bfiled%5D=res_name&where%5B0%5D%5Brela%5D=%3D&where%5B0%5D%5Bvalue%5D=%27%E7%9B%98%E7%9F%B3%E5%A4%B4%E6%B0%B4%E5%BA%93%27'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 19:37:44.043 | ERROR    | src.tools.hydro_monitor:execute:376 | 水库最新水情查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 19:43:21.188 | ERROR    | src.tools.basin_info:execute:117 | 地图数据源查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/map/dataSource/table/map?refTable=geo_res_base&where%5B0%5D%5Bfiled%5D=res_name&where%5B0%5D%5Brela%5D=%3D&where%5B0%5D%5Bvalue%5D=%27%E7%9B%98%E7%9F%B3%E5%A4%B4%E6%B0%B4%E5%BA%93%27'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 19:43:21.232 | ERROR    | src.tools.hydro_monitor:execute:376 | 水库最新水情查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500

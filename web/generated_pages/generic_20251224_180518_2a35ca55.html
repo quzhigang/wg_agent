@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>data_query报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #0f4c75;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 28px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+        .header .subtitle {
+            font-size: 14px;
+            color: #888;
+            margin-top: 10px;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card-title {
+            font-size: 16px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+        }
+        .chart-container {
+            width: 100%;
+            height: 300px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th, .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .data-table th {
+            color: #00d4ff;
+            font-weight: normal;
+        }
+        .status-normal { color: #4caf50; }
+        .status-warning { color: #ff9800; }
+        .status-danger { color: #f44336; }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .info-label {
+            color: #888;
+        }
+        .info-value {
+            color: #fff;
+            font-weight: bold;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>data_query报告</h1>
+            <div class="subtitle">生成时间: 2025-12-24 18:05:18</div>
+        </div>
+        <div class="content">
+            <div class="card" style="grid-column: span 2;"><div class="card-title">📊 data_query报告</div><div style="padding: 20px;">
+                <div class="info-item">
+                    <span class="info-label">success</span>
+                    <span class="info-value">True</span>
+                </div>
+                <h4 style="color: #00d4ff; margin: 15px 0 10px;">data</h4>
+                    <div class="info-item">
+                        <span class="info-label">31005650</span>
+                        <span class="info-value">{'area': 1915.0, 'xx': 248.0, 'normal': '254', 'stcd': '31005650', 'fhg': '270', 'yand': '254', 'deadz': '207', 'sj': '270.7', 'name': '盘石头水库', 'damel': '275.7', 'sort': '13', 'jh': '275'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31006700</span>
+                        <span class="info-value">{'area': 850.0, 'xx': 173.04, 'normal': '173', 'stcd': '31006700', 'fhg': '177', 'yand': '168', 'deadz': '150', 'sj': '179.88', 'name': '小南海水库', 'damel': '188.1', 'sort': '14', 'jh': '187.8'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31006850</span>
+                        <span class="info-value">{'area': 120.0, 'xx': 128.67, 'normal': '128.7', 'stcd': '31006850', 'fhg': '127', 'yand': '123', 'deadz': '118', 'sj': '132.12', 'name': '彰武水库', 'damel': '137.6', 'sort': '15', 'jh': '137.23'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31005485</span>
+                        <span class="info-value">{'area': 88.5, 'xx': 395.0, 'normal': '395', 'stcd': '31005485', 'fhg': '398.67', 'yand': '395', 'deadz': '359', 'sj': '398.67', 'name': '正面水库', 'damel': '400.8', 'sort': '16', 'jh': '400.53'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31005480</span>
+                        <span class="info-value">{'area': 160.0, 'xx': 302.5, 'normal': '302.5', 'stcd': '31005480', 'fhg': '309.33', 'yand': '302.5', 'deadz': '272', 'sj': '309.33', 'name': '狮豹头水库', 'damel': '314.7', 'sort': '17', 'jh': '313.67'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31005500</span>
+                        <span class="info-value">{'area': 234.0, 'xx': 177.0, 'normal': '177', 'stcd': '31005500', 'fhg': '181.65', 'yand': '177', 'deadz': '151.39', 'sj': '181.65', 'name': '塔岗水库', 'damel': '185', 'sort': '18', 'jh': '184.84'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31004600</span>
+                        <span class="info-value">{'area': 165.0, 'xx': 477.0, 'normal': '477', 'stcd': '31004600', 'fhg': '481.5', 'yand': '477', 'deadz': '425', 'sj': '481.75', 'name': '群英水库', 'damel': '490.5', 'sort': '19', 'jh': '485.2'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31006950</span>
+                        <span class="info-value">{'area': 171.0, 'xx': 140.0, 'normal': '215.5', 'stcd': '31006950', 'fhg': '216', 'yand': '136.791', 'deadz': '129.791', 'sj': '219.54', 'name': '双泉水库', 'damel': '147.44', 'sort': '21', 'jh': '224.13'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31005550</span>
+                        <span class="info-value">{'area': 117.0, 'xx': 778.4, 'normal': '778.4', 'stcd': '31005550', 'fhg': '780', 'yand': '778.4', 'deadz': '719.5', 'sj': '782.27', 'name': '陈家院水库', 'damel': '785.5', 'sort': '22', 'jh': '785.43'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31005580</span>
+                        <span class="info-value">{'area': 215.0, 'xx': 640.0, 'normal': '633.97', 'stcd': '31005580', 'fhg': '638', 'yand': '640', 'deadz': '595', 'sj': '646.66', 'name': '三郊口水库', 'damel': '649.5', 'sort': '23', 'jh': '649.45'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31006050</span>
+                        <span class="info-value">{'area': 43.0, 'xx': 384.5, 'normal': '382', 'stcd': '31006050', 'fhg': '382', 'yand': '382', 'deadz': '347', 'sj': '385.24', 'name': '石门水库(安阳)', 'damel': '386.5', 'sort': '24', 'jh': '386.44'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31005530</span>
+                        <span class="info-value">{'area': 57.7, 'xx': 193.7, 'normal': '193.7', 'stcd': '31005530', 'fhg': '194.5', 'yand': '193.7', 'deadz': '168', 'sj': '197.85', 'name': '夺丰水库', 'damel': '200.2', 'sort': '25', 'jh': '199.44'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31005200</span>
+                        <span class="info-value">{'area': 132.0, 'xx': 303.2, 'normal': '305.2', 'stcd': '31005200', 'fhg': '305.2', 'yand': '297.2', 'deadz': '251.5', 'sj': '305.64', 'name': '石门水库(辉县)', 'damel': '308.2', 'sort': '26', 'jh': '307.99'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31006500</span>
+                        <span class="info-value">{'area': 162.0, 'xx': 112.62, 'normal': '114.2', 'stcd': '31006500', 'fhg': '114.2', 'yand': '114.2', 'deadz': '103', 'sj': '118.35', 'name': '汤河水库', 'damel': '122.1', 'sort': '27', 'jh': '120.33'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31006570</span>
+                        <span class="info-value">{'area': 30.0, 'xx': 121.5, 'normal': '121', 'stcd': '31006570', 'fhg': '121', 'yand': '121', 'deadz': '110.5', 'sj': '123.26', 'name': '琵琶寺水库', 'damel': '125.5', 'sort': '28', 'jh': '124.82'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31006000</span>
+                        <span class="info-value">{'area': 605.0, 'xx': 498.0, 'normal': '498', 'stcd': '31006000', 'fhg': '498', 'yand': '498', 'deadz': '479', 'sj': '506.39', 'name': '弓上水库', 'damel': '509.95', 'sort': '29', 'jh': '509.95'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31005110</span>
+                        <span class="info-value">{'area': 538.4, 'xx': 257.5, 'normal': '260', 'stcd': '31005110', 'fhg': '261', 'yand': '257.5', 'deadz': '220', 'sj': '265.82', 'name': '宝泉水库', 'damel': '268.5', 'sort': '30', 'jh': '268.16'}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">31004950</span>
+                        <span class="info-value">{'area': 90.0, 'xx': 421.7, 'normal': '421.7', 'stcd': '31004950', 'fhg': '421.7', 'yand': '415.7', 'deadz': '383.2', 'sj': '423.07', 'name': '马鞍石水库', 'damel': '424.7', 'sort': '31', 'jh': '424.61'}</span>
+                    </div>
+                    
+                <div class="info-item">
+                    <span class="info-label">error</span>
+                    <span class="info-value">None</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">execution_time_ms</span>
+                    <span class="info-value">45</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">metadata</span>
+                    <span class="info-value">None</span>
+                </div>
+                </div></div>
+        </div>
+    </div>
+    <script>
+        
+    </script>
+</body>
+</html>

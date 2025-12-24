@@ -100,10 +100,14 @@ class LoginTool(BaseTool):
                 return {}
         
         if token:
-            # 假设Header为Authorization: token
-            # 如果是标准的Bearer Token，应该是 Authorization: Bearer <token>
-            # 根据提供的Token示例，它是一个JWT
-            return {"token": token, "Authorization": token} # 为了保险起见，添加两种常见的Header
+            # 同时提供多种常见的认证Header格式，确保兼容性
+            # 1. token: 直接使用token值
+            # 2. Authorization: 直接使用token值（某些系统期望这种格式）
+            # 3. Authorization: Bearer <token>（标准JWT格式）
+            return {
+                "token": token,
+                "Authorization": f"Bearer {token}"
+            }
         return {}
 
     @staticmethod
@@ -192,7 +196,7 @@ class LoginTool(BaseTool):
                         # 默认30分钟过期 (根据配置或保守估计)
                         LoginTool._token_expiration = int(time.time()) + 1800
                     
-                    logger.info(f"登录成功，获取到Token: {token[:10]}...")
+                    logger.info(f"登录成功，获取到Token: {token}")
                     
                     return ToolResult(
                         success=True,
