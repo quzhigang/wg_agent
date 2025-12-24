@@ -30,6 +30,7 @@ from ..config.settings import settings
 from ..config.logging_config import get_logger
 from .base import BaseTool, ToolCategory, ToolParameter, ToolResult
 from .registry import register_tool
+from .auth import LoginTool
 
 logger = get_logger(__name__)
 
@@ -105,8 +106,11 @@ class QueryRainProcessTool(BaseTool):
                 'searchEndTime': search_end_time
             }
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -183,8 +187,11 @@ class QueryRainStatisticsTool(BaseTool):
             url = f"{base_url}/api/basin/rwdb/rain/statistics"
             params = {'STCD': stcd}
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -270,8 +277,11 @@ class QueryRainSumTool(BaseTool):
                 'searchEndTime': search_end_time
             }
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -338,8 +348,11 @@ class QueryReservoirLastTool(BaseTool):
             base_url = settings.wg_data_server_url
             url = f"{base_url}/api/basin/rwdb/rsvr/last"
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -433,8 +446,11 @@ class QueryReservoirProcessTool(BaseTool):
                 'searchEndTime': search_end_time
             }
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -502,8 +518,11 @@ class QueryRiverLastTool(BaseTool):
             base_url = settings.wg_data_server_url
             url = f"{base_url}/api/basin/rwdb/river/last"
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -597,8 +616,11 @@ class QueryRiverProcessTool(BaseTool):
                 'searchEndTime': search_end_time
             }
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -666,8 +688,11 @@ class QueryAiWaterLastTool(BaseTool):
             base_url = settings.wg_data_server_url
             url = f"{base_url}/api/basin/monitor/ai/water/last"
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -761,8 +786,11 @@ class QueryAiWaterProcessTool(BaseTool):
                 'ed': ed
             }
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -826,8 +854,11 @@ class QueryAiRainLastTool(BaseTool):
             base_url = settings.wg_data_server_url
             url = f"{base_url}/api/basin/monitor/ai/rain/last"
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -921,8 +952,11 @@ class QueryAiRainProcessTool(BaseTool):
                 'ed': ed
             }
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -1002,8 +1036,11 @@ class QueryCameraPreviewTool(BaseTool):
             url = f"{base_url}/api/basin/camera/preview"
             params = {'code': code}
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -1101,8 +1138,11 @@ class QuerySensorDataProcessTool(BaseTool):
                 'ed': ed
             }
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -1182,8 +1222,11 @@ class QueryDroneStatusTool(BaseTool):
             # 注意：设备序列号作为URL路径参数
             url = f"{base_url}/api/djiuav/openapi/v0.1/device/{device_sn}/state"
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             
@@ -1274,11 +1317,15 @@ class SendSmsTool(BaseTool):
                 'content': content
             }
             
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+            auth_headers['Content-Type'] = 'application/json'
+            
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.post(
                     url,
                     json=json_data,
-                    headers={'Content-Type': 'application/json'}
+                    headers=auth_headers
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -1355,7 +1402,7 @@ def register_hydro_monitor_tools():
     # 八、告警短信接口
     register_tool(SendSmsTool())
     
-    logger.info("水雨情监测工具注册完成，共注册15个工具")
+    logger.info("水雨情监测工具注册完成，共15个工具")
 
 
 # 模块加载时自动注册

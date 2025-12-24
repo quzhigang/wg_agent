@@ -168,7 +168,8 @@ class LoginTool(BaseTool):
             logger.info(f"正在尝试登录系统，账号: {account}")
             
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.post(url, params=params)
+                # 使用POST请求，Content-Type为application/json
+                response = await client.post(url, json=params)
                 response.raise_for_status()
                 result = response.json()
             

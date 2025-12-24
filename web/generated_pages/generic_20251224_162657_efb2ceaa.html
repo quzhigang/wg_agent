@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>data_query报告</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #0f4c75;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 28px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+        .header .subtitle {
+            font-size: 14px;
+            color: #888;
+            margin-top: 10px;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card-title {
+            font-size: 16px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+        }
+        .chart-container {
+            width: 100%;
+            height: 300px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th, .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .data-table th {
+            color: #00d4ff;
+            font-weight: normal;
+        }
+        .status-normal { color: #4caf50; }
+        .status-warning { color: #ff9800; }
+        .status-danger { color: #f44336; }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .info-label {
+            color: #888;
+        }
+        .info-value {
+            color: #fff;
+            font-weight: bold;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>data_query报告</h1>
+            <div class="subtitle">生成时间: 2025-12-24 16:26:57</div>
+        </div>
+        <div class="content">
+            <div class="card" style="grid-column: span 2;"><div class="card-title">📊 data_query报告</div><div style="padding: 20px;">
+                <div class="info-item">
+                    <span class="info-label">success</span>
+                    <span class="info-value">True</span>
+                </div>
+                <h4 style="color: #00d4ff; margin: 15px 0 10px;">data</h4>
+                    <div class="info-item">
+                        <span class="info-label">stcd</span>
+                        <span class="info-value">31005650</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">damel</span>
+                        <span class="info-value">275.7</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">ckflz</span>
+                        <span class="info-value">275.0</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">dsflz</span>
+                        <span class="info-value">270.7</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">normz</span>
+                        <span class="info-value">254.0</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">ddz</span>
+                        <span class="info-value">208.0</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">actz</span>
+                        <span class="info-value">254.0</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">ttcp</span>
+                        <span class="info-value">608.3</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">fldcp</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">actcp</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">ddcp</span>
+                        <span class="info-value">22.5</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hhrz</span>
+                        <span class="info-value">260.08</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hhrztm</span>
+                        <span class="info-value">2021-09-30 00:00:00</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hmxinq</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">rstdr</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hmxinqtm</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hmxw</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hmxwtm</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">rhmxotq</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">rhmxotqtm</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">rsvrtp</span>
+                        <span class="info-value">4.0</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hmxotq</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hmxotqtm</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hlrz</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hmninq</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">hmninqtm</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">fsrs</span>
+                        <span class="info-value">[{'stcd': '31005650', 'bgmd': '0701', 'actyr': 2020, 'edmd': '0831', 'fsltdz': 248.0, 'fstp': '1', 'flv': 245.0, 'stcd5': '        ', 'fsltdw': 245.0, 'moditime': '2020-08-05 15:44:05'}]</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">stcdt</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">laz</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">sfq</span>
+                        <span class="info-value">None</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">moditime</span>
+                        <span class="info-value">2020-08-05 15:44:05</span>
+                    </div>
+                    
+                <div class="info-item">
+                    <span class="info-label">error</span>
+                    <span class="info-value">None</span>
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">execution_time_ms</span>
+                    <span class="info-value">41</span>
+                </div>
+                <h4 style="color: #00d4ff; margin: 15px 0 10px;">metadata</h4>
+                    <div class="info-item">
+                        <span class="info-label">code</span>
+                        <span class="info-value">00000</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">message</span>
+                        <span class="info-value">请求成功</span>
+                    </div>
+                    </div></div>
+        </div>
+    </div>
+    <script>
+        
+    </script>
+</body>
+</html>

@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>水库洪水预报结果展示</title>
-    <link rel="stylesheet" href="css/style.css?v=1.7">
+    <link rel="stylesheet" href="css/style.css?v=1.8">
     <link rel="icon" href="data:;base64,=">
+    <!-- Marked.js - Markdown解析库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="layout-grid">
@@ -243,6 +245,53 @@
             }
         }
 
+        // 将Markdown文本转换为HTML
+        function renderMarkdown(text) {
+            if (typeof marked !== 'undefined') {
+                // 配置marked选项
+                marked.setOptions({
+                    breaks: true,  // 支持换行
+                    gfm: true,     // 支持GitHub风格Markdown
+                    sanitize: false
+                });
+                return marked.parse(text);
+            }
+            // 如果marked未加载，使用简单的格式化
+            return simpleMarkdownRender(text);
+        }
+        
+        // 简单的Markdown渲染（备用方案）
+        function simpleMarkdownRender(text) {
+            // 处理标题
+            text = text.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+            text = text.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+            text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+            
+            // 处理加粗
+            text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            
+            // 处理斜体
+            text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            // 处理无序列表
+            text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+            
+            // 处理有序列表
+            text = text.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            
+            // 处理换行
+            text = text.replace(/\n\n/g, '</p><p>');
+            text = text.replace(/\n/g, '<br>');
+            
+            // 包装段落
+            if (!text.startsWith('<')) {
+                text = '<p>' + text + '</p>';
+            }
+            
+            return text;
+        }
+
         function addLog(text, type = 'system') {
             const li = document.createElement('li');
             li.className = `message-item message-${type}`;
@@ -258,10 +307,12 @@
                         <div class="message-bubble">${text}</div>
                     </div>`;
             } else if (type === 'assistant') {
+                // 对助手消息进行Markdown渲染
+                const renderedContent = renderMarkdown(text);
                 li.innerHTML = `
                     <div class="message-content">
                         <img src="img/xw.png" alt="小卫" class="message-icon assistant-icon-img">
-                        <div class="message-bubble">${text}</div>
+                        <div class="message-bubble markdown-content">${renderedContent}</div>
                     </div>`;
             } else if (type === 'loading') {
                 li.innerHTML = `

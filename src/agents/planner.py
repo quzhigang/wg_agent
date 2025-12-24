@@ -118,7 +118,8 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
 1. 步骤应该清晰、可执行
 2. 正确设置步骤间的依赖关系
 3. 耗时操作（如模型调用）应标记为异步
-4. 最后一步通常是"生成响应"
+4. 最后一步不需要指定工具，系统会自动生成响应
+5. 只使用可用工具列表中存在的工具名称，不要使用不存在的工具如"generate_response"
 """
 
 
@@ -330,7 +331,17 @@ class Planner:
                 )
                 steps.append(step.model_dump())
             
+            # 输出执行计划详情
             logger.info(f"生成了{len(steps)}个执行步骤")
+            logger.info("=" * 60)
+            logger.info("执行计划:")
+            for step in steps:
+                step_id = step.get('step_id', '?')
+                description = step.get('description', '')
+                tool_name = step.get('tool_name', '无')
+                logger.info(f"  步骤{step_id}: {description} (工具: {tool_name})")
+            logger.info("=" * 60)
+            logger.info("")  # 空行
             
             return {
                 "plan": steps,
@@ -375,26 +386,21 @@ class Planner:
         return "\n".join(formatted)
     
     def _get_available_tools_description(self) -> str:
-        """获取可用工具的描述"""
-        # TODO: 从tools模块动态获取
+        """获取可用工具的描述（从工具注册表动态获取）"""
+        from ..tools.registry import get_tool_registry
+        
+        registry = get_tool_registry()
+        
+        # 获取所有已注册工具的描述
+        tools_desc = registry.get_tools_description()
+        
+        if tools_desc:
+            return tools_desc
+        
+        # 如果注册表为空，返回基础工具描述
         return """
-1. query_water_level - 查询水位数据
-   参数: station_id(测站ID), start_time(开始时间), end_time(结束时间)
-
-2. query_rainfall - 查询雨量数据
-   参数: station_id(测站ID), start_time(开始时间), end_time(结束时间)
-
-3. query_flow - 查询流量数据
-   参数: station_id(测站ID), start_time(开始时间), end_time(结束时间)
-
-4. run_flood_forecast - 运行洪水预报模型
-   参数: forecast_time(预报时间), scenario(场景)
-
-5. search_knowledge - 搜索知识库
-   参数: query(查询内容), top_k(返回数量)
-
-6. generate_web_page - 生成Web页面
-   参数: page_type(页面类型), data(数据内容)
+1. search_knowledge - 搜索知识库，查询流域相关的背景知识、专业知识等信息
+   参数: query(查询内容), top_k(返回数量，默认5)
 """
     
     def _get_available_workflows_description(self) -> str:

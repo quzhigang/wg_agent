@@ -59,8 +59,6 @@ class ToolRegistry:
         category = tool.category
         if name not in self._categories[category]:
             self._categories[category].append(name)
-        
-        logger.info(f"注册工具: {name} (类别: {category.value})")
     
     def register_function(
         self, 
@@ -361,3 +359,17 @@ def init_default_tools():
         logger.info("默认工具加载完成")
     except ImportError as e:
         logger.warning(f"部分工具模块加载失败: {e}")
+    
+    # 注册RAG知识库搜索工具
+    try:
+        from ..rag import search_knowledge
+        registry = get_tool_registry()
+        registry.register_function(
+            name="search_knowledge",
+            func=search_knowledge,
+            description="搜索知识库，查询流域相关的背景知识、专业知识等信息",
+            category=ToolCategory.BASIN_INFO
+        )
+        logger.info("RAG知识库搜索工具注册完成")
+    except ImportError as e:
+        logger.warning(f"RAG知识库搜索工具注册失败: {e}")

@@ -17,7 +17,7 @@ from .registry import register_tool
 logger = get_logger(__name__)
 
 # 从配置获取防洪业务API基础地址
-FLOOD_OTHER_BASE_URL = settings.wg_flood_server_url
+FLOOD_OTHER_BASE_URL = settings.wg_flood_server_url1
 
 
 # =============================================================================

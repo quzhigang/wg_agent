@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     wg_data_server_url: str = "http://10.20.2.153"
     # 防洪业务服务接口地址（Java Spring Boot）
     wg_flood_server_url: str = "http://10.20.2.153:8089/modelPlatf"
+    wg_flood_server_url1: str = "http://10.20.2.153:8089"
     
     # ===========================================
     # Auth Configuration

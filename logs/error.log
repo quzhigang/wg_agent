@@ -1,57 +1,32 @@
-2025-12-19 20:50:43.045 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.OperationalError) (1045, "Access denied for user 'root'@'localhost' (using password: YES)")
-(Background on this error at: https://sqlalche.me/e/20/e3q8)
-2025-12-19 20:52:31.097 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.OperationalError) (1045, "Access denied for user 'root'@'localhost' (using password: YES)")
-(Background on this error at: https://sqlalche.me/e/20/e3q8)
-2025-12-19 20:54:32.042 | ERROR    | src.main:lifespan:38 | 数据库初始化失败: (pymysql.err.ProgrammingError) (1064, "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'JSON, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(conversation_id) REFERENCES conversation' at line 7")
-[SQL: 
-CREATE TABLE messages (
-	id BIGINT NOT NULL AUTO_INCREMENT, 
-	conversation_id VARCHAR(36) NOT NULL, 
-	`role` ENUM('user','assistant','system') NOT NULL, 
-	content TEXT NOT NULL, 
-	created_at DATETIME, 
-	msg_metadata JSON, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(conversation_id) REFERENCES conversations (id)
-)
-
-]
-(Background on this error at: https://sqlalche.me/e/20/f405)
-2025-12-23 15:09:09.142 | ERROR    | src.api.chat:chat:109 | 对话处理失败: dict can not be used as parameter
-2025-12-23 15:42:06.088 | ERROR    | src.api.chat:chat:109 | 对话处理失败: dict can not be used as parameter
-2025-12-23 16:10:02.384 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:10:12.404 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:10:22.390 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:10:32.395 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:10:42.259 | ERROR    | src.agents.graph:run_agent:301 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
-For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
-2025-12-23 16:14:44.859 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:14:54.857 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:15:04.855 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:15:14.864 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:15:22.011 | ERROR    | src.agents.graph:run_agent:301 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
-For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
-2025-12-23 16:30:32.336 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:30:42.356 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:30:52.355 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:31:02.360 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 16:31:02.377 | ERROR    | src.agents.graph:run_agent:392 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
-For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
-2025-12-23 20:35:35.904 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 20:35:45.915 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 20:35:55.933 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 20:36:05.940 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-23 20:36:05.957 | ERROR    | src.agents.graph:run_agent:375 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
-For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
-2025-12-24 13:00:03.894 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: query_water_level
-2025-12-24 13:00:13.900 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: query_water_level
-2025-12-24 13:00:23.912 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: query_water_level
-2025-12-24 13:00:33.919 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: query_water_level
-2025-12-24 13:00:33.935 | ERROR    | src.agents.graph:run_agent:375 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
-For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
-2025-12-24 13:36:57.665 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-24 13:37:07.685 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-24 13:37:17.688 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-24 13:37:27.690 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
-2025-12-24 13:37:27.708 | ERROR    | src.agents.graph:run_agent:375 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+2025-12-24 15:27:29.824 | ERROR    | src.tools.auth:execute:222 | 登录请求HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/loginApi'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 15:27:29.871 | ERROR    | src.tools.auth:execute:222 | 登录请求HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/loginApi'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 15:27:29.873 | ERROR    | src.tools.auth:get_auth_headers:98 | 自动登录失败: HTTP请求错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/loginApi'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 15:27:29.907 | ERROR    | src.tools.basin_info:execute:755 | 测站列表查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/station/list?STTP=RR'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 15:27:29.955 | ERROR    | src.tools.hydro_monitor:execute:363 | 水库最新水情查询HTTP错误: Client error '404 ' for url 'http://10.20.2.153:8089/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+2025-12-24 15:38:38.433 | ERROR    | src.tools.basin_info:execute:116 | 地图数据源查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/map/dataSource/table/map?refTable=geo_res_base&where%5B0%5D%5Bfiled%5D=stnm&where%5B0%5D%5Brela%5D=%3D&where%5B0%5D%5Bvalue%5D=%E7%9B%98%E7%9F%B3%E5%A4%B4%E6%B0%B4%E5%BA%93'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 15:38:38.483 | ERROR    | src.tools.hydro_monitor:execute:363 | 水库最新水情查询HTTP错误: Client error '404 ' for url 'http://10.20.2.153:8089/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+2025-12-24 15:50:35.821 | ERROR    | src.tools.hydro_monitor:execute:363 | 水库最新水情查询HTTP错误: Client error '404 ' for url 'http://10.20.2.153:8089/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+2025-12-24 15:54:05.053 | ERROR    | src.tools.hydro_monitor:execute:363 | 水库最新水情查询HTTP错误: Client error '404 ' for url 'http://10.20.2.153:8089/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+2025-12-24 16:05:46.110 | ERROR    | src.tools.hydro_monitor:execute:363 | 水库最新水情查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 16:26:48.385 | ERROR    | src.tools.hydro_monitor:execute:363 | 水库最新水情查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 17:03:09.349 | ERROR    | src.tools.basin_info:execute:116 | 地图数据源查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/map/dataSource/table/map?refTable=geo_res_base&where%5B0%5D%5Bfiled%5D=stnm&where%5B0%5D%5Brela%5D=%3D&where%5B0%5D%5Bvalue%5D=%E7%9B%98%E7%9F%B3%E5%A4%B4%E6%B0%B4%E5%BA%93'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 17:03:09.399 | ERROR    | src.tools.flood_otherbusiness:execute:1064 | 获取水库基本信息失败: Client error '404 ' for url 'http://10.20.2.153:8089/modelPlatf/modelPlatf/model/mike/rsvrInfo'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+2025-12-24 17:55:55.610 | ERROR    | src.agents.executor:execute_step:93 | 步骤 4 执行失败: 未找到工具: generate_response
+2025-12-24 17:56:05.603 | ERROR    | src.agents.executor:execute_step:93 | 步骤 4 执行失败: 未找到工具: generate_response
+2025-12-24 17:56:15.604 | ERROR    | src.agents.executor:execute_step:93 | 步骤 4 执行失败: 未找到工具: generate_response
+2025-12-24 17:56:25.600 | ERROR    | src.agents.executor:execute_step:93 | 步骤 4 执行失败: 未找到工具: generate_response
+2025-12-24 17:56:25.619 | ERROR    | src.agents.graph:run_agent:426 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
 For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT

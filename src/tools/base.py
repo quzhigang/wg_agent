@@ -177,7 +177,7 @@ class BaseTool(ABC):
         """
         import time
         
-        logger.info(f"执行工具: {self.name}")
+        logger.debug(f"执行工具: {self.name}")
         start_time = time.time()
         
         try:
@@ -199,7 +199,7 @@ class BaseTool(ABC):
             execution_time = int((time.time() - start_time) * 1000)
             result.execution_time_ms = execution_time
             
-            logger.info(f"工具 {self.name} 执行完成，耗时 {execution_time}ms")
+            logger.debug(f"工具 {self.name} 执行完成，耗时 {execution_time}ms")
             
             return result
             

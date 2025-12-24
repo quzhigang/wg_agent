@@ -57,7 +57,7 @@ class GetMapDataTool(BaseTool):
             ToolParameter(
                 name="filter_field",
                 type="string",
-                description="查询字段名（如stcd、stnm等）",
+                description="查询字段名。水库使用stcd(编码)和res_name(名称)；测站、蓄滞洪区、分洪闸堰使用code(编码)和name(名称)",
                 required=False
             ),
             ToolParameter(
@@ -90,7 +90,8 @@ class GetMapDataTool(BaseTool):
             if filter_field and filter_operator and filter_value:
                 params['where[0][filed]'] = filter_field
                 params['where[0][rela]'] = filter_operator
-                params['where[0][value]'] = filter_value
+                # 参数值需要带单引号
+                params['where[0][value]'] = f"'{filter_value}'"
             
             headers = await LoginTool.get_auth_headers()
             

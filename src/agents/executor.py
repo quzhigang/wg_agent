@@ -78,6 +78,7 @@ class Executor:
             execution_time = int((time.time() - start_time) * 1000)
             
             logger.info(f"步骤 {step_id} 执行成功，耗时 {execution_time}ms")
+            logger.info("")  # 空行分隔
             
             return ExecutionResult(
                 step_id=step_id,
@@ -90,6 +91,7 @@ class Executor:
         except Exception as e:
             execution_time = int((time.time() - start_time) * 1000)
             logger.error(f"步骤 {step_id} 执行失败: {e}")
+            logger.info("")  # 空行分隔
             
             return ExecutionResult(
                 step_id=step_id,
@@ -137,16 +139,34 @@ class Executor:
         """
         动态加载工具
         
+        从全局工具注册表中加载工具
+        
         Args:
             tool_name: 工具名称
             
         Returns:
             工具函数或None
         """
-        # TODO: 从tools模块动态加载工具
-        # 这里预留接口，后续实现
-        logger.warning(f"尝试动态加载工具: {tool_name}")
-        return None
+        logger.info(f"尝试从工具注册表加载工具: {tool_name}")
+        
+        try:
+            from ..tools.registry import get_tool_registry
+            
+            registry = get_tool_registry()
+            
+            # 检查工具是否存在
+            if registry.has_tool(tool_name):
+                tool_func = registry.get_tool_function(tool_name)
+                if tool_func:
+                    logger.info(f"成功加载工具: {tool_name}")
+                    return tool_func
+            
+            logger.warning(f"工具注册表中未找到工具: {tool_name}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"加载工具 {tool_name} 时发生错误: {e}")
+            return None
     
     async def _execute_with_llm(self, task_description: str, state: AgentState) -> str:
         """
