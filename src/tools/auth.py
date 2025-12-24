@@ -8,6 +8,7 @@ import httpx
 import time
 import json
 import base64
+import asyncio
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
@@ -100,13 +101,10 @@ class LoginTool(BaseTool):
                 return {}
         
         if token:
-            # 同时提供多种常见的认证Header格式，确保兼容性
-            # 1. token: 直接使用token值
-            # 2. Authorization: 直接使用token值（某些系统期望这种格式）
-            # 3. Authorization: Bearer <token>（标准JWT格式）
+            # 根据Postman测试，服务器期望Authorization头直接使用token值（不带Bearer前缀）
             return {
                 "token": token,
-                "Authorization": f"Bearer {token}"
+                "Authorization": token
             }
         return {}
 
@@ -196,7 +194,13 @@ class LoginTool(BaseTool):
                         # 默认30分钟过期 (根据配置或保守估计)
                         LoginTool._token_expiration = int(time.time()) + 1800
                     
-                    logger.info(f"登录成功，获取到Token: {token}")
+                    # 只显示token的前20个字符，保护敏感信息
+                    token_preview = token[:20] + "..." if len(token) > 20 else token
+                    logger.info(f"登录成功，获取到Token: {token_preview}")
+                    
+                    # 等待1.5秒让服务器建立会话，避免后续请求因会话未就绪而失败
+                    logger.info("等待服务器建立会话...")
+                    await asyncio.sleep(1.5)
                     
                     return ToolResult(
                         success=True,

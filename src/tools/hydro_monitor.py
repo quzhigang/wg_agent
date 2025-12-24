@@ -25,6 +25,7 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import httpx
+import asyncio
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
@@ -344,40 +345,53 @@ class QueryReservoirLastTool(BaseTool):
         Returns:
             ToolResult: 包含所有水库最新水情数据的查询结果
         """
-        try:
-            base_url = settings.wg_data_server_url
-            url = f"{base_url}/api/basin/rwdb/rsvr/last"
-            
-            # 获取认证头
-            auth_headers = await LoginTool.get_auth_headers()
-            
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, headers=auth_headers)
-                response.raise_for_status()
-                data = response.json()
-            
-            if data.get('success'):
-                result_data = data.get('data', [])
-                return ToolResult(
-                    success=True,
-                    data=result_data,
-                    metadata={
-                        "query_type": "reservoir_last",
-                        "record_count": len(result_data) if isinstance(result_data, list) else 1
-                    }
-                )
-            else:
-                return ToolResult(
-                    success=False,
-                    error=data.get('message', '查询失败')
-                )
-            
-        except httpx.HTTPError as e:
-            logger.error(f"水库最新水情查询HTTP错误: {e}")
-            return ToolResult(success=False, error=f"HTTP请求失败: {str(e)}")
-        except Exception as e:
-            logger.error(f"水库最新水情查询失败: {e}")
-            return ToolResult(success=False, error=str(e))
+        base_url = settings.wg_data_server_url
+        url = f"{base_url}/api/basin/rwdb/rsvr/last"
+        
+        # 获取认证头
+        auth_headers = await LoginTool.get_auth_headers()
+        
+        # 重试机制：最多重试3次，每次间隔1秒
+        max_retries = 3
+        retry_delay = 1.0
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    response = await client.get(url, headers=auth_headers)
+                    response.raise_for_status()
+                    data = response.json()
+                
+                if data.get('success'):
+                    result_data = data.get('data', [])
+                    return ToolResult(
+                        success=True,
+                        data=result_data,
+                        metadata={
+                            "query_type": "reservoir_last",
+                            "record_count": len(result_data) if isinstance(result_data, list) else 1
+                        }
+                    )
+                else:
+                    return ToolResult(
+                        success=False,
+                        error=data.get('message', '查询失败')
+                    )
+                
+            except httpx.HTTPError as e:
+                last_error = e
+                logger.warning(f"水库最新水情查询HTTP错误 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    logger.info(f"等待 {retry_delay} 秒后重试...")
+                    await asyncio.sleep(retry_delay)
+            except Exception as e:
+                logger.error(f"水库最新水情查询失败: {e}")
+                return ToolResult(success=False, error=str(e))
+        
+        # 所有重试都失败
+        logger.error(f"水库最新水情查询HTTP错误（重试{max_retries}次后仍失败）: {last_error}")
+        return ToolResult(success=False, error=f"HTTP请求失败: {str(last_error)}")
 
 
 class QueryReservoirProcessTool(BaseTool):

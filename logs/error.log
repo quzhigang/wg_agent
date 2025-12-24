@@ -42,3 +42,7 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
 2025-12-24 19:43:21.232 | ERROR    | src.tools.hydro_monitor:execute:376 | 水库最新水情查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
 For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 19:49:31.672 | ERROR    | src.tools.hydro_monitor:execute:376 | 水库最新水情查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
+2025-12-24 19:58:38.916 | ERROR    | src.tools.hydro_monitor:execute:393 | 水库最新水情查询HTTP错误（重试3次后仍失败）: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
