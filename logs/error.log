@@ -43,3 +43,15 @@ For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/erro
 2025-12-23 20:36:05.940 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
 2025-12-23 20:36:05.957 | ERROR    | src.agents.graph:run_agent:375 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
 For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2025-12-24 13:00:03.894 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: query_water_level
+2025-12-24 13:00:13.900 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: query_water_level
+2025-12-24 13:00:23.912 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: query_water_level
+2025-12-24 13:00:33.919 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: query_water_level
+2025-12-24 13:00:33.935 | ERROR    | src.agents.graph:run_agent:375 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2025-12-24 13:36:57.665 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-24 13:37:07.685 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-24 13:37:17.688 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-24 13:37:27.690 | ERROR    | src.agents.executor:execute_step:92 | 步骤 1 执行失败: 未找到工具: search_knowledge
+2025-12-24 13:37:27.708 | ERROR    | src.agents.graph:run_agent:375 | 智能体执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT

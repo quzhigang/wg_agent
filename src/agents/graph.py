@@ -15,6 +15,8 @@ from .state import AgentState, create_initial_state, OutputType
 from .planner import planner_node, get_planner
 from .executor import executor_node, get_executor
 from .controller import controller_node, get_controller
+from ..rag.retriever import get_rag_retriever
+from ..tools.mcp_websearch import mcp_web_search, is_mcp_websearch_enabled
 
 logger = get_logger(__name__)
 
@@ -60,29 +62,78 @@ async def rag_retrieval_node(state: AgentState) -> Dict[str, Any]:
     """
     RAG检索节点
     
-    根据用户问题和意图，从知识库中检索相关文档
+    根据用户问题和意图，从知识库中检索相关文档。
+    当RAG检索失败或无法获取到信息时，会尝试使用MCP网络搜索作为备选方案。
+    
+    注意：MCP网络搜索仅在以下条件下使用：
+    1. 仅在规划步骤中需要RAG检索时
+    2. RAG检索失败或无法获取到信息时
+    3. 其他情况下均不使用MCP工具
     """
     logger.info("执行RAG检索...")
     
-    # TODO: 实现完整的RAG检索逻辑
-    # 这里预留接口，后续在rag模块实现
-    
     intent = state.get('intent', '')
+    user_message = state.get('user_message', '')
     
     # 只对知识问答类意图进行检索
     if intent in ['knowledge_qa', 'general_chat']:
-        # 模拟检索结果
         retrieved_docs = []
+        retrieval_source = "rag"  # 标记检索来源
         
-        # TODO: 调用ChromaDB检索
-        # from ..rag import search_knowledge
-        # retrieved_docs = await search_knowledge(state['user_message'])
+        try:
+            # 1. 首先尝试RAG检索
+            rag_retriever = get_rag_retriever()
+            retrieved_docs = await rag_retriever.retrieve(
+                query=user_message,
+                top_k=5
+            )
+            
+            logger.info(f"RAG检索完成，获取到 {len(retrieved_docs)} 条结果")
+            
+        except Exception as e:
+            logger.error(f"RAG检索异常: {e}")
+            retrieved_docs = []
+        
+        # 2. 判断RAG检索是否成功获取到有效信息
+        # 如果RAG检索失败或无结果，尝试使用MCP网络搜索
+        if not retrieved_docs or len(retrieved_docs) == 0:
+            logger.info("RAG检索无结果，检查是否可以使用MCP网络搜索...")
+            
+            if is_mcp_websearch_enabled():
+                logger.info("MCP网络搜索已启用，尝试进行网络搜索...")
+                try:
+                    # 调用MCP网络搜索
+                    web_results = await mcp_web_search(user_message, max_results=5)
+                    
+                    if web_results:
+                        # 将网络搜索结果转换为与RAG结果相同的格式
+                        retrieved_docs = [
+                            {
+                                'content': result.get('content', result.get('snippet', '')),
+                                'metadata': {
+                                    'category': '网络搜索',
+                                    'source': result.get('url', result.get('link', '')),
+                                    'title': result.get('title', '')
+                                }
+                            }
+                            for result in web_results
+                        ]
+                        retrieval_source = "mcp_websearch"
+                        logger.info(f"MCP网络搜索完成，获取到 {len(retrieved_docs)} 条结果")
+                    else:
+                        logger.warning("MCP网络搜索也未获取到结果")
+                        
+                except Exception as e:
+                    logger.error(f"MCP网络搜索异常: {e}")
+            else:
+                logger.info("MCP网络搜索未启用，跳过网络搜索")
         
         return {
-            "retrieved_documents": retrieved_docs
+            "retrieved_documents": retrieved_docs,
+            "retrieval_source": retrieval_source  # 标记检索来源：rag 或 mcp_websearch
         }
     
-    return {"retrieved_documents": []}
+    return {"retrieved_documents": [], "retrieval_source": None}
 
 
 async def workflow_executor_node(state: AgentState) -> Dict[str, Any]:

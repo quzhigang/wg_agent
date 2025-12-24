@@ -38,12 +38,12 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
 
 ## 用户意图类别
 1. general_chat - 一般对话、闲聊（如问候、感谢、闲聊、询问你的信息等）
-2. knowledge_qa - 流域知识问答（关于流域概况、水利设施、防洪知识等）
-3. data_query - 数据查询（水雨情、水位、流量等实时或历史数据）
-4. flood_forecast - 洪水预报（调用预报模型）
-5. flood_simulation - 洪水预演（模拟不同场景）
+2. knowledge_qa - 流域知识问答（关于流域概况、水利设施、防洪知识、监测站点、历时洪水、调度预案、工程治理、系统功能、专业模型等）
+3. data_query - 监测数据查询（获取水情、雨情、水位、流量、视频等实时或历史监测数据）
+4. flood_forecast - 洪水预报（进行洪水预报、查询预报结果、查询预警信息、查询洪水风险、获取预报边界条件等）
+5. flood_simulation - 洪水预演（进行洪水预演、查询预演结果、查询预警信息、查询洪水风险、获取预演边界条件等）
 6. emergency_plan - 预案生成（防洪应急预案）
-7. damage_assessment - 灾损评估
+7. damage_assessment - 灾损评估、避险转移等业务
 
 ## 上下文信息
 对话历史摘要: {context_summary}

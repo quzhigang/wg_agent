@@ -84,6 +84,7 @@ class AgentState(TypedDict):
     
     # RAG相关
     retrieved_documents: List[Dict[str, Any]]
+    retrieval_source: Optional[str]  # 检索来源: "rag" 或 "mcp_websearch"
     
     # 最终输出
     output_type: str  # OutputType
@@ -155,6 +156,7 @@ def create_initial_state(
         
         # RAG相关
         retrieved_documents=[],
+        retrieval_source=None,
         
         # 最终输出
         output_type=OutputType.TEXT.value,
