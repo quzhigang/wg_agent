@@ -769,3 +769,225 @@ For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/erro
 2025-12-23 21:18:57.305 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
 2025-12-23 21:18:57.305 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
 2025-12-23 21:18:57.713 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-23 21:18:58.490 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-23 21:18:58.490 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-23 21:18:58.490 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-23 21:18:58.490 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-23 21:18:58.491 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-24 11:25:45.547 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-24 11:25:45.547 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-24 11:25:45.547 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-24 11:25:49.932 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-24 11:25:49.932 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-24 11:25:49.932 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-24 11:25:49.977 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-24 11:25:49.977 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-24 11:25:49.977 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-24 11:25:49.992 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-24 11:25:49.992 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-24 11:25:49.992 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-24 11:25:50.011 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-24 11:25:50.011 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-24 11:25:50.011 | INFO     | src.tools.registry:init_default_tools:345 | 初始化默认工具...
+2025-12-24 11:25:50.012 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-24 11:25:50.012 | INFO     | src.tools.registry:register:63 | 注册工具: login_basin_system (类别: basin_info)
+2025-12-24 11:25:50.013 | INFO     | src.tools.registry:register:63 | 注册工具: get_map_data (类别: basin_info)
+2025-12-24 11:25:50.013 | INFO     | src.tools.registry:register:63 | 注册工具: get_list_data (类别: basin_info)
+2025-12-24 11:25:50.013 | INFO     | src.tools.registry:register:63 | 注册工具: get_reservoir_info (类别: basin_info)
+2025-12-24 11:25:50.014 | INFO     | src.tools.registry:register:63 | 注册工具: get_reservoir_flood_detail (类别: basin_info)
+2025-12-24 11:25:50.014 | INFO     | src.tools.registry:register:63 | 注册工具: get_reservoir_flood_list (类别: basin_info)
+2025-12-24 11:25:50.014 | INFO     | src.tools.registry:register:63 | 注册工具: get_sluice_info (类别: basin_info)
+2025-12-24 11:25:50.014 | INFO     | src.tools.registry:register:63 | 注册工具: get_flood_dam_info (类别: basin_info)
+2025-12-24 11:25:50.014 | INFO     | src.tools.registry:register:63 | 注册工具: get_flood_storage_area (类别: basin_info)
+2025-12-24 11:25:50.014 | INFO     | src.tools.registry:register:63 | 注册工具: get_river_flood_list (类别: basin_info)
+2025-12-24 11:25:50.015 | INFO     | src.tools.registry:register:63 | 注册工具: get_station_list (类别: basin_info)
+2025-12-24 11:25:50.015 | INFO     | src.tools.registry:register:63 | 注册工具: get_camera_list (类别: basin_info)
+2025-12-24 11:25:50.015 | INFO     | src.tools.registry:register:63 | 注册工具: get_drone_project_list (类别: basin_info)
+2025-12-24 11:25:50.015 | INFO     | src.tools.registry:register:63 | 注册工具: get_drone_device_list (类别: basin_info)
+2025-12-24 11:25:50.015 | INFO     | src.tools.registry:register:63 | 注册工具: get_remote_sensing_task_list (类别: basin_info)
+2025-12-24 11:25:50.015 | INFO     | src.tools.basin_info:register_basin_info_tools:1095 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-24 11:25:50.018 | INFO     | src.tools.registry:register:63 | 注册工具: query_rain_process (类别: hydro_monitor)
+2025-12-24 11:25:50.018 | INFO     | src.tools.registry:register:63 | 注册工具: query_rain_statistics (类别: hydro_monitor)
+2025-12-24 11:25:50.018 | INFO     | src.tools.registry:register:63 | 注册工具: query_rain_sum (类别: hydro_monitor)
+2025-12-24 11:25:50.018 | INFO     | src.tools.registry:register:63 | 注册工具: query_reservoir_last (类别: hydro_monitor)
+2025-12-24 11:25:50.018 | INFO     | src.tools.registry:register:63 | 注册工具: query_reservoir_process (类别: hydro_monitor)
+2025-12-24 11:25:50.018 | INFO     | src.tools.registry:register:63 | 注册工具: query_river_last (类别: hydro_monitor)
+2025-12-24 11:25:50.019 | INFO     | src.tools.registry:register:63 | 注册工具: query_river_process (类别: hydro_monitor)
+2025-12-24 11:25:50.019 | INFO     | src.tools.registry:register:63 | 注册工具: query_ai_water_last (类别: hydro_monitor)
+2025-12-24 11:25:50.019 | INFO     | src.tools.registry:register:63 | 注册工具: query_ai_water_process (类别: hydro_monitor)
+2025-12-24 11:25:50.019 | INFO     | src.tools.registry:register:63 | 注册工具: query_ai_rain_last (类别: hydro_monitor)
+2025-12-24 11:25:50.019 | INFO     | src.tools.registry:register:63 | 注册工具: query_ai_rain_process (类别: hydro_monitor)
+2025-12-24 11:25:50.019 | INFO     | src.tools.registry:register:63 | 注册工具: query_camera_preview (类别: hydro_monitor)
+2025-12-24 11:25:50.020 | INFO     | src.tools.registry:register:63 | 注册工具: query_sensor_data_process (类别: hydro_monitor)
+2025-12-24 11:25:50.020 | INFO     | src.tools.registry:register:63 | 注册工具: query_drone_status (类别: hydro_monitor)
+2025-12-24 11:25:50.020 | INFO     | src.tools.registry:register:63 | 注册工具: send_sms (类别: hydro_monitor)
+2025-12-24 11:25:50.020 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1358 | 水雨情监测工具注册完成，共注册15个工具
+2025-12-24 11:25:50.021 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_add (类别: flood_control)
+2025-12-24 11:25:50.021 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_edit (类别: flood_control)
+2025-12-24 11:25:50.021 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_delete (类别: flood_control)
+2025-12-24 11:25:50.022 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_detail (类别: flood_control)
+2025-12-24 11:25:50.022 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_state (类别: flood_control)
+2025-12-24 11:25:50.022 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_list_all (类别: flood_control)
+2025-12-24 11:25:50.022 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_calc (类别: flood_control)
+2025-12-24 11:25:50.022 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_stop (类别: flood_control)
+2025-12-24 11:25:50.022 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_progress (类别: flood_control)
+2025-12-24 11:25:50.023 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_count_state (类别: flood_control)
+2025-12-24 11:25:50.023 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_count_plan (类别: flood_control)
+2025-12-24 11:25:50.023 | INFO     | src.tools.registry:register:63 | 注册工具: model_plan_auto_forecast (类别: flood_control)
+2025-12-24 11:25:50.023 | INFO     | src.tools.registry:register:63 | 注册工具: model_basic_list_all (类别: flood_control)
+2025-12-24 11:25:50.023 | INFO     | src.tools.registry:register:63 | 注册工具: model_basic_detail (类别: flood_control)
+2025-12-24 11:25:50.023 | INFO     | src.tools.registry:register:63 | 注册工具: model_basic_count (类别: flood_control)
+2025-12-24 11:25:50.024 | INFO     | src.tools.registry:register:63 | 注册工具: model_instance_list_all (类别: flood_control)
+2025-12-24 11:25:50.024 | INFO     | src.tools.registry:register:63 | 注册工具: model_instance_detail (类别: flood_control)
+2025-12-24 11:25:50.024 | INFO     | src.tools.registry:register:63 | 注册工具: model_business_list_all (类别: flood_control)
+2025-12-24 11:25:50.024 | INFO     | src.tools.registry:register:63 | 注册工具: model_business_add (类别: flood_control)
+2025-12-24 11:25:50.024 | INFO     | src.tools.registry:register:63 | 注册工具: model_business_detail (类别: flood_control)
+2025-12-24 11:25:50.024 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-24 11:25:50.025 | INFO     | src.tools.registry:register:63 | 注册工具: forecast_rain_ecmwf_avg (类别: flood_control)
+2025-12-24 11:25:50.025 | INFO     | src.tools.registry:register:63 | 注册工具: forecast_rain_ecmwf_each (类别: flood_control)
+2025-12-24 11:25:50.026 | INFO     | src.tools.registry:register:63 | 注册工具: forecast_rain_ecmwf_rect (类别: flood_control)
+2025-12-24 11:25:50.026 | INFO     | src.tools.registry:register:63 | 注册工具: forecast_rain_ecmwf_stc (类别: flood_control)
+2025-12-24 11:25:50.026 | INFO     | src.tools.registry:register:63 | 注册工具: forecast_rain_ecmwf_acc (类别: flood_control)
+2025-12-24 11:25:50.026 | INFO     | src.tools.registry:register:63 | 注册工具: contour_rain_today (类别: flood_control)
+2025-12-24 11:25:50.026 | INFO     | src.tools.registry:register:63 | 注册工具: contour_rain_any (类别: flood_control)
+2025-12-24 11:25:50.026 | INFO     | src.tools.registry:register:63 | 注册工具: contour_rain_plan (类别: flood_control)
+2025-12-24 11:25:50.026 | INFO     | src.tools.registry:register:63 | 注册工具: contour_rain_proc (类别: flood_control)
+2025-12-24 11:25:50.027 | INFO     | src.tools.registry:register:63 | 注册工具: contour_rain_acc (类别: flood_control)
+2025-12-24 11:25:50.027 | INFO     | src.tools.registry:register:63 | 注册工具: contour_rain_future_img (类别: flood_control)
+2025-12-24 11:25:50.027 | INFO     | src.tools.registry:register:63 | 注册工具: contour_rain_update (类别: flood_control)
+2025-12-24 11:25:50.027 | INFO     | src.tools.registry:register:63 | 注册工具: monitor_rain_area_proc_whole (类别: flood_control)
+2025-12-24 11:25:50.027 | INFO     | src.tools.registry:register:63 | 注册工具: monitor_rain_manual (类别: flood_control)
+2025-12-24 11:25:50.027 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_pattern_list (类别: flood_control)
+2025-12-24 11:25:50.028 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_pattern_add (类别: flood_control)
+2025-12-24 11:25:50.028 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_pattern_detail (类别: flood_control)
+2025-12-24 11:25:50.028 | INFO     | src.tools.registry:register:63 | 注册工具: model_typical_rain_list (类别: flood_control)
+2025-12-24 11:25:50.028 | INFO     | src.tools.registry:register:63 | 注册工具: model_typical_rain_add (类别: flood_control)
+2025-12-24 11:25:50.028 | INFO     | src.tools.registry:register:63 | 注册工具: model_typical_rain_detail (类别: flood_control)
+2025-12-24 11:25:50.028 | INFO     | src.tools.registry:register:63 | 注册工具: model_typical_rain_add_from_history (类别: flood_control)
+2025-12-24 11:25:50.029 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_get_by_plan (类别: flood_control)
+2025-12-24 11:25:50.029 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_get_basin_area_rain_stc (类别: flood_control)
+2025-12-24 11:25:50.029 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_get_basin_area_rain_acc (类别: flood_control)
+2025-12-24 11:25:50.029 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_get_basin_list (类别: flood_control)
+2025-12-24 11:25:50.030 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_detail (类别: flood_control)
+2025-12-24 11:25:50.030 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_get_by_rsvr (类别: flood_control)
+2025-12-24 11:25:50.030 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_forecast_rain_stc (类别: flood_control)
+2025-12-24 11:25:50.030 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_add_ecmwf (类别: flood_control)
+2025-12-24 11:25:50.030 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_add_ecmwf_translate (类别: flood_control)
+2025-12-24 11:25:50.030 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_add_manual (类别: flood_control)
+2025-12-24 11:25:50.031 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_add_manual_center (类别: flood_control)
+2025-12-24 11:25:50.031 | INFO     | src.tools.registry:register:63 | 注册工具: model_rain_area_add_bnd (类别: flood_control)
+2025-12-24 11:25:50.032 | INFO     | src.tools.registry:register:63 | 注册工具: flood_damage_loss_calc (类别: damage_assess)
+2025-12-24 11:25:50.032 | INFO     | src.tools.registry:register:63 | 注册工具: hedge_placement_list (类别: damage_assess)
+2025-12-24 11:25:50.032 | INFO     | src.tools.registry:register:63 | 注册工具: hedge_transfer_route_list (类别: damage_assess)
+2025-12-24 11:25:50.032 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-24 11:25:50.033 | INFO     | src.tools.registry:register:63 | 注册工具: model_result_outflow_delete (类别: flood_control)
+2025-12-24 11:25:50.033 | INFO     | src.tools.registry:register:63 | 注册工具: model_result_outflow_get_basin_list (类别: flood_control)
+2025-12-24 11:25:50.033 | INFO     | src.tools.registry:register:63 | 注册工具: model_result_outflow_detail (类别: flood_control)
+2025-12-24 11:25:50.034 | INFO     | src.tools.registry:register:63 | 注册工具: model_result_outflow_source (类别: flood_control)
+2025-12-24 11:25:50.034 | INFO     | src.tools.registry:register:63 | 注册工具: loss_plan_list (类别: flood_control)
+2025-12-24 11:25:50.034 | INFO     | src.tools.registry:register:63 | 注册工具: loss_plan_add (类别: flood_control)
+2025-12-24 11:25:50.034 | INFO     | src.tools.registry:register:63 | 注册工具: loss_plan_delete (类别: flood_control)
+2025-12-24 11:25:50.034 | INFO     | src.tools.registry:register:63 | 注册工具: loss_plan_calc (类别: flood_control)
+2025-12-24 11:25:50.034 | INFO     | src.tools.registry:register:63 | 注册工具: loss_plan_detail (类别: flood_control)
+2025-12-24 11:25:50.035 | INFO     | src.tools.registry:register:63 | 注册工具: loss_plan_gis (类别: flood_control)
+2025-12-24 11:25:50.035 | INFO     | src.tools.registry:register:63 | 注册工具: loss_plan_auto (类别: flood_control)
+2025-12-24 11:25:50.035 | INFO     | src.tools.registry:register:63 | 注册工具: flood_plan_list_all (类别: flood_control)
+2025-12-24 11:25:50.035 | INFO     | src.tools.registry:register:63 | 注册工具: flood_plan_add (类别: flood_control)
+2025-12-24 11:25:50.035 | INFO     | src.tools.registry:register:63 | 注册工具: flood_plan_delete (类别: flood_control)
+2025-12-24 11:25:50.035 | INFO     | src.tools.registry:register:63 | 注册工具: flood_plan_detail (类别: flood_control)
+2025-12-24 11:25:50.035 | INFO     | src.tools.registry:register:63 | 注册工具: flood_plan_catalog (类别: flood_control)
+2025-12-24 11:25:50.036 | INFO     | src.tools.registry:register:63 | 注册工具: monitor_rsvr_now (类别: flood_control)
+2025-12-24 11:25:50.036 | INFO     | src.tools.registry:register:63 | 注册工具: monitor_rsvr_stc (类别: flood_control)
+2025-12-24 11:25:50.036 | INFO     | src.tools.registry:register:63 | 注册工具: monitor_rsvr_track (类别: flood_control)
+2025-12-24 11:25:50.036 | INFO     | src.tools.registry:register:63 | 注册工具: monitor_rsvr_storage (类别: flood_control)
+2025-12-24 11:25:50.036 | INFO     | src.tools.registry:register:63 | 注册工具: mike_gate_all (类别: flood_control)
+2025-12-24 11:25:50.036 | INFO     | src.tools.registry:register:63 | 注册工具: mike_runoff (类别: flood_control)
+2025-12-24 11:25:50.037 | INFO     | src.tools.registry:register:63 | 注册工具: mike_rsvr_info (类别: flood_control)
+2025-12-24 11:25:50.037 | INFO     | src.tools.registry:register:63 | 注册工具: mike_control (类别: flood_control)
+2025-12-24 11:25:50.037 | INFO     | src.tools.registry:register:63 | 注册工具: mike_hvrela (类别: flood_control)
+2025-12-24 11:25:50.037 | INFO     | src.tools.registry:register:63 | 注册工具: mike_spec_time (类别: flood_control)
+2025-12-24 11:25:50.037 | INFO     | src.tools.registry:register:63 | 注册工具: mike_cal_pa (类别: flood_control)
+2025-12-24 11:25:50.037 | INFO     | src.tools.registry:register:63 | 注册工具: mike_fsda_struct (类别: flood_control)
+2025-12-24 11:25:50.038 | INFO     | src.tools.registry:register:63 | 注册工具: mike_fsda_set_boundary (类别: flood_control)
+2025-12-24 11:25:50.039 | INFO     | src.tools.registry:register:63 | 注册工具: auto_forcast (类别: hydro_model)
+2025-12-24 11:25:50.039 | INFO     | src.tools.registry:register:63 | 注册工具: create_model (类别: hydro_model)
+2025-12-24 11:25:50.039 | INFO     | src.tools.registry:register:63 | 注册工具: change_model_baseinfo (类别: hydro_model)
+2025-12-24 11:25:50.039 | INFO     | src.tools.registry:register:63 | 注册工具: del_model (类别: hydro_model)
+2025-12-24 11:25:50.039 | INFO     | src.tools.registry:register:63 | 注册工具: run_model (类别: hydro_model)
+2025-12-24 11:25:50.039 | INFO     | src.tools.registry:register:63 | 注册工具: run_model_quick (类别: hydro_model)
+2025-12-24 11:25:50.040 | INFO     | src.tools.registry:register:63 | 注册工具: stop_model (类别: hydro_model)
+2025-12-24 11:25:50.040 | INFO     | src.tools.registry:register:63 | 注册工具: modify_initial (类别: hydro_model)
+2025-12-24 11:25:50.040 | INFO     | src.tools.registry:register:63 | 注册工具: change_rfmodel (类别: hydro_model)
+2025-12-24 11:25:50.040 | INFO     | src.tools.registry:register:63 | 注册工具: change_boundry (类别: hydro_model)
+2025-12-24 11:25:50.040 | INFO     | src.tools.registry:register:63 | 注册工具: modify_gatestate (类别: hydro_model)
+2025-12-24 11:25:50.040 | INFO     | src.tools.registry:register:63 | 注册工具: change_reach_break (类别: hydro_model)
+2025-12-24 11:25:50.041 | INFO     | src.tools.registry:register:63 | 注册工具: set_dispatch_target (类别: hydro_model)
+2025-12-24 11:25:50.041 | INFO     | src.tools.registry:register:63 | 注册工具: iter_cal (类别: hydro_model)
+2025-12-24 11:25:50.041 | INFO     | src.tools.registry:register:63 | 注册工具: backcal_resdd (类别: hydro_model)
+2025-12-24 11:25:50.041 | INFO     | src.tools.registry:register:63 | 注册工具: set_fault_gate (类别: hydro_model)
+2025-12-24 11:25:50.041 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-24 11:25:50.042 | INFO     | src.tools.registry:register:63 | 注册工具: get_sampleline (类别: hydro_model)
+2025-12-24 11:25:50.042 | INFO     | src.tools.registry:register:63 | 注册工具: get_reachinfo (类别: hydro_model)
+2025-12-24 11:25:50.042 | INFO     | src.tools.registry:register:63 | 注册工具: get_gatestate (类别: hydro_model)
+2025-12-24 11:25:50.042 | INFO     | src.tools.registry:register:63 | 注册工具: get_sectiondata (类别: hydro_model)
+2025-12-24 11:25:50.042 | INFO     | src.tools.registry:register:63 | 注册工具: get_sectiondata_frompoint (类别: hydro_model)
+2025-12-24 11:25:50.043 | INFO     | src.tools.registry:register:63 | 注册工具: get_reachsection_location (类别: hydro_model)
+2025-12-24 11:25:50.043 | INFO     | src.tools.registry:register:63 | 注册工具: get_station_info (类别: hydro_model)
+2025-12-24 11:25:50.043 | INFO     | src.tools.registry:register:63 | 注册工具: get_strddrule_info (类别: hydro_model)
+2025-12-24 11:25:50.043 | INFO     | src.tools.registry:register:63 | 注册工具: get_control_strs (类别: hydro_model)
+2025-12-24 11:25:50.043 | INFO     | src.tools.registry:register:63 | 注册工具: get_now_waterinfo (类别: hydro_model)
+2025-12-24 11:25:50.043 | INFO     | src.tools.registry:register:63 | 注册工具: get_design_flood (类别: hydro_model)
+2025-12-24 11:25:50.044 | INFO     | src.tools.registry:register:63 | 注册工具: get_nsbd_sectioninfo (类别: hydro_model)
+2025-12-24 11:25:50.044 | INFO     | src.tools.registry:register:63 | 注册工具: get_business_view (类别: hydro_model)
+2025-12-24 11:25:50.044 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-24 11:25:50.045 | INFO     | src.tools.registry:register:63 | 注册工具: get_rfmodel (类别: hydro_model)
+2025-12-24 11:25:50.045 | INFO     | src.tools.registry:register:63 | 注册工具: get_reach_break (类别: hydro_model)
+2025-12-24 11:25:50.045 | INFO     | src.tools.registry:register:63 | 注册工具: get_faultgate_baseinfo (类别: hydro_model)
+2025-12-24 11:25:50.045 | INFO     | src.tools.registry:register:63 | 注册工具: get_fault_gate (类别: hydro_model)
+2025-12-24 11:25:50.045 | INFO     | src.tools.registry:register:63 | 注册工具: get_ddinfo (类别: hydro_model)
+2025-12-24 11:25:50.045 | INFO     | src.tools.registry:register:63 | 注册工具: get_initial_waterlevel (类别: hydro_model)
+2025-12-24 11:25:50.046 | INFO     | src.tools.registry:register:63 | 注册工具: get_bndinfo (类别: hydro_model)
+2025-12-24 11:25:50.046 | INFO     | src.tools.registry:register:63 | 注册工具: get_dispatch_target (类别: hydro_model)
+2025-12-24 11:25:50.046 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-24 11:25:50.047 | INFO     | src.tools.registry:register:63 | 注册工具: get_models (类别: hydro_model)
+2025-12-24 11:25:50.047 | INFO     | src.tools.registry:register:63 | 注册工具: get_dispatch_plan (类别: hydro_model)
+2025-12-24 11:25:50.047 | INFO     | src.tools.registry:register:63 | 注册工具: get_tjdata_result (类别: hydro_model)
+2025-12-24 11:25:50.047 | INFO     | src.tools.registry:register:63 | 注册工具: get_gisgc_polygon_result (类别: hydro_model)
+2025-12-24 11:25:50.047 | INFO     | src.tools.registry:register:63 | 注册工具: get_sampleline_data_result (类别: hydro_model)
+2025-12-24 11:25:50.048 | INFO     | src.tools.registry:register:63 | 注册工具: get_gistj_result (类别: hydro_model)
+2025-12-24 11:25:50.048 | INFO     | src.tools.registry:register:63 | 注册工具: get_gistj_polygon_result (类别: hydro_model)
+2025-12-24 11:25:50.048 | INFO     | src.tools.registry:register:63 | 注册工具: get_point_result (类别: hydro_model)
+2025-12-24 11:25:50.048 | INFO     | src.tools.registry:register:63 | 注册工具: get_zp_result (类别: hydro_model)
+2025-12-24 11:25:50.048 | INFO     | src.tools.registry:register:63 | 注册工具: get_reachsections (类别: hydro_model)
+2025-12-24 11:25:50.048 | INFO     | src.tools.registry:register:63 | 注册工具: get_sectionres (类别: hydro_model)
+2025-12-24 11:25:50.049 | INFO     | src.tools.registry:register:63 | 注册工具: get_sectionlist_res (类别: hydro_model)
+2025-12-24 11:25:50.049 | INFO     | src.tools.registry:register:63 | 注册工具: get_catchment_discharges (类别: hydro_model)
+2025-12-24 11:25:50.049 | INFO     | src.tools.registry:register:63 | 注册工具: get_gateres (类别: hydro_model)
+2025-12-24 11:25:50.049 | INFO     | src.tools.registry:register:63 | 注册工具: get_atreach (类别: hydro_model)
+2025-12-24 11:25:50.049 | INFO     | src.tools.registry:register:63 | 注册工具: get_risk_warning (类别: hydro_model)
+2025-12-24 11:25:50.050 | INFO     | src.tools.registry:register:63 | 注册工具: get_history_autoforcast_list (类别: hydro_model)
+2025-12-24 11:25:50.050 | INFO     | src.tools.registry:register:63 | 注册工具: del_history_autoforcast (类别: hydro_model)
+2025-12-24 11:25:50.050 | INFO     | src.tools.registry:register:63 | 注册工具: get_rain_flood_list (类别: hydro_model)
+2025-12-24 11:25:50.050 | INFO     | src.tools.registry:register:63 | 注册工具: get_rainflood_plan_list (类别: hydro_model)
+2025-12-24 11:25:50.050 | INFO     | src.tools.registry:register:63 | 注册工具: change_rainflood_recomplan (类别: hydro_model)
+2025-12-24 11:25:50.050 | INFO     | src.tools.registry:register:63 | 注册工具: important_inspect (类别: hydro_model)
+2025-12-24 11:25:50.051 | INFO     | src.tools.registry:register:63 | 注册工具: get_history_autoforcast_res (类别: hydro_model)
+2025-12-24 11:25:50.051 | INFO     | src.tools.registry:register:63 | 注册工具: get_mountain_forecast_flood (类别: hydro_model)
+2025-12-24 11:25:50.051 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-24 11:25:50.051 | INFO     | src.tools.registry:init_default_tools:361 | 默认工具加载完成
+2025-12-24 11:25:50.051 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-24 11:25:50.052 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-24 11:25:50.052 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-24 11:25:50.053 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-24 11:25:50.053 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-24 11:25:50.054 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-24 11:25:50.054 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-24 11:25:50.055 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-24 11:25:50.055 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-24 11:25:50.056 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-24 11:25:50.481 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-24 11:25:51.253 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-24 11:25:51.254 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-24 11:25:51.254 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-24 11:25:51.254 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-24 11:25:51.254 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...

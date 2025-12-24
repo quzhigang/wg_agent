@@ -63,7 +63,7 @@
                     </button>
                     <button id="importImageBtn" class="toolbar-btn" title="导入图片">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                            <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
                         </svg>
                     </button>
                 </div>
@@ -198,6 +198,9 @@
             addLog(message, 'user');
             chatInput.value = '';
 
+            // 显示加载状态
+            const loadingLog = addLog('', 'loading');
+
             try {
                 // 调用后端API
                 const response = await fetch('/chat', {
@@ -218,6 +221,9 @@
 
                 const data = await response.json();
                 
+                // 移除加载状态
+                if (loadingLog) loadingLog.remove();
+                
                 // 更新会话ID
                 currentConversationId = data.conversation_id;
                 
@@ -230,6 +236,8 @@
                 }
 
             } catch (error) {
+                // 移除加载状态
+                if (loadingLog) loadingLog.remove();
                 console.error('Error:', error);
                 addLog(`> 错误: ${error.message}`);
             }
@@ -255,6 +263,18 @@
                         <img src="img/xw.png" alt="小卫" class="message-icon assistant-icon-img">
                         <div class="message-bubble">${text}</div>
                     </div>`;
+            } else if (type === 'loading') {
+                li.innerHTML = `
+                    <div class="message-content">
+                        <img src="img/xw.png" alt="小卫" class="message-icon assistant-icon-img">
+                        <div class="message-bubble">
+                            <div class="typing-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>`;
             } else {
                 li.innerHTML = `<span class="message-text">${text}</span>`;
             }
@@ -265,6 +285,8 @@
                 const processBox = document.querySelector('.process-box');
                 processBox.scrollTop = processBox.scrollHeight;
             }, 50);
+
+            return li;
         }
 
         // 新对话功能
