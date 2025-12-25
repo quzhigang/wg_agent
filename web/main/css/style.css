@@ -644,6 +644,125 @@ iframe {
     }
 }
 
+/* 执行过程样式 */
+.execution-process {
+    margin-bottom: 10px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fcfcfc;
+}
+
+.process-header {
+    padding: 6px 12px;
+    background: #f5f7fa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    font-size: 12px;
+    color: #888;
+    border-bottom: 1px solid #eee;
+}
+
+.process-header:hover {
+    background: #edf0f5;
+}
+
+.toggle-icon {
+    font-size: 10px;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.execution-process.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.process-body {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #555;
+    transition: max-height 0.3s ease-out, padding 0.3s ease;
+    max-height: 1000px;
+    overflow: hidden;
+}
+
+.execution-process.collapsed .process-body {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.process-item {
+    margin-bottom: 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.process-icon {
+    flex-shrink: 0;
+    margin-top: 3px;
+}
+
+.step-item {
+    padding-left: 20px;
+    position: relative;
+    margin-bottom: 4px;
+}
+
+.step-item::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ddd;
+}
+
+.step-item.active::before {
+    background: #007acc;
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.step-item.completed::before {
+    background: #28a745;
+}
+
+.step-status {
+    margin-left: auto;
+    font-size: 11px;
+}
+
+/* 最终回答样式 */
+.final-answer {
+    margin-top: 5px;
+}
+
+.muted-text {
+    color: #999;
+}
+
+/* 小加载动画 */
+.loading-spinner-small {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007acc;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* ========================================= */
 /* Markdown内容样式 */
 /* ========================================= */

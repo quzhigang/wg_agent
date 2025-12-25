@@ -1,0 +1,4 @@
+2025-12-25 16:41:12.041 | ERROR    | src.agents.executor:execute_step:93 | 步骤 4 执行失败: Error code: 429
+2025-12-25 16:41:50.642 | ERROR    | src.agents.graph:run_agent_stream:656 | 流式执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2025-12-25 16:51:53.944 | ERROR    | src.agents.planner:generate_plan:376 | 计划生成失败: Error code: 429

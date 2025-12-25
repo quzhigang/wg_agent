@@ -450,7 +450,15 @@ async def run_agent_stream(
         context_summary: 上下文摘要
         
     Yields:
-        执行事件
+        执行事件，包含以下类型:
+        - type: "intent" - 意图识别结果
+        - type: "rag" - RAG检索结果
+        - type: "plan" - 执行计划
+        - type: "step_start" - 步骤开始
+        - type: "step_end" - 步骤完成
+        - type: "step" - 通用步骤进度
+        - node: "final" - 最终响应
+        - node: "error" - 错误
     """
     logger.info(f"流式运行智能体 - 会话: {conversation_id}")
     
@@ -475,6 +483,10 @@ async def run_agent_stream(
     
     controller = get_controller()
     
+    # 用于跟踪已发送的步骤
+    sent_steps = set()
+    last_step_index = -1
+    
     try:
         async for event in graph.astream(initial_state, config):
             # 获取当前节点和状态
@@ -482,19 +494,157 @@ async def run_agent_stream(
                 # 格式化流式响应
                 progress = await controller.format_streaming_response(node_output)
                 
-                yield {
-                    "node": node_name,
-                    "progress": progress,
-                    "state": {
-                        "intent": node_output.get('intent'),
-                        "current_step": node_output.get('current_step_index', 0),
-                        "total_steps": len(node_output.get('plan', [])),
-                        "next_action": node_output.get('next_action')
-                    }
-                }
+                # 根据节点类型发送不同的事件
+                if node_name == "plan":
+                    # 规划节点 - 发送意图识别结果
+                    intent = node_output.get('intent')
+                    confidence = node_output.get('intent_confidence', 0)
+                    
+                    if intent:
+                        yield {
+                            "type": "intent",
+                            "node": node_name,
+                            "intent": intent,
+                            "confidence": confidence,
+                            "progress": progress,
+                            "state": {
+                                "intent": intent,
+                                "current_step": 0,
+                                "total_steps": 0,
+                                "next_action": node_output.get('next_action')
+                            }
+                        }
+                    
+                    # 如果有执行计划，发送计划事件
+                    plan = node_output.get('plan', [])
+                    if plan:
+                        yield {
+                            "type": "plan",
+                            "node": node_name,
+                            "steps": [
+                                {
+                                    "step_id": step.get('step_id', i+1),
+                                    "description": step.get('description', ''),
+                                    "tool_name": step.get('tool_name')
+                                }
+                                for i, step in enumerate(plan)
+                            ],
+                            "progress": progress,
+                            "state": {
+                                "intent": intent,
+                                "current_step": 0,
+                                "total_steps": len(plan),
+                                "next_action": node_output.get('next_action')
+                            }
+                        }
                 
-                # 如果是最终响应，发送完整内容
-                if node_output.get('final_response'):
+                elif node_name == "rag":
+                    # RAG检索节点
+                    retrieved_docs = node_output.get('retrieved_documents', [])
+                    retrieval_source = node_output.get('retrieval_source', 'rag')
+                    
+                    yield {
+                        "type": "rag",
+                        "node": node_name,
+                        "doc_count": len(retrieved_docs),
+                        "source": retrieval_source,
+                        "progress": progress,
+                        "state": {
+                            "intent": node_output.get('intent'),
+                            "current_step": 0,
+                            "total_steps": 0,
+                            "next_action": node_output.get('next_action')
+                        }
+                    }
+                
+                elif node_name == "execute":
+                    # 执行节点 - 发送步骤执行状态
+                    current_step_index = node_output.get('current_step_index', 0)
+                    plan = node_output.get('plan', [])
+                    execution_results = node_output.get('execution_results', [])
+                    
+                    # 检查是否有新步骤开始
+                    if current_step_index > last_step_index and current_step_index < len(plan):
+                        current_step = plan[current_step_index]
+                        step_id = current_step.get('step_id', current_step_index + 1)
+                        
+                        # 发送步骤开始事件
+                        if step_id not in sent_steps:
+                            yield {
+                                "type": "step_start",
+                                "node": node_name,
+                                "step_id": step_id,
+                                "description": current_step.get('description', ''),
+                                "tool_name": current_step.get('tool_name'),
+                                "progress": progress,
+                                "state": {
+                                    "intent": node_output.get('intent'),
+                                    "current_step": current_step_index,
+                                    "total_steps": len(plan),
+                                    "next_action": node_output.get('next_action')
+                                }
+                            }
+                            sent_steps.add(step_id)
+                        
+                        last_step_index = current_step_index
+                    
+                    # 检查是否有步骤完成
+                    for result in execution_results:
+                        result_step_id = result.get('step_id')
+                        if result_step_id and f"done_{result_step_id}" not in sent_steps:
+                            yield {
+                                "type": "step_end",
+                                "node": node_name,
+                                "step_id": result_step_id,
+                                "success": result.get('success', False),
+                                "result_summary": str(result.get('result', ''))[:200] if result.get('result') else '',
+                                "execution_time_ms": result.get('execution_time_ms', 0),
+                                "progress": progress,
+                                "state": {
+                                    "intent": node_output.get('intent'),
+                                    "current_step": current_step_index,
+                                    "total_steps": len(plan),
+                                    "next_action": node_output.get('next_action')
+                                }
+                            }
+                            sent_steps.add(f"done_{result_step_id}")
+                
+                elif node_name == "quick_chat":
+                    # 快速对话节点 - 直接发送最终响应
+                    if node_output.get('final_response'):
+                        yield {
+                            "node": "final",
+                            "response": node_output.get('final_response'),
+                            "output_type": node_output.get('output_type', 'text'),
+                            "page_url": node_output.get('generated_page_url')
+                        }
+                
+                elif node_name == "respond":
+                    # 响应节点 - 发送最终响应
+                    if node_output.get('final_response'):
+                        yield {
+                            "node": "final",
+                            "response": node_output.get('final_response'),
+                            "output_type": node_output.get('output_type', 'text'),
+                            "page_url": node_output.get('generated_page_url')
+                        }
+                
+                else:
+                    # 其他节点 - 发送通用进度
+                    yield {
+                        "type": "step",
+                        "node": node_name,
+                        "progress": progress,
+                        "state": {
+                            "intent": node_output.get('intent'),
+                            "current_step": node_output.get('current_step_index', 0),
+                            "total_steps": len(node_output.get('plan', [])),
+                            "next_action": node_output.get('next_action')
+                        }
+                    }
+                
+                # 如果是最终响应（兜底检查）
+                if node_output.get('final_response') and node_name not in ['quick_chat', 'respond']:
                     yield {
                         "node": "final",
                         "response": node_output.get('final_response'),

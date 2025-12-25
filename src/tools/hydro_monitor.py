@@ -327,7 +327,7 @@ class QueryReservoirLastTool(BaseTool):
     
     @property
     def description(self) -> str:
-        return "获取所有水库的最新实时水情数据，包括库水位、蓄水量、入库流量、出库流量等信息"
+        return "获取水库的最新实时水情数据，可以指定水库测站编码，包括库水位、蓄水量、入库流量、出库流量等信息"
     
     @property
     def category(self) -> ToolCategory:
@@ -335,19 +335,34 @@ class QueryReservoirLastTool(BaseTool):
     
     @property
     def parameters(self) -> List[ToolParameter]:
-        # 该接口无需参数
-        return []
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码（可选，不传则查询所有水库）",
+                required=False
+            )
+        ]
     
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行水库最新水情查询
         
+        Args:
+            stcd: 测站编码（可选）
+            
         Returns:
-            ToolResult: 包含所有水库最新水情数据的查询结果
+            ToolResult: 包含水库最新水情数据的查询结果
         """
+        stcd = kwargs.get('stcd')
         base_url = settings.wg_data_server_url
         url = f"{base_url}/api/basin/rwdb/rsvr/last"
         
+        # 构建请求参数
+        params = {}
+        if stcd:
+            params['stcd'] = stcd
+            
         # 获取认证头
         auth_headers = await LoginTool.get_auth_headers()
         
@@ -359,7 +374,7 @@ class QueryReservoirLastTool(BaseTool):
         for attempt in range(max_retries):
             try:
                 async with httpx.AsyncClient(timeout=30) as client:
-                    response = await client.get(url, headers=auth_headers)
+                    response = await client.get(url, params=params, headers=auth_headers)
                     response.raise_for_status()
                     data = response.json()
                 
@@ -510,7 +525,7 @@ class QueryRiverLastTool(BaseTool):
     
     @property
     def description(self) -> str:
-        return "获取所有河道测站的最新实时水情数据，包括水位、流量、水势、告警级别等信息"
+        return "获取河道测站的最新实时水情数据，可以指定河道测站编码，包括水位、流量、水势、告警级别等信息"
     
     @property
     def category(self) -> ToolCategory:
@@ -518,25 +533,40 @@ class QueryRiverLastTool(BaseTool):
     
     @property
     def parameters(self) -> List[ToolParameter]:
-        # 该接口无需参数
-        return []
+        return [
+            ToolParameter(
+                name="stcd",
+                type="string",
+                description="测站编码（可选，不传则查询所有河道）",
+                required=False
+            )
+        ]
     
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行河道最新水情查询
         
+        Args:
+            stcd: 测站编码（可选）
+            
         Returns:
-            ToolResult: 包含所有河道测站最新水情数据的查询结果
+            ToolResult: 包含河道测站最新水情数据的查询结果
         """
+        stcd = kwargs.get('stcd')
         try:
             base_url = settings.wg_data_server_url
             url = f"{base_url}/api/basin/rwdb/river/last"
             
+            # 构建请求参数
+            params = {}
+            if stcd:
+                params['stcd'] = stcd
+                
             # 获取认证头
             auth_headers = await LoginTool.get_auth_headers()
             
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, headers=auth_headers)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             

@@ -117,15 +117,40 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
     流式对话接口
     
     支持实时返回执行步骤和响应内容
+    
+    事件类型:
+    - start: 开始处理
+    - intent: 意图识别结果
+    - rag: RAG检索结果
+    - plan: 执行计划
+    - step_start: 步骤开始执行
+    - step_end: 步骤执行完成
+    - content: 最终回答内容
+    - done: 处理完成
+    - error: 错误信息
     """
     async def generate():
         try:
             # 获取或创建会话
             conversation_id = request.conversation_id or str(uuid4())
             
+            # 检查会话是否存在，不存在则创建
+            existing_conv = db.query(Conversation).filter(
+                Conversation.id == conversation_id
+            ).first()
+            
+            if not existing_conv:
+                new_conv = Conversation(
+                    id=conversation_id,
+                    user_id=request.user_id,
+                    title=request.message[:30] + "..." if len(request.message) > 30 else request.message
+                )
+                db.add(new_conv)
+                db.commit()
+            
             # 发送开始信号
             start_data = json.dumps({"type": "start", "conversation_id": conversation_id}, ensure_ascii=False)
-            yield f"data: {start_data}"
+            yield f"data: {start_data}\n\n"
             
             # 保存用户消息 (如果是新消息)
             user_message = Message(
@@ -158,10 +183,11 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                 chat_history=chat_history
             ):
                 node = event.get("node", "")
+                event_type = event.get("type", "step")
                 
                 if node == "error":
                     err_data = json.dumps({"type": "error", "data": event.get("error")}, ensure_ascii=False)
-                    yield f"data: {err_data}"
+                    yield f"data: {err_data}\n\n"
                 elif node == "final":
                     full_response = event.get("response", "")
                     output_type = event.get("output_type", "text")
@@ -173,12 +199,39 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                         "output_type": output_type, 
                         "page_url": page_url
                     }, ensure_ascii=False)
-                    yield f"data: {final_data}"
+                    yield f"data: {final_data}\n\n"
                 else:
+                    # 根据事件类型发送不同格式的数据
                     progress = event.get("progress", {})
                     state = event.get("state", {})
-                    step_data = json.dumps({"type": "step", "node": node, "progress": progress, "state": state}, ensure_ascii=False)
-                    yield f"data: {step_data}"
+                    
+                    # 构建事件数据
+                    event_data = {
+                        "type": event_type,
+                        "node": node,
+                        "progress": progress,
+                        "state": state
+                    }
+                    
+                    # 添加额外的事件特定数据
+                    if event_type == "intent":
+                        event_data["intent"] = event.get("intent", "")
+                        event_data["confidence"] = event.get("confidence", 0)
+                    elif event_type == "rag":
+                        event_data["doc_count"] = event.get("doc_count", 0)
+                        event_data["source"] = event.get("source", "rag")
+                    elif event_type == "plan":
+                        event_data["steps"] = event.get("steps", [])
+                    elif event_type == "step_start":
+                        event_data["step_id"] = event.get("step_id", 0)
+                        event_data["description"] = event.get("description", "")
+                    elif event_type == "step_end":
+                        event_data["step_id"] = event.get("step_id", 0)
+                        event_data["success"] = event.get("success", True)
+                        event_data["result_summary"] = event.get("result_summary", "")
+                    
+                    step_data = json.dumps(event_data, ensure_ascii=False)
+                    yield f"data: {step_data}\n\n"
             
             # 保存助手响应到数据库
             if full_response:
@@ -196,12 +249,12 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
 
             # 发送完成信号
             done_data = json.dumps({"type": "done", "data": None}, ensure_ascii=False)
-            yield f"data: {done_data}"
+            yield f"data: {done_data}\n\n"
             
         except Exception as e:
             logger.error(f"流式对话处理失败: {str(e)}")
             err_msg = json.dumps({"type": "error", "data": str(e)}, ensure_ascii=False)
-            yield f"data: {err_msg}"
+            yield f"data: {err_msg}\n\n"
     
     return StreamingResponse(
         generate(),
@@ -209,6 +262,7 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
         }
     )
 

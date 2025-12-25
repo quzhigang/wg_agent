@@ -4,69 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>水库洪水预报结果展示</title>
-    <link rel="stylesheet" href="css/style.css?v=1.8">
+    <link rel="stylesheet" href="css/style.css?v=1.9">
     <link rel="icon" href="data:;base64,=">
-    <!-- Marked.js - Markdown解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="layout-grid">
-        <!-- Main Content (iframe) -->
         <div class="iframe-container">
             <iframe id="mainContentFrame" src="res_module/index.html" frameborder="0"></iframe>
         </div>
-
-        <!-- Vertical Resizer (Main content / Sidebar) -->
         <div class="resizer resizer-h" id="resizer-sidebar"></div>
-
-        <!-- Sidebar (Now on the right) -->
         <aside class="left-sidebar">
-            <!-- 合并后的展示区 -->
             <div class="main-display-area panel-style">
-                <!-- AI数字人区 25% -->
                 <div class="avatar-box">
                     <div class="avatar-content">
                         <img src="img/szr_no_bg.png" alt="AI数字人" class="avatar-image">
                     </div>
                 </div>
-                <!-- 智能体执行过程展示区 60% -->
                 <div class="process-box">
                     <div class="process-content">
                         <ul class="log-list" id="logList">
-                            <li>> 系统初始化完成...</li>
-                            <li>> 等待您的提问...</li>
+                            <li class="message-item message-system"><span class="message-text">> 系统初始化完成...</span></li>
+                            <li class="message-item message-system"><span class="message-text">> 等待您的提问...</span></li>
                         </ul>
                     </div>
                 </div>
             </div>
-            <!-- 对话输入框 15% -->
             <div class="chat-input-box panel-style">
                 <div class="toolbar">
                     <button id="newChatBtn" class="toolbar-btn" title="新对话">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                     </button>
                     <button id="historyBtn" class="toolbar-btn" title="历史对话">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
-                        </svg>
-                    </button>
-                    <button id="voiceInputBtn" class="toolbar-btn" title="语音输入">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                        </svg>
-                    </button>
-                    <button id="importFileBtn" class="toolbar-btn" title="导入文件">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-                        </svg>
-                    </button>
-                    <button id="importImageBtn" class="toolbar-btn" title="导入图片">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
                     </button>
                 </div>
                 <div class="chat-input-wrapper">
@@ -77,12 +47,9 @@
         </aside>
     </div>
 
-    <!-- 通用确认对话框 -->
     <div id="confirmModal" class="confirm-modal">
         <div class="confirm-dialog">
-            <div class="confirm-content">
-                <p id="confirmMessage">确定要执行此操作吗？</p>
-            </div>
+            <div class="confirm-content"><p id="confirmMessage"></p></div>
             <div class="confirm-buttons">
                 <button id="confirmCancel" class="confirm-btn cancel-btn">取消</button>
                 <button id="confirmOk" class="confirm-btn ok-btn">确定</button>
@@ -90,413 +57,246 @@
         </div>
     </div>
 
-    <!-- 通用提示对话框 -->
     <div id="alertModal" class="confirm-modal">
         <div class="confirm-dialog">
-            <div class="confirm-content">
-                <p id="alertMessage">提示信息</p>
-            </div>
+            <div class="confirm-content"><p id="alertMessage"></p></div>
             <div class="confirm-buttons">
                 <button id="alertOk" class="confirm-btn ok-btn">确定</button>
             </div>
         </div>
     </div>
 
-    <!-- 历史对话模态框 -->
     <div id="historyModal" class="history-modal">
-        <div class="history-header">
-            <span>历史对话</span>
-            <span id="closeHistory" class="history-close">&times;</span>
-        </div>
-        <div class="history-toolbar">
-            <label class="select-all-label">
-                <input type="checkbox" id="selectAllHistory">
-                <span>全选</span>
-            </label>
-            <button id="deleteSelectedBtn" class="delete-btn" title="删除选中">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                </svg>
-                删除选中
-            </button>
-        </div>
-        <ul id="historyListContainer" class="history-list">
-            <!-- 动态加载 -->
-        </ul>
+        <div class="history-header"><span>历史对话</span><span id="closeHistory" class="history-close">&times;</span></div>
+        <ul id="historyListContainer" class="history-list"></ul>
     </div>
 
     <script src="js/resizer.js"></script>
     <script>
-        let currentConversationId = null;
-        
-        // 自定义确认对话框
-        function showConfirm(message) {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('confirmModal');
-                const msgEl = document.getElementById('confirmMessage');
-                const okBtn = document.getElementById('confirmOk');
-                const cancelBtn = document.getElementById('confirmCancel');
-                
-                msgEl.textContent = message;
-                modal.style.display = 'flex';
-                
-                const handleOk = () => {
-                    modal.style.display = 'none';
-                    okBtn.removeEventListener('click', handleOk);
-                    cancelBtn.removeEventListener('click', handleCancel);
-                    resolve(true);
-                };
-                
-                const handleCancel = () => {
-                    modal.style.display = 'none';
-                    okBtn.removeEventListener('click', handleOk);
-                    cancelBtn.removeEventListener('click', handleCancel);
-                    resolve(false);
-                };
-                
-                okBtn.addEventListener('click', handleOk);
-                cancelBtn.addEventListener('click', handleCancel);
-            });
-        }
-        
-        // 自定义提示对话框
-        function showAlert(message) {
-            return new Promise((resolve) => {
-                const modal = document.getElementById('alertModal');
-                const msgEl = document.getElementById('alertMessage');
-                const okBtn = document.getElementById('alertOk');
-                
-                msgEl.textContent = message;
-                modal.style.display = 'flex';
-                
-                const handleOk = () => {
-                    modal.style.display = 'none';
-                    okBtn.removeEventListener('click', handleOk);
-                    resolve();
-                };
-                
-                okBtn.addEventListener('click', handleOk);
-            });
-        }
-        const chatInput = document.getElementById('chatInput');
-        const chatSendBtn = document.getElementById('chatSendBtn');
-        const logList = document.getElementById('logList');
-        const mainContentFrame = document.getElementById('mainContentFrame');
-        const historyModal = document.getElementById('historyModal');
+        (function() {
+            let currentConversationId = null;
 
-        chatSendBtn.addEventListener('click', sendMessage);
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+            const chatInput = document.getElementById('chatInput');
+            const chatSendBtn = document.getElementById('chatSendBtn');
+            const logList = document.getElementById('logList');
+            const mainContentFrame = document.getElementById('mainContentFrame');
+            const historyModal = document.getElementById('historyModal');
+            const historyListContainer = document.getElementById('historyListContainer');
 
-        async function sendMessage() {
-            const message = chatInput.value.trim();
-            if (!message) return;
+            window.toggleProcess = function(header) {
+                const container = header.closest('.execution-process');
+                if (container) container.classList.toggle('collapsed');
+            };
 
-            // 添加用户消息到日志
-            addLog(message, 'user');
-            chatInput.value = '';
-
-            // 显示加载状态
-            const loadingLog = addLog('', 'loading');
-
-            try {
-                // 调用后端API
-                const response = await fetch('/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        user_id: 'user123', // 示例ID
-                        conversation_id: currentConversationId
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status}`);
+            function renderMarkdown(text) {
+                if (window.marked && window.marked.parse) {
+                    return window.marked.parse(text);
                 }
+                return text.split(String.fromCharCode(10)).join('<br>');
+            }
 
-                const data = await response.json();
-                
-                // 移除加载状态
-                if (loadingLog) loadingLog.remove();
-                
-                // 更新会话ID
-                currentConversationId = data.conversation_id;
-                
-                // 处理响应
-                addLog(data.content, 'assistant');
-                
-                if (data.page_url) {
-                    mainContentFrame.src = data.page_url;
-                    addLog(`> 页面已更新: ${data.page_url}`);
+            function scrollToBottom() {
+                setTimeout(() => {
+                    const box = document.querySelector('.process-box');
+                    if (box) box.scrollTop = box.scrollHeight;
+                }, 50);
+            }
+
+            window.addLog = function(text, type = 'system') {
+                const li = document.createElement('li');
+                li.className = 'message-item message-' + type;
+                if (type === 'user') {
+                    li.innerHTML = '<div class="message-content"><div class="message-icon user-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div><div class="message-bubble">' + text + '</div></div>';
+                } else if (type === 'assistant') {
+                    li.innerHTML = '<div class="message-content"><img src="img/xw.png" class="message-icon assistant-icon-img"><div class="message-bubble markdown-content">' + renderMarkdown(text) + '</div></div>';
+                } else {
+                    li.innerHTML = '<span class="message-text">' + text + '</span>';
                 }
+                logList.appendChild(li);
+                scrollToBottom();
+                return li;
+            };
 
-            } catch (error) {
-                // 移除加载状态
-                if (loadingLog) loadingLog.remove();
-                console.error('Error:', error);
-                addLog(`> 错误: ${error.message}`);
-            }
-        }
+            async function sendMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
 
-        // 将Markdown文本转换为HTML
-        function renderMarkdown(text) {
-            if (typeof marked !== 'undefined') {
-                // 配置marked选项
-                marked.setOptions({
-                    breaks: true,  // 支持换行
-                    gfm: true,     // 支持GitHub风格Markdown
-                    sanitize: false
-                });
-                return marked.parse(text);
-            }
-            // 如果marked未加载，使用简单的格式化
-            return simpleMarkdownRender(text);
-        }
-        
-        // 简单的Markdown渲染（备用方案）
-        function simpleMarkdownRender(text) {
-            // 处理标题
-            text = text.replace(/^### (.+)$/gm, '<h4>$1</h4>');
-            text = text.replace(/^## (.+)$/gm, '<h3>$1</h3>');
-            text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
-            
-            // 处理加粗
-            text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-            
-            // 处理斜体
-            text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
-            
-            // 处理无序列表
-            text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
-            text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-            
-            // 处理有序列表
-            text = text.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-            
-            // 处理换行
-            text = text.replace(/\n\n/g, '</p><p>');
-            text = text.replace(/\n/g, '<br>');
-            
-            // 包装段落
-            if (!text.startsWith('<')) {
-                text = '<p>' + text + '</p>';
-            }
-            
-            return text;
-        }
+                addLog(message, 'user');
+                chatInput.value = '';
 
-        function addLog(text, type = 'system') {
-            const li = document.createElement('li');
-            li.className = `message-item message-${type}`;
-            
-            if (type === 'user') {
-                li.innerHTML = `
-                    <div class="message-content">
-                        <div class="message-icon user-icon">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                            </svg>
-                        </div>
-                        <div class="message-bubble">${text}</div>
-                    </div>`;
-            } else if (type === 'assistant') {
-                // 对助手消息进行Markdown渲染
-                const renderedContent = renderMarkdown(text);
-                li.innerHTML = `
+                const assistantLi = document.createElement('li');
+                assistantLi.className = 'message-item message-assistant';
+                assistantLi.innerHTML = `
                     <div class="message-content">
                         <img src="img/xw.png" alt="小卫" class="message-icon assistant-icon-img">
-                        <div class="message-bubble markdown-content">${renderedContent}</div>
-                    </div>`;
-            } else if (type === 'loading') {
-                li.innerHTML = `
-                    <div class="message-content">
-                        <img src="img/xw.png" alt="小卫" class="message-icon assistant-icon-img">
-                        <div class="message-bubble">
-                            <div class="typing-dots">
-                                <span></span>
-                                <span></span>
-                                <span></span>
+                        <div class="message-bubble" style="width: 100%;">
+                            <div class="execution-process">
+                                <div class="process-header" onclick="toggleProcess(this)">
+                                    <span class="toggle-icon">▼</span><span>智能体执行过程</span>
+                                </div>
+                                <div class="process-body">
+                                    <div class="intent-status process-item">
+                                        <span class="process-icon">🔍</span><span>正在分析意图...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="final-answer markdown-content">
+                                <div class="typing-dots"><span></span><span></span><span></span></div>
                             </div>
                         </div>
                     </div>`;
-            } else {
-                li.innerHTML = `<span class="message-text">${text}</span>`;
+                logList.appendChild(assistantLi);
+                scrollToBottom();
+
+                const uiElements = {
+                    assistantLi,
+                    processBody: assistantLi.querySelector('.process-body'),
+                    finalAnswer: assistantLi.querySelector('.final-answer'),
+                    executionProcess: assistantLi.querySelector('.execution-process'),
+                    processHeaderSpan: assistantLi.querySelector('.process-header span:last-child')
+                };
+
+                try {
+                    const response = await fetch('/chat/stream', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message, user_id: 'user123', conversation_id: currentConversationId })
+                    });
+
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split(String.fromCharCode(10));
+                        buffer = lines.pop();
+
+                        for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i].trim();
+                            if (!line.startsWith('data:')) continue;
+                            const jsonStr = line.substring(5).trim();
+                            try {
+                                const data = JSON.parse(jsonStr);
+                                handleEvent(data, uiElements);
+                            } catch (e) {}
+                        }
+                    }
+                } catch (err) {
+                    uiElements.finalAnswer.innerHTML = '<div style="color:#ff4d4f">连接异常: ' + err.message + '</div>';
+                }
             }
-            
-            logList.appendChild(li);
-            // 滚动到底部 - 使用 setTimeout 确保 DOM 更新后再滚动
-            setTimeout(() => {
-                const processBox = document.querySelector('.process-box');
-                processBox.scrollTop = processBox.scrollHeight;
-            }, 50);
 
-            return li;
-        }
+            function handleEvent(data, ui) {
+                switch (data.type) {
+                    case 'start': currentConversationId = data.conversation_id; break;
+                    case 'intent':
+                        const intentEl = ui.assistantLi.querySelector('.intent-status');
+                        if (intentEl) {
+                            intentEl.innerHTML = '<span class="process-icon">✓</span><span>确认意图: ' + (data.intent || '未知') + ' (' + Math.round((data.confidence || 0) * 100) + '%)</span>';
+                        }
+                        break;
+                    case 'rag':
+                        const ragDiv = document.createElement('div');
+                        ragDiv.className = 'process-item';
+                        ragDiv.innerHTML = '<span class="process-icon">📚</span><span>检索到 ' + (data.doc_count || 0) + ' 条相关知识</span>';
+                        ui.processBody.appendChild(ragDiv);
+                        break;
+                    case 'plan':
+                        const planDiv = document.createElement('div');
+                        planDiv.className = 'process-item';
+                        planDiv.innerHTML = '<div style="width:100%"><div style="margin-bottom:5px;color:#666">执行计划:</div><div class="steps-container" style="padding-left:10px"></div></div>';
+                        ui.processBody.appendChild(planDiv);
+                        const container = planDiv.querySelector('.steps-container');
+                        (data.steps || []).forEach(s => {
+                            const sEl = document.createElement('div');
+                            sEl.className = 'step-item';
+                            sEl.setAttribute('data-id', s.step_id);
+                            sEl.innerHTML = '<span>' + s.description + '</span><span class="step-status"></span>';
+                            container.appendChild(sEl);
+                        });
+                        break;
+                    case 'step_start':
+                        const startEl = ui.assistantLi.querySelector('.step-item[data-id="' + data.step_id + '"]');
+                        if (startEl) {
+                            startEl.classList.add('active');
+                            startEl.querySelector('.step-status').innerHTML = '<div class="loading-spinner-small"></div>';
+                        }
+                        break;
+                    case 'step_end':
+                        const endEl = ui.assistantLi.querySelector('.step-item[data-id="' + data.step_id + '"]');
+                        if (endEl) {
+                            endEl.classList.remove('active');
+                            endEl.classList.add('completed');
+                            endEl.querySelector('.step-status').innerHTML = '<span style="color:#28a745">✓</span>';
+                        }
+                        break;
+                    case 'content':
+                        if (data.data) {
+                            ui.finalAnswer.innerHTML = renderMarkdown(data.data);
+                            if (data.page_url) mainContentFrame.src = data.page_url;
+                        }
+                        break;
+                    case 'done':
+                        if (ui.executionProcess) ui.executionProcess.classList.add('collapsed');
+                        if (ui.processHeaderSpan) ui.processHeaderSpan.textContent = '执行过程 (已完成)';
+                        scrollToBottom();
+                        break;
+                    case 'error':
+                        ui.finalAnswer.innerHTML = '<div style="color:#ff4d4f">错误: ' + (data.data || '未知错误') + '</div>';
+                        break;
+                }
+            }
 
-        // 新对话功能
-        document.getElementById('newChatBtn').addEventListener('click', () => {
-            currentConversationId = null;
-            logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 开启新对话...</span></li>';
-            // 重置iframe到初始模板
-            mainContentFrame.src = 'res_module/index.html';
-        });
+            chatSendBtn.addEventListener('click', sendMessage);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+            });
 
-        // 历史对话功能
-        document.getElementById('historyBtn').addEventListener('click', async () => {
-            try {
-                const response = await fetch('/chat/conversations?user_id=user123');
-                const result = await response.json();
-                if (result.success) {
-                    const container = document.getElementById('historyListContainer');
-                    container.innerHTML = '';
-                    document.getElementById('selectAllHistory').checked = false;
-                    
-                    if (result.data.length === 0) {
-                        container.innerHTML = '<li class="history-item no-data" style="text-align:center;color:#999;">暂无记录</li>';
-                    } else {
-                        result.data.forEach(conv => {
+            document.getElementById('newChatBtn').addEventListener('click', () => {
+                currentConversationId = null;
+                logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 开启新对话...</span></li>';
+                mainContentFrame.src = 'res_module/index.html';
+            });
+
+            document.getElementById('historyBtn').addEventListener('click', async () => {
+                try {
+                    const res = await fetch('/chat/conversations?user_id=user123');
+                    const result = await res.json();
+                    if (result.success) {
+                        historyListContainer.innerHTML = '';
+                        (result.data || []).forEach(conv => {
                             const li = document.createElement('li');
                             li.className = 'history-item';
-                            li.dataset.id = conv.id;
-                            li.innerHTML = `
-                                <input type="checkbox" class="history-checkbox" data-id="${conv.id}">
-                                <span class="history-title" onclick="loadConversation('${conv.id}')">${conv.title || conv.id}</span>
-                                <button class="delete-single-btn" onclick="deleteConversation('${conv.id}', event)" title="删除">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                    </svg>
-                                </button>
-                            `;
-                            container.appendChild(li);
+                            li.innerHTML = '<input type="checkbox" class="history-checkbox" data-id="' + conv.id + '"><span class="history-title">' + (conv.title || conv.id) + '</span>';
+                            li.querySelector('.history-title').addEventListener('click', () => loadConversation(conv.id));
+                            historyListContainer.appendChild(li);
                         });
+                        historyModal.style.display = 'flex';
                     }
-                    historyModal.style.display = 'flex';
-                }
-            } catch (error) {
-                console.error('加载历史失败:', error);
-                alert('获取历史对话列表失败');
-            }
-        });
+                } catch (e) {}
+            });
 
-        document.getElementById('closeHistory').addEventListener('click', () => {
-            historyModal.style.display = 'none';
-        });
+            document.getElementById('closeHistory').addEventListener('click', () => { historyModal.style.display = 'none'; });
 
-        // 全选功能
-        document.getElementById('selectAllHistory').addEventListener('change', (e) => {
-            const checkboxes = document.querySelectorAll('.history-checkbox');
-            checkboxes.forEach(cb => cb.checked = e.target.checked);
-        });
-
-        // 删除选中的对话
-        document.getElementById('deleteSelectedBtn').addEventListener('click', async () => {
-            const checkboxes = document.querySelectorAll('.history-checkbox:checked');
-            if (checkboxes.length === 0) {
-                showAlert('请先选择要删除的对话');
-                return;
+            async function loadConversation(id) {
+                currentConversationId = id;
+                historyModal.style.display = 'none';
+                logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 正在加载历史对话...</span></li>';
+                try {
+                    const res = await fetch('/chat/conversations/' + id + '/messages');
+                    const result = await res.json();
+                    if (result.success) {
+                        logList.innerHTML = '';
+                        result.data.forEach(m => addLog(m.content, m.role === 'user' ? 'user' : 'assistant'));
+                    }
+                } catch (e) { addLog('> 错误: 无法加载历史消息'); }
             }
-            
-            const confirmed = await showConfirm(`确定要删除选中的 ${checkboxes.length} 条对话吗？`);
-            if (!confirmed) {
-                return;
-            }
-            
-            const ids = Array.from(checkboxes).map(cb => cb.dataset.id);
-            
-            try {
-                for (const id of ids) {
-                    await fetch(`/chat/conversations/${id}`, { method: 'DELETE' });
-                }
-                // 重新加载列表
-                document.getElementById('historyBtn').click();
-            } catch (error) {
-                console.error('删除失败:', error);
-                showAlert('删除失败');
-            }
-        });
-
-        // 删除单个对话
-        async function deleteConversation(id, event) {
-            event.stopPropagation();
-            const confirmed = await showConfirm('确定要删除这条对话吗？');
-            if (!confirmed) {
-                return;
-            }
-            
-            try {
-                await fetch(`/chat/conversations/${id}`, { method: 'DELETE' });
-                // 从列表中移除
-                const item = document.querySelector(`.history-item[data-id="${id}"]`);
-                if (item) item.remove();
-                
-                // 如果删除的是当前对话，清空当前会话
-                if (currentConversationId === id) {
-                    currentConversationId = null;
-                    logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 对话已删除，开启新对话...</span></li>';
-                }
-                
-                // 检查是否还有记录
-                const remaining = document.querySelectorAll('.history-item:not(.no-data)');
-                if (remaining.length === 0) {
-                    document.getElementById('historyListContainer').innerHTML = 
-                        '<li class="history-item no-data" style="text-align:center;color:#999;">暂无记录</li>';
-                }
-            } catch (error) {
-                console.error('删除失败:', error);
-                showAlert('删除失败');
-            }
-        }
-
-        // 点击模态框外部关闭
-        window.onclick = function(event) {
-            if (event.target == historyModal) {
-                historyModal.style.display = "none";
-            }
-        }
-
-        // 工具栏功能处理
-        document.getElementById('importFileBtn').addEventListener('click', () => {
-            showAlert('导入文件功能开发中...');
-        });
-        document.getElementById('importImageBtn').addEventListener('click', () => {
-            showAlert('导入图片功能开发中...');
-        });
-        document.getElementById('voiceInputBtn').addEventListener('click', () => {
-            showAlert('语音输入功能开发中...');
-        });
-
-        async function loadConversation(id) {
-            currentConversationId = id;
-            historyModal.style.display = 'none';
-            logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 正在加载历史对话...</span></li>';
-            
-            try {
-                const response = await fetch(`/chat/conversations/${id}/messages`);
-                const result = await response.json();
-                if (result.success) {
-                    logList.innerHTML = '';
-                    result.data.forEach(msg => {
-                        const type = msg.role === 'user' ? 'user' : 'assistant';
-                        addLog(msg.content, type);
-                        
-                        // 如果最后一条助手消息包含页面URL，尝试加载它
-                        if (msg.role === 'assistant' && msg.metadata && msg.metadata.page_url) {
-                            mainContentFrame.src = msg.metadata.page_url;
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error('加载消息失败:', error);
-                addLog('> 错误: 无法加载历史消息');
-            }
-        }
+        })();
     </script>
 </body>
 </html>
