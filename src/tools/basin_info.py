@@ -70,7 +70,7 @@ class GetMapDataTool(BaseTool):
             ToolParameter(
                 name="filter_value",
                 type="string",
-                description="查询值",
+                description="查询值，只能有一个",
                 required=False
             )
         ]

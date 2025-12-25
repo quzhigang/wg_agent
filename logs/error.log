@@ -8,3 +8,5 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
 2025-12-25 19:43:42.189 | ERROR    | src.agents.executor:_get_value_by_path:413 | 解析路径 step_2[0].stcd 出错: invalid literal for int() with base 10: '2[0]'
 2025-12-25 19:43:42.192 | ERROR    | src.agents.executor:_get_value_by_path:413 | 解析路径 step_2[0].stcd 出错: invalid literal for int() with base 10: '2[0]'
+2025-12-25 21:32:46.162 | ERROR    | src.tools.basin_info:execute:121 | 地图数据源查询HTTP错误: Server error '500 Internal Server Error' for url 'http://10.20.2.153/api/basin/map/dataSource/table/map?refTable=geo_res_base&where%5B0%5D%5Bfiled%5D=res_name&where%5B0%5D%5Brela%5D=in&where%5B0%5D%5Bvalue%5D=%27%E7%9B%98%E7%9F%B3%E5%A4%B4%E6%B0%B4%E5%BA%93%2C%E5%B0%8F%E5%8D%97%E6%B5%B7%E6%B0%B4%E5%BA%93%27'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
