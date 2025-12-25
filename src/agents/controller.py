@@ -224,7 +224,25 @@ class Controller:
                 title=f"{intent}报告"
             )
             
-            text_response = f"""根据您的查询，我已为您生成了详细报告。
+            # 使用LLM生成针对用户问题的智能文字回复
+            docs_summary = self._format_documents(
+                state.get('retrieved_documents', [])
+            )
+            plan_summary = self._format_plan_summary(state.get('plan', []))
+            
+            try:
+                llm_response = await self.response_chain.ainvoke({
+                    "user_message": state.get('user_message', ''),
+                    "intent": state.get('intent', 'unknown'),
+                    "plan_summary": plan_summary or "无执行计划",
+                    "execution_results": execution_summary or "无执行结果",
+                    "retrieved_documents": docs_summary or "无相关知识"
+                })
+                text_response = llm_response.content
+                logger.info("LLM生成文字回复成功")
+            except Exception as llm_error:
+                logger.warning(f"LLM生成文字回复失败，使用默认模板: {llm_error}")
+                text_response = f"""根据您的查询，我已为您生成了详细报告。
 
 {execution_summary}
 

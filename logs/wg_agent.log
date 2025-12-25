@@ -1,28 +1,806 @@
-2025-12-24 20:34:15.152 | INFO     | src.api.chat:chat:35 | 收到对话请求: 盘石头水库当前水位？...
-2025-12-24 20:34:15.190 | INFO     | src.agents.graph:run_agent:383 | 运行智能体 - 会话: 78b72b41-e7eb-4c3d-b661-41954208673f
-2025-12-24 20:34:15.191 | INFO     | src.agents.planner:analyze_intent:210 | 开始分析用户意图: 盘石头水库当前水位？...
-2025-12-24 20:34:21.078 | INFO     | src.agents.planner:analyze_intent:223 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'location': '盘石头水库', 'data_type': '水位', 'time': '当前'}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'web_page'}
-2025-12-24 20:34:21.078 | INFO     | src.agents.planner:check_workflow_match:266 | 检查工作流匹配...
-2025-12-24 20:34:21.078 | INFO     | src.agents.planner:generate_plan:302 | 开始生成执行计划...
-2025-12-24 20:34:36.675 | INFO     | src.agents.planner:generate_plan:335 | 生成了3个执行步骤
-2025-12-24 20:34:36.675 | INFO     | src.agents.planner:generate_plan:336 | ============================================================
-2025-12-24 20:34:36.675 | INFO     | src.agents.planner:generate_plan:337 | 执行计划:
-2025-12-24 20:34:36.675 | INFO     | src.agents.planner:generate_plan:342 |   步骤1: 登录卫共流域数字孪生系统以获取访问令牌 (工具: login_basin_system)
-2025-12-24 20:34:36.676 | INFO     | src.agents.planner:generate_plan:342 |   步骤2: 查询“盘石头水库”的测站编码（stcd） (工具: get_map_data)
-2025-12-24 20:34:36.676 | INFO     | src.agents.planner:generate_plan:342 |   步骤3: 获取所有水库的最新实时水情数据（包含水位信息） (工具: query_reservoir_last)
-2025-12-24 20:34:36.676 | INFO     | src.agents.planner:generate_plan:343 | ============================================================
-2025-12-24 20:34:36.676 | INFO     | src.agents.planner:generate_plan:344 | 
-2025-12-24 20:34:36.677 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
-2025-12-24 20:34:36.678 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 1: 登录卫共流域数字孪生系统以获取访问令牌
-2025-12-24 20:34:36.678 | INFO     | src.agents.executor:execute_step:80 | 步骤 1 执行成功，耗时 0ms
-2025-12-24 20:34:36.678 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-24 20:34:36.679 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 2: 查询“盘石头水库”的测站编码（stcd）
-2025-12-24 20:34:36.733 | INFO     | src.agents.executor:execute_step:80 | 步骤 2 执行成功，耗时 54ms
-2025-12-24 20:34:36.733 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-24 20:34:36.734 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 3: 获取所有水库的最新实时水情数据（包含水位信息）
-2025-12-24 20:34:37.764 | INFO     | src.agents.executor:execute_step:80 | 步骤 3 执行成功，耗时 1029ms
-2025-12-24 20:34:37.764 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-24 20:34:37.765 | INFO     | src.agents.controller:synthesize_response:102 | 开始合成最终响应...
-2025-12-24 20:34:37.766 | INFO     | src.agents.controller:_generate_web_page_response:198 | 准备生成Web页面...
-2025-12-24 20:34:37.766 | INFO     | src.output.page_generator:generate_page:63 | 生成报告页面: generic
-2025-12-24 20:34:37.767 | INFO     | src.output.page_generator:generate_page:85 | 页面生成成功: /pages/generic_20251224_203437_6f7ac522.html
+2025-12-25 09:34:45.521 | INFO     | src.api.chat:chat:35 | 收到对话请求: 盘石头水库当前水位？...
+2025-12-25 09:34:45.571 | INFO     | src.agents.graph:run_agent:383 | 运行智能体 - 会话: 5dc9a9e8-85a4-4372-a8f0-a5519c4b6781
+2025-12-25 09:34:45.571 | INFO     | src.agents.graph:create_agent_graph:275 | 创建智能体状态图...
+2025-12-25 09:34:45.573 | INFO     | src.agents.graph:create_agent_graph:331 | 智能体状态图创建完成
+2025-12-25 09:34:45.581 | INFO     | src.agents.graph:get_agent_graph:358 | 智能体图编译完成
+2025-12-25 09:34:45.856 | INFO     | src.agents.planner:__init__:164 | Planner初始化完成
+2025-12-25 09:34:45.857 | INFO     | src.agents.planner:analyze_intent:210 | 开始分析用户意图: 盘石头水库当前水位？...
+2025-12-25 09:34:50.152 | INFO     | src.agents.planner:analyze_intent:223 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'location': '盘石头水库', 'parameter': '水位', 'time': '当前'}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'web_page'}
+2025-12-25 09:34:50.152 | INFO     | src.agents.planner:check_workflow_match:266 | 检查工作流匹配...
+2025-12-25 09:34:50.152 | INFO     | src.agents.planner:generate_plan:302 | 开始生成执行计划...
+2025-12-25 09:35:01.034 | INFO     | src.agents.planner:generate_plan:335 | 生成了4个执行步骤
+2025-12-25 09:35:01.035 | INFO     | src.agents.planner:generate_plan:336 | ============================================================
+2025-12-25 09:35:01.035 | INFO     | src.agents.planner:generate_plan:337 | 执行计划:
+2025-12-25 09:35:01.035 | INFO     | src.agents.planner:generate_plan:342 |   步骤1: 登录卫共流域数字孪生系统获取访问令牌 (工具: login_basin_system)
+2025-12-25 09:35:01.035 | INFO     | src.agents.planner:generate_plan:342 |   步骤2: 查询盘石头水库的测站编码(stcd) (工具: get_map_data)
+2025-12-25 09:35:01.035 | INFO     | src.agents.planner:generate_plan:342 |   步骤3: 获取所有水库的最新实时水情数据 (工具: query_reservoir_last)
+2025-12-25 09:35:01.036 | INFO     | src.agents.planner:generate_plan:342 |   步骤4: 根据测站编码从实时水情数据中提取盘石头水库的当前水位并回答用户 (工具: None)
+2025-12-25 09:35:01.036 | INFO     | src.agents.planner:generate_plan:343 | ============================================================
+2025-12-25 09:35:01.036 | INFO     | src.agents.planner:generate_plan:344 | 
+2025-12-25 09:35:01.037 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
+2025-12-25 09:35:01.038 | INFO     | src.agents.executor:__init__:39 | Executor初始化完成
+2025-12-25 09:35:01.039 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 1: 登录卫共流域数字孪生系统获取访问令牌
+2025-12-25 09:35:01.039 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: login_basin_system
+2025-12-25 09:35:01.039 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: login_basin_system
+2025-12-25 09:35:01.039 | INFO     | src.tools.auth:execute:170 | 正在尝试登录系统，账号: admin
+2025-12-25 09:35:01.356 | INFO     | src.tools.auth:execute:192 | Token过期时间: 2026-01-01 09:35:27
+2025-12-25 09:35:01.356 | INFO     | src.tools.auth:execute:199 | 登录成功，获取到Token: eyJhbGciOiJIUzUxMiJ9...
+2025-12-25 09:35:01.356 | INFO     | src.tools.auth:execute:202 | 等待服务器建立会话...
+2025-12-25 09:35:02.862 | INFO     | src.agents.executor:execute_step:80 | 步骤 1 执行成功，耗时 1822ms
+2025-12-25 09:35:02.862 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:35:02.863 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 2: 查询盘石头水库的测站编码(stcd)
+2025-12-25 09:35:02.864 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: get_map_data
+2025-12-25 09:35:02.864 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: get_map_data
+2025-12-25 09:35:02.929 | INFO     | src.agents.executor:execute_step:80 | 步骤 2 执行成功，耗时 65ms
+2025-12-25 09:35:02.929 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:35:02.930 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 3: 获取所有水库的最新实时水情数据
+2025-12-25 09:35:02.931 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: query_reservoir_last
+2025-12-25 09:35:02.931 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: query_reservoir_last
+2025-12-25 09:35:03.981 | INFO     | src.agents.executor:execute_step:80 | 步骤 3 执行成功，耗时 1049ms
+2025-12-25 09:35:03.982 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:35:03.983 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 4: 根据测站编码从实时水情数据中提取盘石头水库的当前水位并回答用户
+2025-12-25 09:35:24.847 | INFO     | src.agents.executor:execute_step:80 | 步骤 4 执行成功，耗时 20863ms
+2025-12-25 09:35:24.847 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:35:24.849 | INFO     | src.agents.controller:__init__:90 | Controller初始化完成
+2025-12-25 09:35:24.849 | INFO     | src.agents.controller:synthesize_response:102 | 开始合成最终响应...
+2025-12-25 09:35:24.850 | INFO     | src.agents.controller:_generate_web_page_response:198 | 准备生成Web页面...
+2025-12-25 09:35:24.850 | INFO     | src.output.templates:__init__:278 | 模板管理器初始化完成
+2025-12-25 09:35:24.850 | INFO     | src.output.page_generator:__init__:44 | 页面生成器初始化完成，输出目录: web\generated_pages
+2025-12-25 09:35:24.850 | INFO     | src.output.page_generator:generate_page:63 | 生成报告页面: generic
+2025-12-25 09:35:24.852 | INFO     | src.output.page_generator:generate_page:85 | 页面生成成功: /pages/generic_20251225_093524_7aa3b2a4.html
+2025-12-25 09:35:31.733 | INFO     | src.agents.controller:_generate_web_page_response:242 | LLM生成文字回复成功
+2025-12-25 09:38:37.472 | INFO     | src.api.chat:chat:35 | 收到对话请求: 小南海水库当前水位处于什么水平？死水位？超汛水位？防洪高水位？设计水位？...
+2025-12-25 09:38:37.493 | INFO     | src.agents.graph:run_agent:383 | 运行智能体 - 会话: 5dc9a9e8-85a4-4372-a8f0-a5519c4b6781
+2025-12-25 09:38:37.495 | INFO     | src.agents.planner:analyze_intent:210 | 开始分析用户意图: 小南海水库当前水位处于什么水平？死水位？超汛水位？防洪高水位？设计水位？...
+2025-12-25 09:38:43.910 | INFO     | src.agents.planner:analyze_intent:223 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'reservoir_name': '小南海水库', 'query_type': 'current_status', 'comparison_parameters': ['死水位', '汛限水位', '防洪高水位', '设计水位']}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'text'}
+2025-12-25 09:38:43.910 | INFO     | src.agents.planner:check_workflow_match:266 | 检查工作流匹配...
+2025-12-25 09:38:43.910 | INFO     | src.agents.planner:generate_plan:302 | 开始生成执行计划...
+2025-12-25 09:38:54.280 | INFO     | src.agents.planner:generate_plan:335 | 生成了5个执行步骤
+2025-12-25 09:38:54.280 | INFO     | src.agents.planner:generate_plan:336 | ============================================================
+2025-12-25 09:38:54.280 | INFO     | src.agents.planner:generate_plan:337 | 执行计划:
+2025-12-25 09:38:54.280 | INFO     | src.agents.planner:generate_plan:342 |   步骤1: 登录系统获取访问令牌 (工具: login_basin_system)
+2025-12-25 09:38:54.281 | INFO     | src.agents.planner:generate_plan:342 |   步骤2: 查询小南海水库的测站编码(stcd) (工具: get_map_data)
+2025-12-25 09:38:54.281 | INFO     | src.agents.planner:generate_plan:342 |   步骤3: 获取水库实时水情数据，查询当前水位 (工具: monitor_rsvr_now)
+2025-12-25 09:38:54.281 | INFO     | src.agents.planner:generate_plan:342 |   步骤4: 查询小南海水库的防洪特征值详情（死水位、设计水位、防洪高水位等） (工具: get_reservoir_flood_detail)
+2025-12-25 09:38:54.281 | INFO     | src.agents.planner:generate_plan:342 |   步骤5: 对比当前水位与各特征水位，分析水库当前水位水平并回答用户问题 (工具: None)
+2025-12-25 09:38:54.282 | INFO     | src.agents.planner:generate_plan:343 | ============================================================
+2025-12-25 09:38:54.282 | INFO     | src.agents.planner:generate_plan:344 | 
+2025-12-25 09:38:54.283 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
+2025-12-25 09:38:54.284 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 1: 登录系统获取访问令牌
+2025-12-25 09:38:54.284 | INFO     | src.agents.executor:execute_step:80 | 步骤 1 执行成功，耗时 0ms
+2025-12-25 09:38:54.284 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:38:54.285 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 2: 查询小南海水库的测站编码(stcd)
+2025-12-25 09:38:54.342 | INFO     | src.agents.executor:execute_step:80 | 步骤 2 执行成功，耗时 57ms
+2025-12-25 09:38:54.343 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:38:54.344 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 3: 获取水库实时水情数据，查询当前水位
+2025-12-25 09:38:54.344 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: monitor_rsvr_now
+2025-12-25 09:38:54.344 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: monitor_rsvr_now
+2025-12-25 09:38:54.607 | INFO     | src.agents.executor:execute_step:80 | 步骤 3 执行成功，耗时 262ms
+2025-12-25 09:38:54.607 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:38:54.608 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 4: 查询小南海水库的防洪特征值详情（死水位、设计水位、防洪高水位等）
+2025-12-25 09:38:54.608 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: get_reservoir_flood_detail
+2025-12-25 09:38:54.609 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: get_reservoir_flood_detail
+2025-12-25 09:38:54.682 | INFO     | src.agents.executor:execute_step:80 | 步骤 4 执行成功，耗时 74ms
+2025-12-25 09:38:54.683 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:38:54.684 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 5: 对比当前水位与各特征水位，分析水库当前水位水平并回答用户问题
+2025-12-25 09:39:04.609 | INFO     | src.agents.executor:execute_step:80 | 步骤 5 执行成功，耗时 9925ms
+2025-12-25 09:39:04.609 | INFO     | src.agents.executor:execute_step:81 | 
+2025-12-25 09:39:04.610 | INFO     | src.agents.controller:synthesize_response:102 | 开始合成最终响应...
+2025-12-25 09:39:04.611 | INFO     | src.agents.controller:_generate_web_page_response:198 | 准备生成Web页面...
+2025-12-25 09:39:04.611 | INFO     | src.output.page_generator:generate_page:63 | 生成报告页面: generic
+2025-12-25 09:39:04.612 | INFO     | src.output.page_generator:generate_page:85 | 页面生成成功: /pages/generic_20251225_093904_18e84e0f.html
+2025-12-25 09:39:18.801 | INFO     | src.agents.controller:_generate_web_page_response:242 | LLM生成文字回复成功
+2025-12-25 10:36:25.330 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 10:36:25.330 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 10:36:30.763 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:36:30.764 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:36:30.764 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:36:30.809 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:36:30.809 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:36:30.809 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:36:30.824 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 10:36:30.824 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 10:36:30.824 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 10:36:30.868 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 10:36:30.868 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 10:36:30.868 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 10:36:30.869 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 10:36:30.870 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 10:36:30.871 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 10:36:30.872 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 10:36:30.874 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 10:36:30.876 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 10:36:30.877 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 10:36:30.878 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 10:36:30.879 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 10:36:30.879 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 10:36:30.879 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 10:36:30.879 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 10:36:30.880 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 10:36:30.880 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 10:36:30.880 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 10:36:30.881 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 10:36:30.881 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 10:36:30.882 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 10:36:30.883 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 10:36:30.883 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 10:36:30.884 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 10:36:30.884 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 10:36:31.307 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 10:36:32.216 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 10:36:32.216 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 10:36:32.217 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 10:36:32.217 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 10:36:32.217 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 10:36:46.244 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 10:36:46.244 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 10:36:51.563 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:36:51.563 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:36:51.563 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:36:51.606 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:36:51.607 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:36:51.607 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:36:51.622 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 10:36:51.622 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 10:36:51.622 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 10:36:51.690 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 10:36:51.690 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 10:36:51.690 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 10:36:51.691 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 10:36:51.692 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 10:36:51.693 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 10:36:51.694 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 10:36:51.696 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 10:36:51.698 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 10:36:51.699 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 10:36:51.700 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 10:36:51.701 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 10:36:51.701 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 10:36:51.701 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 10:36:51.701 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 10:36:51.702 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 10:36:51.702 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 10:36:51.702 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 10:36:51.702 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 10:36:51.703 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 10:36:51.704 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 10:36:51.704 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 10:36:51.705 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 10:36:51.705 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 10:36:51.705 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 10:36:52.119 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 10:36:53.009 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 10:36:53.009 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 10:36:53.009 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 10:36:53.009 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 10:36:53.009 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 10:42:50.629 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 10:42:50.629 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 10:42:56.139 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:42:56.139 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:42:56.140 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:42:56.184 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:42:56.184 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:42:56.184 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:42:56.199 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 10:42:56.199 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 10:42:56.199 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 10:42:56.222 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 10:42:56.222 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 10:42:56.222 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 10:42:56.223 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 10:42:56.224 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 10:42:56.225 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 10:42:56.226 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 10:42:56.228 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 10:42:56.230 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 10:42:56.231 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 10:42:56.232 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 10:42:56.232 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 10:42:56.233 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 10:42:56.233 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 10:42:56.233 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 10:42:56.233 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 10:42:56.233 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 10:42:56.234 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 10:42:56.234 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 10:42:56.235 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 10:42:56.235 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 10:42:56.236 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 10:42:56.237 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 10:42:56.237 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 10:42:56.237 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 10:42:56.653 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 10:42:57.561 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 10:42:57.562 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 10:42:57.562 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 10:42:57.562 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 10:42:57.562 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 10:43:17.056 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 10:43:17.057 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 10:43:22.399 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:43:22.399 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:43:22.399 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:43:22.442 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:43:22.442 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:43:22.443 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:43:22.457 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 10:43:22.458 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 10:43:22.458 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 10:43:22.480 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 10:43:22.480 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 10:43:22.480 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 10:43:22.481 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 10:43:22.482 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 10:43:22.483 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 10:43:22.484 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 10:43:22.486 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 10:43:22.488 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 10:43:22.488 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 10:43:22.489 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 10:43:22.490 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 10:43:22.490 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 10:43:22.490 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 10:43:22.490 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 10:43:22.491 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 10:43:22.491 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 10:43:22.491 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 10:43:22.492 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 10:43:22.492 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 10:43:22.493 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 10:43:22.493 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 10:43:22.494 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 10:43:22.494 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 10:43:22.494 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 10:43:22.909 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 10:43:23.783 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 10:43:23.783 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 10:43:23.783 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 10:43:23.783 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 10:43:23.784 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 10:45:13.301 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 10:45:13.301 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 10:45:18.744 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:45:18.744 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:45:18.745 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:45:18.787 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 10:45:18.788 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 10:45:18.788 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 10:45:18.802 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 10:45:18.803 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 10:45:18.803 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 10:45:18.823 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 10:45:18.824 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 10:45:18.824 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 10:45:18.825 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 10:45:18.826 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 10:45:18.826 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 10:45:18.827 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 10:45:18.830 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 10:45:18.831 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 10:45:18.832 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 10:45:18.833 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 10:45:18.834 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 10:45:18.834 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 10:45:18.834 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 10:45:18.834 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 10:45:18.834 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 10:45:18.835 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 10:45:18.835 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 10:45:18.835 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 10:45:18.836 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 10:45:18.837 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 10:45:18.837 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 10:45:18.838 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 10:45:18.838 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 10:45:18.838 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 10:45:19.252 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 10:45:20.138 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 10:45:20.139 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 10:45:20.139 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 10:45:20.139 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 10:45:20.139 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:01:09.136 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:01:09.136 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:01:14.492 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:01:14.493 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:01:14.493 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:01:14.536 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:01:14.536 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:01:14.536 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:01:14.551 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:01:14.551 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:01:14.551 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:01:14.573 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:01:14.573 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:01:14.573 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:01:14.574 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:01:14.575 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:01:14.576 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:01:14.577 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:01:14.579 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:01:14.580 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:01:14.581 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:01:14.582 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:01:14.583 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:01:14.583 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:01:14.583 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:01:14.583 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:01:14.584 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:01:14.584 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:01:14.584 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:01:14.584 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:01:14.585 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:01:14.586 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:01:14.586 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:01:14.587 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:01:14.587 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:01:14.587 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:01:15.001 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:01:15.871 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:01:15.871 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:01:15.872 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:01:15.872 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:01:15.872 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:03:43.355 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:03:43.355 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:03:48.325 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:03:48.326 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:03:48.326 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:03:48.369 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:03:48.369 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:03:48.370 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:03:48.384 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:03:48.384 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:03:48.384 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:03:48.404 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:03:48.405 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:03:48.405 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:03:48.406 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:03:48.407 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:03:48.408 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:03:48.408 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:03:48.411 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:03:48.413 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:03:48.413 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:03:48.414 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:03:48.415 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:03:48.415 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:03:48.416 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:03:48.416 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:03:48.416 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:03:48.416 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:03:48.417 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:03:48.417 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:03:48.417 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:03:48.418 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:03:48.419 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:03:48.419 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:03:48.419 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:03:48.420 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:03:48.828 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:03:49.689 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:03:49.689 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:03:49.689 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:03:49.689 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:03:49.689 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:04:39.802 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:04:39.802 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:04:45.124 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:04:45.125 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:04:45.125 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:04:45.167 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:04:45.167 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:04:45.167 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:04:45.182 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:04:45.182 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:04:45.182 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:04:45.213 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:04:45.213 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:04:45.213 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:04:45.214 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:04:45.215 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:04:45.216 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:04:45.216 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:04:45.219 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:04:45.220 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:04:45.221 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:04:45.222 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:04:45.222 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:04:45.223 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:04:45.223 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:04:45.223 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:04:45.223 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:04:45.223 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:04:45.224 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:04:45.224 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:04:45.225 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:04:45.225 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:04:45.226 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:04:45.226 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:04:45.227 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:04:45.227 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:04:45.632 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:04:46.497 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:04:46.497 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:04:46.497 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:04:46.497 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:04:46.497 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:05:38.325 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:05:38.325 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:05:43.356 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:05:43.356 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:05:43.356 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:05:43.399 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:05:43.400 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:05:43.400 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:05:43.414 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:05:43.414 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:05:43.414 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:05:43.433 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:05:43.434 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:05:43.434 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:05:43.435 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:05:43.436 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:05:43.436 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:05:43.437 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:05:43.439 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:05:43.441 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:05:43.442 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:05:43.443 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:05:43.444 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:05:43.444 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:05:43.444 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:05:43.444 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:05:43.444 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:05:43.444 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:05:43.445 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:05:43.445 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:05:43.446 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:05:43.446 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:05:43.447 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:05:43.448 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:05:43.448 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:05:43.448 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:05:43.855 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:05:44.714 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:05:44.714 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:05:44.714 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:05:44.714 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:05:44.715 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:06:36.028 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:06:36.028 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:06:41.164 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:06:41.164 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:06:41.164 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:06:41.206 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:06:41.206 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:06:41.207 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:06:41.221 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:06:41.221 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:06:41.221 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:06:41.242 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:06:41.242 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:06:41.242 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:06:41.243 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:06:41.244 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:06:41.245 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:06:41.246 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:06:41.248 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:06:41.250 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:06:41.250 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:06:41.251 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:06:41.252 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:06:41.252 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:06:41.252 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:06:41.253 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:06:41.253 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:06:41.253 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:06:41.253 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:06:41.254 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:06:41.254 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:06:41.255 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:06:41.256 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:06:41.256 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:06:41.256 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:06:41.257 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:06:41.661 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:06:42.523 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:06:42.524 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:06:42.524 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:06:42.524 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:06:42.524 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:07:30.505 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:07:30.505 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:07:35.844 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:07:35.844 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:07:35.844 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:07:35.887 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:07:35.887 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:07:35.888 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:07:35.902 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:07:35.902 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:07:35.902 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:07:35.923 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:07:35.924 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:07:35.924 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:07:35.924 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:07:35.925 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:07:35.926 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:07:35.927 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:07:35.929 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:07:35.931 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:07:35.931 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:07:35.932 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:07:35.933 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:07:35.933 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:07:35.934 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:07:35.934 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:07:35.934 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:07:35.934 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:07:35.935 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:07:35.935 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:07:35.935 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:07:35.936 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:07:35.937 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:07:35.937 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:07:35.937 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:07:35.938 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:07:36.342 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:07:37.208 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:07:37.208 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:07:37.208 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:07:37.208 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:07:37.208 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:08:32.129 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:08:32.130 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:08:37.542 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:08:37.542 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:08:37.542 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:08:37.585 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:08:37.585 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:08:37.586 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:08:37.600 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:08:37.600 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:08:37.600 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:08:37.620 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:08:37.621 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:08:37.621 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:08:37.621 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:08:37.622 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:08:37.623 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:08:37.624 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:08:37.626 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:08:37.628 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:08:37.629 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:08:37.630 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:08:37.631 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:08:37.631 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:08:37.631 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:08:37.631 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:08:37.631 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:08:37.632 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:08:37.632 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:08:37.632 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:08:37.633 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:08:37.634 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:08:37.634 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:08:37.635 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:08:37.635 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:08:37.635 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:08:38.042 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:08:38.901 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:08:38.902 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:08:38.902 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:08:38.902 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:08:38.902 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:56:44.370 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:56:44.370 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:56:49.889 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:56:49.890 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:56:49.890 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:56:49.934 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:56:49.934 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:56:49.934 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:56:49.949 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:56:49.949 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:56:49.950 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:56:49.984 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:56:49.985 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:56:49.985 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:56:49.985 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:56:49.986 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:56:49.987 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:56:49.988 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:56:49.990 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:56:49.992 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:56:49.993 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:56:49.994 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:56:49.995 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:56:49.995 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:56:49.995 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:56:49.995 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:56:49.995 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:56:49.995 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:56:49.996 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:56:49.996 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:56:49.997 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:56:49.997 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:56:49.998 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:56:49.999 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:56:49.999 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:56:49.999 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:56:50.422 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:56:51.296 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:56:51.296 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:56:51.296 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:56:51.296 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:56:51.297 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:57:22.295 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:57:22.295 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:57:27.413 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:57:27.413 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:57:27.414 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:57:27.456 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:57:27.456 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:57:27.456 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:57:27.471 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:57:27.471 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:57:27.472 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:57:27.501 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:57:27.501 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:57:27.502 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:57:27.502 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:57:27.503 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:57:27.504 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:57:27.505 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:57:27.507 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:57:27.509 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:57:27.509 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:57:27.510 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:57:27.511 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:57:27.511 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:57:27.511 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:57:27.511 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:57:27.512 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:57:27.512 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:57:27.512 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:57:27.513 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:57:27.513 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:57:27.514 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:57:27.514 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:57:27.515 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:57:27.515 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:57:27.515 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:57:27.930 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:57:28.793 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:57:28.793 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:57:28.793 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:57:28.793 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:57:28.793 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:58:17.596 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:58:17.596 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 11:58:23.121 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:58:23.121 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:58:23.121 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:58:23.166 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 11:58:23.166 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 11:58:23.167 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 11:58:23.181 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 11:58:23.182 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 11:58:23.182 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 11:58:23.226 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 11:58:23.226 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 11:58:23.227 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 11:58:23.227 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 11:58:23.228 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 11:58:23.229 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 11:58:23.230 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 11:58:23.232 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 11:58:23.234 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 11:58:23.235 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 11:58:23.236 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 11:58:23.236 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 11:58:23.237 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 11:58:23.237 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 11:58:23.237 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 11:58:23.237 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 11:58:23.237 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 11:58:23.238 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 11:58:23.238 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 11:58:23.239 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 11:58:23.239 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 11:58:23.240 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 11:58:23.241 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 11:58:23.241 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 11:58:23.241 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 11:58:23.655 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 11:58:24.523 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 11:58:24.523 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 11:58:24.523 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 11:58:24.524 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 11:58:24.524 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 11:59:56.279 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 11:59:56.279 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 12:00:01.468 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 12:00:01.468 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 12:00:01.468 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 12:00:01.511 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 12:00:01.512 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 12:00:01.512 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 12:00:01.527 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 12:00:01.527 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 12:00:01.527 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 12:00:01.554 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 12:00:01.554 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 12:00:01.554 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 12:00:01.555 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 12:00:01.556 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 12:00:01.557 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 12:00:01.558 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 12:00:01.560 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 12:00:01.562 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 12:00:01.563 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 12:00:01.563 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 12:00:01.564 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 12:00:01.565 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 12:00:01.565 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 12:00:01.565 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 12:00:01.565 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 12:00:01.565 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 12:00:01.566 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 12:00:01.566 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 12:00:01.567 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 12:00:01.567 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 12:00:01.568 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 12:00:01.569 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 12:00:01.569 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 12:00:01.569 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 12:00:01.983 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 12:00:02.852 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 12:00:02.852 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 12:00:02.853 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 12:00:02.853 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 12:00:02.853 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2025-12-25 12:01:46.620 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 12:01:46.620 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 12:01:52.006 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 12:01:52.007 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 12:01:52.007 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 12:01:52.050 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
+2025-12-25 12:01:52.050 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
+2025-12-25 12:01:52.051 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
+2025-12-25 12:01:52.065 | INFO     | src.main:lifespan:29 | ==================================================
+2025-12-25 12:01:52.065 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2025-12-25 12:01:52.065 | INFO     | src.main:lifespan:31 | ==================================================
+2025-12-25 12:01:52.093 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2025-12-25 12:01:52.093 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2025-12-25 12:01:52.093 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2025-12-25 12:01:52.094 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2025-12-25 12:01:52.095 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
+2025-12-25 12:01:52.096 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1419 | 水雨情监测工具注册完成，共15个工具
+2025-12-25 12:01:52.097 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2025-12-25 12:01:52.099 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2025-12-25 12:01:52.101 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2025-12-25 12:01:52.102 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2025-12-25 12:01:52.102 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2025-12-25 12:01:52.103 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2025-12-25 12:01:52.104 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
+2025-12-25 12:01:52.104 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2025-12-25 12:01:52.104 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
+2025-12-25 12:01:52.104 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2025-12-25 12:01:52.104 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2025-12-25 12:01:52.105 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2025-12-25 12:01:52.105 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2025-12-25 12:01:52.106 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2025-12-25 12:01:52.106 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2025-12-25 12:01:52.107 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2025-12-25 12:01:52.108 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2025-12-25 12:01:52.108 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2025-12-25 12:01:52.108 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2025-12-25 12:01:52.543 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
+2025-12-25 12:01:53.425 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
+2025-12-25 12:01:53.425 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
+2025-12-25 12:01:53.426 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
+2025-12-25 12:01:53.426 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2025-12-25 12:01:53.426 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...

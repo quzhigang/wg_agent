@@ -90,6 +90,9 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
 ## 可用工作流
 {available_workflows}
 
+## 相关知识和业务流程参考
+{rag_context}
+
 ## 用户意图
 意图类别: {intent}
 提取实体: {entities}
@@ -120,6 +123,7 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
 3. 耗时操作（如模型调用）应标记为异步
 4. 最后一步不需要指定工具，系统会自动生成响应
 5. 只使用可用工具列表中存在的工具名称，不要使用不存在的工具如"generate_response"
+6. 参考"相关知识和业务流程参考"中的信息，优化执行计划的步骤和工具选择
 """
 
 
@@ -302,16 +306,34 @@ class Planner:
         logger.info("开始生成执行计划...")
         
         try:
-            # 获取可用工具描述
+            # 1. 执行RAG检索，获取相关知识和业务流程参考
+            rag_context = "无相关知识"
+            rag_doc_count = 0
+            try:
+                from ..rag.retriever import get_rag_retriever
+                rag_retriever = get_rag_retriever()
+                rag_result = await rag_retriever.get_relevant_context(
+                    user_message=state['user_message'],
+                    intent=state.get('intent'),
+                    max_length=3000
+                )
+                rag_context = rag_result.get('context', '无相关知识')
+                rag_doc_count = rag_result.get('document_count', 0)
+                logger.info(f"计划生成RAG检索完成，获取到 {rag_doc_count} 条相关文档")
+            except Exception as rag_error:
+                logger.warning(f"计划生成RAG检索失败: {rag_error}")
+            
+            # 2. 获取可用工具描述
             available_tools = self._get_available_tools_description()
             
-            # 获取可用工作流描述
+            # 3. 获取可用工作流描述
             available_workflows = self._get_available_workflows_description()
             
-            # 调用计划生成链
+            # 4. 调用计划生成链（包含RAG上下文）
             result = await self.plan_chain.ainvoke({
                 "available_tools": available_tools,
                 "available_workflows": available_workflows,
+                "rag_context": rag_context,
                 "intent": state.get('intent', 'unknown'),
                 "entities": state.get('entities', {}),
                 "user_message": state['user_message']
