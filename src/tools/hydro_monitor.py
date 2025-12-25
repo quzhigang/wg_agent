@@ -366,8 +366,8 @@ class QueryReservoirLastTool(BaseTool):
         # 获取认证头
         auth_headers = await LoginTool.get_auth_headers()
         
-        # 重试机制：最多重试3次，每次间隔1秒
-        max_retries = 3
+        # 重试机制：最多重试2次，每次间隔1秒
+        max_retries = 2
         retry_delay = 1.0
         last_error = None
         

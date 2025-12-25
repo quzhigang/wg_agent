@@ -1,225 +1,78 @@
-2025-12-25 16:40:48.009 | INFO     | src.agents.graph:run_agent_stream:463 | 流式运行智能体 - 会话: 2b5f939a-a866-4ab9-9048-aca2bb4a1803
-2025-12-25 16:40:48.010 | INFO     | src.agents.graph:create_agent_graph:275 | 创建智能体状态图...
-2025-12-25 16:40:48.012 | INFO     | src.agents.graph:create_agent_graph:331 | 智能体状态图创建完成
-2025-12-25 16:40:48.021 | INFO     | src.agents.graph:get_agent_graph:358 | 智能体图编译完成
-2025-12-25 16:40:48.302 | INFO     | src.agents.controller:__init__:90 | Controller初始化完成
-2025-12-25 16:40:48.305 | INFO     | src.agents.planner:__init__:168 | Planner初始化完成
-2025-12-25 16:40:48.305 | INFO     | src.agents.planner:analyze_intent:214 | 开始分析用户意图: 盘石头水库当前水位？...
-2025-12-25 16:40:54.824 | INFO     | src.agents.planner:analyze_intent:227 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'location': '盘石头水库', 'metric': '水位', 'time': '当前'}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'web_page'}
-2025-12-25 16:40:54.824 | INFO     | src.agents.planner:check_workflow_match:270 | 检查工作流匹配...
-2025-12-25 16:40:54.825 | INFO     | src.agents.planner:generate_plan:306 | 开始生成执行计划...
-2025-12-25 16:40:54.825 | INFO     | src.rag.retriever:__init__:38 | RAG检索器初始化完成
-2025-12-25 16:40:54.825 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
-2025-12-25 16:40:54.991 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
-2025-12-25 16:40:54.992 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
-2025-12-25 16:40:55.134 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
-2025-12-25 16:40:55.134 | INFO     | src.agents.planner:generate_plan:322 | 计划生成RAG检索完成，获取到 3 条相关文档
-2025-12-25 16:41:06.804 | INFO     | src.agents.planner:generate_plan:357 | 生成了4个执行步骤
-2025-12-25 16:41:06.804 | INFO     | src.agents.planner:generate_plan:358 | ============================================================
-2025-12-25 16:41:06.804 | INFO     | src.agents.planner:generate_plan:359 | 执行计划:
-2025-12-25 16:41:06.804 | INFO     | src.agents.planner:generate_plan:364 |   步骤1: 登录卫共流域数字孪生系统获取访问令牌 (工具: login_basin_system)
-2025-12-25 16:41:06.805 | INFO     | src.agents.planner:generate_plan:364 |   步骤2: 查询盘石头水库的测站编码(stcd) (工具: get_map_data)
-2025-12-25 16:41:06.805 | INFO     | src.agents.planner:generate_plan:364 |   步骤3: 获取所有水库的最新实时水情数据 (工具: query_reservoir_last)
-2025-12-25 16:41:06.805 | INFO     | src.agents.planner:generate_plan:364 |   步骤4: 根据测站编码从实时水情数据中提取盘石头水库的当前水位并回答用户 (工具: None)
-2025-12-25 16:41:06.805 | INFO     | src.agents.planner:generate_plan:365 | ============================================================
-2025-12-25 16:41:06.805 | INFO     | src.agents.planner:generate_plan:366 | 
-2025-12-25 16:41:06.807 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
-2025-12-25 16:41:06.808 | INFO     | src.agents.executor:__init__:39 | Executor初始化完成
-2025-12-25 16:41:06.808 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 1: 登录卫共流域数字孪生系统获取访问令牌
-2025-12-25 16:41:06.808 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: login_basin_system
-2025-12-25 16:41:06.808 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: login_basin_system
-2025-12-25 16:41:06.809 | INFO     | src.tools.auth:execute:170 | 正在尝试登录系统，账号: admin
-2025-12-25 16:41:07.616 | INFO     | src.tools.auth:execute:192 | Token过期时间: 2026-01-01 16:41:34
-2025-12-25 16:41:07.616 | INFO     | src.tools.auth:execute:199 | 登录成功，获取到Token: eyJhbGciOiJIUzUxMiJ9...
-2025-12-25 16:41:07.616 | INFO     | src.tools.auth:execute:202 | 等待服务器建立会话...
-2025-12-25 16:41:09.135 | INFO     | src.agents.executor:execute_step:80 | 步骤 1 执行成功，耗时 2327ms
-2025-12-25 16:41:09.135 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-25 16:41:09.137 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 2: 查询盘石头水库的测站编码(stcd)
-2025-12-25 16:41:09.137 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: get_map_data
-2025-12-25 16:41:09.137 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: get_map_data
-2025-12-25 16:41:09.270 | INFO     | src.agents.executor:execute_step:80 | 步骤 2 执行成功，耗时 133ms
-2025-12-25 16:41:09.271 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-25 16:41:09.271 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 3: 获取所有水库的最新实时水情数据
-2025-12-25 16:41:09.272 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: query_reservoir_last
-2025-12-25 16:41:09.272 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: query_reservoir_last
-2025-12-25 16:41:10.400 | INFO     | src.agents.executor:execute_step:80 | 步骤 3 执行成功，耗时 1127ms
-2025-12-25 16:41:10.400 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-25 16:41:10.402 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 4: 根据测站编码从实时水情数据中提取盘石头水库的当前水位并回答用户
-2025-12-25 16:41:12.041 | ERROR    | src.agents.executor:execute_step:93 | 步骤 4 执行失败: Error code: 429
-2025-12-25 16:41:12.041 | INFO     | src.agents.executor:execute_step:94 | 
-2025-12-25 16:41:22.062 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 4: 根据测站编码从实时水情数据中提取盘石头水库的当前水位并回答用户
-2025-12-25 16:41:50.626 | INFO     | src.agents.executor:execute_step:80 | 步骤 4 执行成功，耗时 28564ms
-2025-12-25 16:41:50.626 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-25 16:41:50.627 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.628 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.629 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.629 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.630 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.631 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.632 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.633 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.634 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.634 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.635 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.636 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.637 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.638 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.639 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.640 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.641 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.641 | INFO     | src.agents.executor:executor_node:352 | 所有步骤执行完成
-2025-12-25 16:41:50.642 | ERROR    | src.agents.graph:run_agent_stream:656 | 流式执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
-For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
-2025-12-25 16:48:08.775 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
-2025-12-25 16:48:08.775 | INFO     | src.main:lifespan:77 | 智能体已关闭
-2025-12-25 16:48:14.827 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
-2025-12-25 16:48:14.827 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
-2025-12-25 16:48:14.827 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
-2025-12-25 16:48:14.871 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
-2025-12-25 16:48:14.872 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
-2025-12-25 16:48:14.872 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
-2025-12-25 16:48:14.887 | INFO     | src.main:lifespan:29 | ==================================================
-2025-12-25 16:48:14.887 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
-2025-12-25 16:48:14.887 | INFO     | src.main:lifespan:31 | ==================================================
-2025-12-25 16:48:14.932 | INFO     | src.main:lifespan:36 | 数据库初始化完成
-2025-12-25 16:48:14.932 | INFO     | src.main:lifespan:45 | 目录结构检查完成
-2025-12-25 16:48:14.933 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
-2025-12-25 16:48:14.933 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
-2025-12-25 16:48:14.934 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
-2025-12-25 16:48:14.941 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1449 | 水雨情监测工具注册完成，共15个工具
-2025-12-25 16:48:14.942 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
-2025-12-25 16:48:14.944 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
-2025-12-25 16:48:14.946 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
-2025-12-25 16:48:14.947 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
-2025-12-25 16:48:14.947 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
-2025-12-25 16:48:14.948 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
-2025-12-25 16:48:14.948 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
-2025-12-25 16:48:14.949 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
-2025-12-25 16:48:14.949 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
-2025-12-25 16:48:14.949 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
-2025-12-25 16:48:14.949 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
-2025-12-25 16:48:14.950 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
-2025-12-25 16:48:14.950 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
-2025-12-25 16:48:14.951 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
-2025-12-25 16:48:14.951 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
-2025-12-25 16:48:14.952 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
-2025-12-25 16:48:14.953 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
-2025-12-25 16:48:14.953 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
-2025-12-25 16:48:14.953 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
-2025-12-25 16:48:15.378 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
-2025-12-25 16:48:16.271 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
-2025-12-25 16:48:16.271 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
-2025-12-25 16:48:16.272 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
-2025-12-25 16:48:16.272 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
-2025-12-25 16:48:16.272 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
-2025-12-25 16:51:14.728 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
-2025-12-25 16:51:14.728 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
-2025-12-25 16:51:14.728 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
-2025-12-25 16:51:19.244 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
-2025-12-25 16:51:19.245 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
-2025-12-25 16:51:19.245 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
-2025-12-25 16:51:19.289 | INFO     | src.config.logging_config:setup_logging:74 | 日志系统初始化完成
-2025-12-25 16:51:19.289 | INFO     | src.config.logging_config:setup_logging:75 | 日志级别: INFO
-2025-12-25 16:51:19.289 | INFO     | src.config.logging_config:setup_logging:76 | 日志文件: ./logs/wg_agent.log
-2025-12-25 16:51:19.304 | INFO     | src.main:lifespan:29 | ==================================================
-2025-12-25 16:51:19.304 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
-2025-12-25 16:51:19.304 | INFO     | src.main:lifespan:31 | ==================================================
-2025-12-25 16:51:19.333 | INFO     | src.main:lifespan:36 | 数据库初始化完成
-2025-12-25 16:51:19.334 | INFO     | src.main:lifespan:45 | 目录结构检查完成
-2025-12-25 16:51:19.334 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
-2025-12-25 16:51:19.335 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
-2025-12-25 16:51:19.335 | INFO     | src.tools.basin_info:register_basin_info_tools:1096 | 流域基本信息工具注册完成，共注册14个工具
-2025-12-25 16:51:19.337 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1449 | 水雨情监测工具注册完成，共15个工具
-2025-12-25 16:51:19.338 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
-2025-12-25 16:51:19.340 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
-2025-12-25 16:51:19.342 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
-2025-12-25 16:51:19.342 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
-2025-12-25 16:51:19.343 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
-2025-12-25 16:51:19.344 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
-2025-12-25 16:51:19.344 | INFO     | src.tools.registry:init_default_tools:359 | 默认工具加载完成
-2025-12-25 16:51:19.345 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
-2025-12-25 16:51:19.345 | INFO     | src.tools.registry:init_default_tools:373 | RAG知识库搜索工具注册完成
-2025-12-25 16:51:19.345 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
-2025-12-25 16:51:19.345 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
-2025-12-25 16:51:19.346 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
-2025-12-25 16:51:19.346 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
-2025-12-25 16:51:19.347 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
-2025-12-25 16:51:19.347 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
-2025-12-25 16:51:19.348 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
-2025-12-25 16:51:19.348 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
-2025-12-25 16:51:19.349 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
-2025-12-25 16:51:19.349 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
-2025-12-25 16:51:19.776 | INFO     | src.rag.knowledge_base:_init_vector_db:99 | ChromaDB向量数据库初始化成功
-2025-12-25 16:51:20.663 | INFO     | src.rag.knowledge_base:_load_default_knowledge:162 | 加载默认知识文档 5 条
-2025-12-25 16:51:20.663 | INFO     | src.rag.knowledge_base:__init__:79 | 知识库初始化完成
-2025-12-25 16:51:20.663 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 5
-2025-12-25 16:51:20.663 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
-2025-12-25 16:51:20.663 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
-2025-12-25 16:51:45.942 | INFO     | src.agents.graph:run_agent_stream:463 | 流式运行智能体 - 会话: e1c0d8fd-8062-4b20-b43b-7a5eda9bc72a
-2025-12-25 16:51:45.942 | INFO     | src.agents.graph:create_agent_graph:275 | 创建智能体状态图...
-2025-12-25 16:51:45.944 | INFO     | src.agents.graph:create_agent_graph:331 | 智能体状态图创建完成
-2025-12-25 16:51:45.952 | INFO     | src.agents.graph:get_agent_graph:358 | 智能体图编译完成
-2025-12-25 16:51:46.228 | INFO     | src.agents.controller:__init__:90 | Controller初始化完成
-2025-12-25 16:51:46.230 | INFO     | src.agents.planner:__init__:168 | Planner初始化完成
-2025-12-25 16:51:46.230 | INFO     | src.agents.planner:analyze_intent:214 | 开始分析用户意图: 盘石头水库当前水位？...
-2025-12-25 16:51:51.954 | INFO     | src.agents.planner:analyze_intent:227 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'location': '盘石头水库', 'parameter': '水位', 'time_range': '当前'}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'web_page'}
-2025-12-25 16:51:51.955 | INFO     | src.agents.planner:check_workflow_match:270 | 检查工作流匹配...
-2025-12-25 16:51:51.955 | INFO     | src.agents.planner:generate_plan:306 | 开始生成执行计划...
-2025-12-25 16:51:51.955 | INFO     | src.rag.retriever:__init__:38 | RAG检索器初始化完成
-2025-12-25 16:51:51.955 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
-2025-12-25 16:51:52.128 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
-2025-12-25 16:51:52.128 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
-2025-12-25 16:51:52.277 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
-2025-12-25 16:51:52.278 | INFO     | src.agents.planner:generate_plan:322 | 计划生成RAG检索完成，获取到 3 条相关文档
-2025-12-25 16:51:53.944 | ERROR    | src.agents.planner:generate_plan:376 | 计划生成失败: Error code: 429
-2025-12-25 16:51:53.946 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
-2025-12-25 16:51:53.947 | INFO     | src.agents.executor:__init__:39 | Executor初始化完成
-2025-12-25 16:51:53.947 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 1: 直接回答用户问题
-2025-12-25 16:52:05.678 | INFO     | src.agents.executor:execute_step:80 | 步骤 1 执行成功，耗时 11730ms
-2025-12-25 16:52:05.678 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-25 16:52:05.679 | INFO     | src.agents.controller:synthesize_response:102 | 开始合成最终响应...
-2025-12-25 16:52:10.915 | INFO     | src.agents.controller:synthesize_response:140 | 响应合成完成
-2025-12-25 16:53:05.883 | INFO     | src.agents.graph:run_agent_stream:463 | 流式运行智能体 - 会话: ac23da95-8635-43c5-95a2-847c77f887b2
-2025-12-25 16:53:05.884 | INFO     | src.agents.planner:analyze_intent:214 | 开始分析用户意图: 盘石头水库当前水位？...
-2025-12-25 16:53:12.276 | INFO     | src.agents.planner:analyze_intent:227 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'station_name': '盘石头水库', 'data_type': '水位', 'time_range': '当前'}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'web_page'}
-2025-12-25 16:53:12.277 | INFO     | src.agents.planner:check_workflow_match:270 | 检查工作流匹配...
-2025-12-25 16:53:12.277 | INFO     | src.agents.planner:generate_plan:306 | 开始生成执行计划...
-2025-12-25 16:53:12.277 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
-2025-12-25 16:53:12.423 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
-2025-12-25 16:53:12.423 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
-2025-12-25 16:53:12.567 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
-2025-12-25 16:53:12.568 | INFO     | src.agents.planner:generate_plan:322 | 计划生成RAG检索完成，获取到 3 条相关文档
-2025-12-25 16:53:25.089 | INFO     | src.agents.planner:generate_plan:357 | 生成了3个执行步骤
-2025-12-25 16:53:25.090 | INFO     | src.agents.planner:generate_plan:358 | ============================================================
-2025-12-25 16:53:25.090 | INFO     | src.agents.planner:generate_plan:359 | 执行计划:
-2025-12-25 16:53:25.090 | INFO     | src.agents.planner:generate_plan:364 |   步骤1: 查询盘石头水库的测站编码(stcd) (工具: get_map_data)
-2025-12-25 16:53:25.090 | INFO     | src.agents.planner:generate_plan:364 |   步骤2: 根据测站编码获取最新的实时水情数据（水位） (工具: query_reservoir_last)
-2025-12-25 16:53:25.090 | INFO     | src.agents.planner:generate_plan:364 |   步骤3: 整合水库名称和当前水位信息返回给用户 (工具: None)
-2025-12-25 16:53:25.091 | INFO     | src.agents.planner:generate_plan:365 | ============================================================
-2025-12-25 16:53:25.091 | INFO     | src.agents.planner:generate_plan:366 | 
-2025-12-25 16:53:25.092 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
-2025-12-25 16:53:25.093 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 1: 查询盘石头水库的测站编码(stcd)
-2025-12-25 16:53:25.093 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: get_map_data
-2025-12-25 16:53:25.093 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: get_map_data
-2025-12-25 16:53:25.093 | INFO     | src.tools.auth:get_auth_headers:92 | Token无效或不存在，尝试自动登录...
-2025-12-25 16:53:25.093 | INFO     | src.tools.auth:execute:170 | 正在尝试登录系统，账号: admin
-2025-12-25 16:53:25.416 | INFO     | src.tools.auth:execute:192 | Token过期时间: 2026-01-01 16:53:52
-2025-12-25 16:53:25.416 | INFO     | src.tools.auth:execute:199 | 登录成功，获取到Token: eyJhbGciOiJIUzUxMiJ9...
-2025-12-25 16:53:25.417 | INFO     | src.tools.auth:execute:202 | 等待服务器建立会话...
-2025-12-25 16:53:26.991 | INFO     | src.agents.executor:execute_step:80 | 步骤 1 执行成功，耗时 1897ms
-2025-12-25 16:53:26.991 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-25 16:53:26.992 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 2: 根据测站编码获取最新的实时水情数据（水位）
-2025-12-25 16:53:26.993 | INFO     | src.agents.executor:_load_tool:150 | 尝试从工具注册表加载工具: query_reservoir_last
-2025-12-25 16:53:26.993 | INFO     | src.agents.executor:_load_tool:161 | 成功加载工具: query_reservoir_last
-2025-12-25 16:53:27.048 | INFO     | src.agents.executor:execute_step:80 | 步骤 2 执行成功，耗时 55ms
-2025-12-25 16:53:27.048 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-25 16:53:27.049 | INFO     | src.agents.executor:execute_step:67 | 执行步骤 3: 整合水库名称和当前水位信息返回给用户
-2025-12-25 16:53:35.447 | INFO     | src.agents.executor:execute_step:80 | 步骤 3 执行成功，耗时 8397ms
-2025-12-25 16:53:35.447 | INFO     | src.agents.executor:execute_step:81 | 
-2025-12-25 16:53:35.448 | INFO     | src.agents.controller:synthesize_response:102 | 开始合成最终响应...
-2025-12-25 16:53:35.449 | INFO     | src.agents.controller:_generate_web_page_response:198 | 准备生成Web页面...
-2025-12-25 16:53:35.449 | INFO     | src.output.templates:__init__:278 | 模板管理器初始化完成
-2025-12-25 16:53:35.449 | INFO     | src.output.page_generator:__init__:44 | 页面生成器初始化完成，输出目录: web\generated_pages
-2025-12-25 16:53:35.449 | INFO     | src.output.page_generator:generate_page:63 | 生成报告页面: generic
-2025-12-25 16:53:35.450 | INFO     | src.output.page_generator:generate_page:85 | 页面生成成功: /pages/generic_20251225_165335_3978eae6.html
-2025-12-25 16:53:41.584 | INFO     | src.agents.controller:_generate_web_page_response:242 | LLM生成文字回复成功
+2025-12-25 19:43:17.335 | INFO     | src.agents.graph:run_agent_stream:463 | 流式运行智能体 - 会话: cf6fec85-3a8b-4858-91d8-481a5701761d
+2025-12-25 19:43:17.335 | INFO     | src.agents.graph:create_agent_graph:275 | 创建智能体状态图...
+2025-12-25 19:43:17.337 | INFO     | src.agents.graph:create_agent_graph:331 | 智能体状态图创建完成
+2025-12-25 19:43:17.345 | INFO     | src.agents.graph:get_agent_graph:358 | 智能体图编译完成
+2025-12-25 19:43:17.623 | INFO     | src.agents.controller:__init__:90 | Controller初始化完成
+2025-12-25 19:43:17.626 | INFO     | src.agents.planner:__init__:168 | Planner初始化完成
+2025-12-25 19:43:17.626 | INFO     | src.agents.planner:analyze_intent:214 | 开始分析用户意图: 盘石头水库当前水位？...
+2025-12-25 19:43:23.253 | INFO     | src.agents.planner:analyze_intent:227 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'location': '盘石头水库', 'parameter': '水位', 'time': '当前'}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'web_page'}
+2025-12-25 19:43:23.253 | INFO     | src.agents.planner:check_workflow_match:270 | 检查工作流匹配...
+2025-12-25 19:43:23.253 | INFO     | src.agents.planner:generate_plan:306 | 开始生成执行计划...
+2025-12-25 19:43:23.253 | INFO     | src.rag.retriever:__init__:38 | RAG检索器初始化完成
+2025-12-25 19:43:23.254 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
+2025-12-25 19:43:23.418 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
+2025-12-25 19:43:23.418 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
+2025-12-25 19:43:23.560 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
+2025-12-25 19:43:23.560 | INFO     | src.agents.planner:generate_plan:322 | 计划生成RAG检索完成，获取到 3 条相关文档
+2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:357 | 生成了4个执行步骤
+2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:358 | ============================================================
+2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:359 | 执行计划:
+2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:364 |   步骤1: 登录卫共流域数字孪生系统以获取访问令牌 (工具: login_basin_system)
+2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:364 |   步骤2: 查询“盘石头水库”的地理要素信息，获取其测站编码(stcd) (工具: get_map_data)
+2025-12-25 19:43:40.362 | INFO     | src.agents.planner:generate_plan:364 |   步骤3: 根据测站编码查询盘石头水库的最新实时水情数据，包括当前水位 (工具: query_reservoir_last)
+2025-12-25 19:43:40.362 | INFO     | src.agents.planner:generate_plan:364 |   步骤4: 查询盘石头水库的防洪特征值详情（如汛限水位、正常蓄水位），用于水位状态评价 (工具: get_reservoir_flood_detail)
+2025-12-25 19:43:40.362 | INFO     | src.agents.planner:generate_plan:365 | ============================================================
+2025-12-25 19:43:40.362 | INFO     | src.agents.planner:generate_plan:366 | 
+2025-12-25 19:43:40.364 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
+2025-12-25 19:43:40.365 | INFO     | src.agents.executor:__init__:39 | Executor初始化完成
+2025-12-25 19:43:40.365 | INFO     | src.agents.executor:execute_step:70 | 执行步骤 1: 登录卫共流域数字孪生系统以获取访问令牌
+2025-12-25 19:43:40.365 | INFO     | src.agents.executor:execute_step:72 | 工具名称: login_basin_system, 原始参数: {}
+2025-12-25 19:43:40.366 | INFO     | src.agents.executor:_load_tool:159 | 尝试从工具注册表加载工具: login_basin_system
+2025-12-25 19:43:40.366 | INFO     | src.agents.executor:_load_tool:170 | 成功加载工具: login_basin_system
+2025-12-25 19:43:40.366 | INFO     | src.tools.auth:execute:170 | 正在尝试登录系统，账号: admin
+2025-12-25 19:43:40.623 | INFO     | src.tools.auth:execute:192 | Token过期时间: 2026-01-01 19:44:07
+2025-12-25 19:43:40.623 | INFO     | src.tools.auth:execute:199 | 登录成功，获取到Token: eyJhbGciOiJIUzUxMiJ9...
+2025-12-25 19:43:40.623 | INFO     | src.tools.auth:execute:202 | 等待服务器建立会话...
+2025-12-25 19:43:42.129 | INFO     | src.agents.executor:execute_step:88 | 步骤 1 执行成功，耗时 1763ms
+2025-12-25 19:43:42.129 | INFO     | src.agents.executor:execute_step:89 | 步骤 1 执行结果: success=True data={'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI0ZjQ1MzQ5Zi0yNWZjLTQ1ZDgtYmQ3ZS02MjcyNTlkNzY1N2MiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjcyNjc4NDczNTEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2NjY2MzA0NywiZXhwIjoxNzY3MjY3ODQ3fQ.enosH6pbCHGJO1ODnYHE_WD4T_QFpQ6hXt6GhHRrPd_Nhkko4P00jOBSNcAriF-WneLrtsvb9P0Yze32DTA5qg', 'userId': '1339550467939639299', 'message': '登录成功'} error=None execution_time_ms=1763 metadata={'code': '00000', 'message': '请求成功'}
+2025-12-25 19:43:42.129 | INFO     | src.agents.executor:execute_step:90 | 
+2025-12-25 19:43:42.131 | INFO     | src.agents.executor:execute_step:70 | 执行步骤 2: 查询“盘石头水库”的地理要素信息，获取其测站编码(stcd)
+2025-12-25 19:43:42.131 | INFO     | src.agents.executor:execute_step:72 | 工具名称: get_map_data, 原始参数: {'ref_table': 'geo_res_base', 'filter_field': 'res_name', 'filter_operator': 'like', 'filter_value': '盘石头水库'}
+2025-12-25 19:43:42.131 | INFO     | src.agents.executor:_load_tool:159 | 尝试从工具注册表加载工具: get_map_data
+2025-12-25 19:43:42.131 | INFO     | src.agents.executor:_load_tool:170 | 成功加载工具: get_map_data
+2025-12-25 19:43:42.187 | INFO     | src.agents.executor:execute_step:88 | 步骤 2 执行成功，耗时 56ms
+2025-12-25 19:43:42.188 | INFO     | src.agents.executor:execute_step:89 | 步骤 2 执行结果: success=True data=[{'county': '淇滨区', 'dead_cap': '2250', 'res_name': '盘石头水库', 'che_flo_sta': '0.05', 'che_flo_lev': '275', 'main_dam_wav_wal_elev': '276.9', 'main_dam_top_len': '606', 'wat_shed_area': 1915.0, 'id': '298ab3d2-b828-4f6c-8bf3-9198b57a4baa', 'norm_pool_stag_cap': '30275', 'longitude': 114.053761, 'tot_cap': '60800', 'ben_res_cap': '28750', 'daad_mul_aver_ruof': '36000', 'che_flo_flow': '15400', 'town': '大河涧乡', 'shape': 'POINT (114.053761714 35.8415127740001)', 'res_type': '1', 'sw_che_fl_flow': '2374', 'fl_low_lim_lev': '248', 'stcd': '31005650', 'des_flo_cri': '1', 'dead_lev': '207', 'upp_lev_flco': '270', 'res_loc': '河南省鹤壁市淇滨区大河涧乡', 'sw_patt': '正槽式溢洪道', 'code': 'HP0014106110000076', 'norm_wat_lev': '254', 'city': '鹤壁市', 'latitude': 35.841512, 'sw_weir_top_wid': '48', 'main_dam_top_elev': '275.7', 'eng_scal': '2', 'coll_date': '2', 'main_dam_top_wid': '8', 'flco_cap': '27560', 'loc_rv_cd': 'FFFAB1A0000L', 'start_date': '1998-10-01', 'stor_fl_cap': '36300', 'norm_pool_stag_area': '13', 'sw_hs_mode': '无控制', 'main_dam_max_heig': '102.2', 'eng_stat': '1', 'sw_weir_top_elev': '254', 'fl_low_lim_lev_cap': '24500', 'sw_nm': '正常溢洪道', 'des_flo_lev': '270.7', 'comp_date': '2007-01-01', 'adm_dep': '9', 'sw_des_fl_flow': '1', 'eng_grad': '2', 'des_flo_flow': '6900', 'loc_rv_nm': '淇河'}] error=None execution_time_ms=55 metadata={'code': '00000', 'message': '请求成功'}
+2025-12-25 19:43:42.188 | INFO     | src.agents.executor:execute_step:90 | 
+2025-12-25 19:43:42.189 | ERROR    | src.agents.executor:_get_value_by_path:413 | 解析路径 step_2[0].stcd 出错: invalid literal for int() with base 10: '2[0]'
+2025-12-25 19:43:42.189 | INFO     | src.agents.executor:execute_step:70 | 执行步骤 3: 根据测站编码查询盘石头水库的最新实时水情数据，包括当前水位
+2025-12-25 19:43:42.190 | INFO     | src.agents.executor:execute_step:72 | 工具名称: query_reservoir_last, 原始参数: {'stcd': '$$step_2[0].stcd$$'}
+2025-12-25 19:43:42.190 | INFO     | src.agents.executor:execute_step:74 | 解析后参数: {'stcd': None}
+2025-12-25 19:43:42.190 | INFO     | src.agents.executor:_load_tool:159 | 尝试从工具注册表加载工具: query_reservoir_last
+2025-12-25 19:43:42.190 | INFO     | src.agents.executor:_load_tool:170 | 成功加载工具: query_reservoir_last
+2025-12-25 19:43:42.190 | INFO     | src.agents.executor:execute_step:88 | 步骤 3 执行成功，耗时 0ms
+2025-12-25 19:43:42.190 | INFO     | src.agents.executor:execute_step:89 | 步骤 3 执行结果: success=False data=None error='参数 stcd 应为字符串类型' execution_time_ms=None metadata=None
+2025-12-25 19:43:42.191 | INFO     | src.agents.executor:execute_step:90 | 
+2025-12-25 19:43:42.192 | ERROR    | src.agents.executor:_get_value_by_path:413 | 解析路径 step_2[0].stcd 出错: invalid literal for int() with base 10: '2[0]'
+2025-12-25 19:43:42.192 | INFO     | src.agents.executor:execute_step:70 | 执行步骤 4: 查询盘石头水库的防洪特征值详情（如汛限水位、正常蓄水位），用于水位状态评价
+2025-12-25 19:43:42.192 | INFO     | src.agents.executor:execute_step:72 | 工具名称: get_reservoir_flood_detail, 原始参数: {'stcd': '$$step_2[0].stcd$$'}
+2025-12-25 19:43:42.192 | INFO     | src.agents.executor:execute_step:74 | 解析后参数: {'stcd': None}
+2025-12-25 19:43:42.193 | INFO     | src.agents.executor:_load_tool:159 | 尝试从工具注册表加载工具: get_reservoir_flood_detail
+2025-12-25 19:43:42.193 | INFO     | src.agents.executor:_load_tool:170 | 成功加载工具: get_reservoir_flood_detail
+2025-12-25 19:43:42.193 | INFO     | src.agents.executor:execute_step:88 | 步骤 4 执行成功，耗时 0ms
+2025-12-25 19:43:42.193 | INFO     | src.agents.executor:execute_step:89 | 步骤 4 执行结果: success=False data=None error='参数 stcd 应为字符串类型' execution_time_ms=None metadata=None
+2025-12-25 19:43:42.193 | INFO     | src.agents.executor:execute_step:90 | 
+2025-12-25 19:43:42.194 | INFO     | src.agents.controller:synthesize_response:102 | 开始合成最终响应...
+2025-12-25 19:43:42.195 | INFO     | src.agents.controller:_generate_web_page_response:198 | 准备生成Web页面...
+2025-12-25 19:43:42.195 | INFO     | src.output.templates:__init__:278 | 模板管理器初始化完成
+2025-12-25 19:43:42.195 | INFO     | src.output.page_generator:__init__:44 | 页面生成器初始化完成，输出目录: web\generated_pages
+2025-12-25 19:43:42.195 | INFO     | src.output.page_generator:generate_page:63 | 生成报告页面: generic
+2025-12-25 19:43:42.196 | INFO     | src.output.page_generator:generate_page:85 | 页面生成成功: /pages/generic_20251225_194342_32ce7fa5.html
+2025-12-25 19:43:48.864 | INFO     | src.agents.controller:_generate_web_page_response:242 | LLM生成文字回复成功
+2025-12-25 19:47:12.906 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 19:47:12.906 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 19:47:12.921 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 19:47:12.921 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 19:47:12.953 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 19:47:12.953 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 19:47:12.969 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2025-12-25 19:47:12.969 | INFO     | src.main:lifespan:77 | 智能体已关闭

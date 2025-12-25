@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import asyncio
 import time
+import re
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -64,7 +65,15 @@ class Executor:
         tool_args = step.get('tool_args', {})
         description = step.get('description', '')
         
+        # 解析参数中的变量占位符 (例如: $$step_1.data[0].stcd$$)
+        resolved_args = self._resolve_variables(tool_args, state)
+        
         logger.info(f"执行步骤 {step_id}: {description}")
+        if tool_name:
+            logger.info(f"工具名称: {tool_name}, 原始参数: {tool_args}")
+            if resolved_args != tool_args:
+                logger.info(f"解析后参数: {resolved_args}")
+        
         start_time = time.time()
         
         try:
@@ -73,11 +82,12 @@ class Executor:
                 output = await self._execute_with_llm(description, state)
             else:
                 # 查找并执行工具
-                output = await self._execute_tool(tool_name, tool_args, state)
+                output = await self._execute_tool(tool_name, resolved_args, state)
             
             execution_time = int((time.time() - start_time) * 1000)
             
             logger.info(f"步骤 {step_id} 执行成功，耗时 {execution_time}ms")
+            logger.info(f"步骤 {step_id} 执行结果: {output}")
             logger.info("")  # 空行分隔
             
             return ExecutionResult(
@@ -309,7 +319,7 @@ class Executor:
                 output = str(output)[:500]  # 截断长输出
             formatted.append(f"步骤{step_id} ({success}): {output}")
         
-        return "\n".join(formatted)
+        return "".join(formatted)
     
     def _format_retrieved_documents(self, documents: List[Dict[str, Any]]) -> str:
         """格式化检索到的文档"""
@@ -322,7 +332,82 @@ class Executor:
             source = doc.get('source', '未知来源')
             formatted.append(f"[{i}] {source}: {content}")
         
-        return "\n\n".join(formatted)
+        return "".join(formatted)
+
+    def _resolve_variables(self, args: Any, state: AgentState) -> Any:
+        """
+        递归解析参数中的变量占位符
+        支持格式: $$step_1.data.xxx$$, $$step_2.output.data[0].id$$ 等
+        """
+        if isinstance(args, str):
+            if args.startswith("$$") and args.endswith("$$"):
+                var_path = args[2:-2]
+                return self._get_value_by_path(var_path, state)
+            return args
+        elif isinstance(args, dict):
+            return {k: self._resolve_variables(v, state) for k, v in args.items()}
+        elif isinstance(args, list):
+            return [self._resolve_variables(v, state) for v in args]
+        return args
+
+    def _get_value_by_path(self, path: str, state: AgentState) -> Any:
+        """根据路径从状态中获取值"""
+        # 使用正则提取步骤ID和后续路径
+        match = re.match(r"step_(\d+)(.*)", path)
+        if not match:
+            return None
+            
+        step_id_str = match.group(1)
+        remaining_path = match.group(2)
+        
+        try:
+            target_step_id = int(step_id_str)
+            execution_results = state.get('execution_results', [])
+            
+            # 查找对应步骤的结果
+            target_result = next((r for r in execution_results if r.get('step_id') == target_step_id), None)
+            
+            if not target_result:
+                logger.warning(f"未找到步骤 {target_step_id} 的执行结果")
+                return None
+            
+            # 获取 output (这是一个 ToolResult 字典，包含 success, data, error 等)
+            current_val = target_result.get('output')
+            
+            if not remaining_path:
+                return current_val
+                
+            # 兼容性处理：如果 output 是 ToolResult 结构且包含 data 字段
+            # 如果路径不是明确请求 data 或以 .data 开头，我们默认进入 data
+            if isinstance(current_val, dict) and 'data' in current_val:
+                if not (remaining_path.startswith('.data.') or remaining_path == '.data' or remaining_path.startswith('.data[')):
+                    current_val = current_val.get('data')
+
+            # 处理剩余路径（属性访问 .xxx 和索引访问 [idx]）
+            ops = re.findall(r"\.([^.\[\]]+)|\[(\d+)\]", remaining_path)
+            
+            for attr, index in ops:
+                if current_val is None:
+                    return None
+                
+                if attr: # 普通属性
+                    if isinstance(current_val, dict):
+                        current_val = current_val.get(attr)
+                    elif hasattr(current_val, attr):
+                        current_val = getattr(current_val, attr)
+                    else:
+                        return None
+                elif index: # 索引
+                    idx = int(index)
+                    if isinstance(current_val, (list, tuple)) and len(current_val) > idx:
+                        current_val = current_val[idx]
+                    else:
+                        return None
+            
+            return current_val
+        except Exception as e:
+            logger.error(f"解析路径 {path} 出错: {e}")
+            return None
 
 
 # 创建全局Executor实例
