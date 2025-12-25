@@ -127,16 +127,16 @@
                 const assistantLi = document.createElement('li');
                 assistantLi.className = 'message-item message-assistant';
                 assistantLi.innerHTML = `
-                    <div class="message-content">
+                    <div class="message-content" style="width: 100%;">
                         <img src="img/xw.png" alt="小卫" class="message-icon assistant-icon-img">
-                        <div class="message-bubble" style="width: 100%;">
-                            <div class="execution-process">
+                        <div class="message-bubble" style="flex: 1; max-width: none;">
+                            <div class="execution-process" style="width: 100%;">
                                 <div class="process-header" onclick="toggleProcess(this)">
                                     <span class="toggle-icon">▼</span><span>智能体执行过程</span>
                                 </div>
                                 <div class="process-body">
                                     <div class="intent-status process-item">
-                                        <span class="process-icon">🔍</span><span>正在分析意图...</span>
+                                        <span class="process-icon">⏳</span><span>正在分析意图...</span>
                                     </div>
                                 </div>
                             </div>
@@ -201,10 +201,13 @@
                         }
                         break;
                     case 'rag':
-                        const ragDiv = document.createElement('div');
-                        ragDiv.className = 'process-item';
-                        ragDiv.innerHTML = '<span class="process-icon">📚</span><span>检索到 ' + (data.doc_count || 0) + ' 条相关知识</span>';
-                        ui.processBody.appendChild(ragDiv);
+                        // 只有检索到知识时才显示
+                        if (data.doc_count && data.doc_count > 0) {
+                            const ragDiv = document.createElement('div');
+                            ragDiv.className = 'process-item';
+                            ragDiv.innerHTML = '<span class="process-icon">📚</span><span>检索到 ' + data.doc_count + ' 条相关知识</span>';
+                            ui.processBody.appendChild(ragDiv);
+                        }
                         break;
                     case 'plan':
                         const planDiv = document.createElement('div');
@@ -216,7 +219,7 @@
                             const sEl = document.createElement('div');
                             sEl.className = 'step-item';
                             sEl.setAttribute('data-id', s.step_id);
-                            sEl.innerHTML = '<span>' + s.description + '</span><span class="step-status"></span>';
+                            sEl.innerHTML = '<span>步骤' + s.step_id + '：' + s.description + '</span><span class="step-status"></span>';
                             container.appendChild(sEl);
                         });
                         break;

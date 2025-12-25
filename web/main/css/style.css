@@ -681,8 +681,8 @@ iframe {
 }
 
 .process-body {
-    padding: 10px 12px;
-    font-size: 13px;
+    padding: 6px 12px;
+    font-size: 12px;
     color: #555;
     transition: max-height 0.3s ease-out, padding 0.3s ease;
     max-height: 1000px;
@@ -696,15 +696,16 @@ iframe {
 }
 
 .process-item {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     display: flex;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.4;
 }
 
 .process-icon {
     flex-shrink: 0;
-    margin-top: 3px;
+    font-size: 12px;
 }
 
 .step-item {

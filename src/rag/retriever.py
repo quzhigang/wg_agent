@@ -144,19 +144,24 @@ class RAGRetriever:
             if intent in ['knowledge_qa', 'flood_forecast']:
                 top_k = 5
         
-        # 检索文档
+        # 检索文档（只检索一次）
         results = await self.retrieve(
             query=user_message,
             top_k=top_k,
             filter_category=filter_category
         )
         
-        # 格式化上下文
-        context_text = await self.retrieve_and_format(
-            query=user_message,
-            top_k=top_k,
-            filter_category=filter_category
-        )
+        # 直接格式化已检索的结果（避免重复检索）
+        context_text = ""
+        if results:
+            context_parts = ["以下是相关的知识库内容：\n"]
+            for i, doc in enumerate(results, 1):
+                category = doc.get('metadata', {}).get('category', '未分类')
+                content = doc.get('content', '').strip()
+                context_parts.append(f"[{i}] ({category})")
+                context_parts.append(content)
+                context_parts.append("")  # 空行分隔
+            context_text = "\n".join(context_parts)
         
         # 截断过长的上下文
         if len(context_text) > max_length:
