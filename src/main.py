@@ -175,12 +175,14 @@ app = create_app()
 
 def main():
     """主函数，启动服务"""
+    # log_config=None 告诉 uvicorn 不要使用自己的日志配置，从而使用我们在 setup_logging() 中配置好的 loguru
     uvicorn.run(
         "src.main:app",
         host=settings.api_host,
         port=settings.api_port,
         reload=settings.api_debug,
         log_level=settings.log_level.lower(),
+        log_config=None,
         access_log=True
     )
 

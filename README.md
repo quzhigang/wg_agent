@@ -79,6 +79,9 @@ python -m src.main
 uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+### 停止服务
+taskkill /F /IM python.exe
+
 ### 访问API文档
 
 - Swagger UI: http://localhost:8000/docs

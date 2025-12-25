@@ -337,10 +337,17 @@ class Executor:
     def _resolve_variables(self, args: Any, state: AgentState) -> Any:
         """
         递归解析参数中的变量占位符
-        支持格式: $$step_1.data.xxx$$, $$step_2.output.data[0].id$$ 等
+        支持格式: 
+        - $$step_1.data.xxx$$, $$step_2.output.data[0].id$$ 等（双美元符号）
+        - {{step_1.data.xxx}}, {{step_2.data[0].stcd}} 等（双花括号，LLM有时会使用这种格式）
         """
         if isinstance(args, str):
+            # 支持 $$...$$ 格式
             if args.startswith("$$") and args.endswith("$$"):
+                var_path = args[2:-2]
+                return self._get_value_by_path(var_path, state)
+            # 支持 {{...}} 格式（LLM有时会使用这种格式）
+            if args.startswith("{{") and args.endswith("}}"):
                 var_path = args[2:-2]
                 return self._get_value_by_path(var_path, state)
             return args
@@ -353,7 +360,8 @@ class Executor:
     def _get_value_by_path(self, path: str, state: AgentState) -> Any:
         """根据路径从状态中获取值"""
         # 使用正则提取步骤ID和后续路径
-        match = re.match(r"step_(\d+)(.*)", path)
+        # 支持多种格式：step_2[0].stcd, STEP_2[0].stcd, 2.data[0].stcd（LLM有时会省略step_前缀或使用大写）
+        match = re.match(r"(?:[Ss][Tt][Ee][Pp]_)?(\d+)((?:[\.\[].*)?$)", path)
         if not match:
             return None
             

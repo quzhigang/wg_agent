@@ -91,7 +91,11 @@ class GetMapDataTool(BaseTool):
                 params['where[0][filed]'] = filter_field
                 params['where[0][rela]'] = filter_operator
                 # 参数值需要带单引号
-                params['where[0][value]'] = f"'{filter_value}'"
+                # 如果使用like操作符，自动添加%通配符以支持模糊匹配
+                if filter_operator == 'like':
+                    params['where[0][value]'] = f"'%{filter_value}%'"
+                else:
+                    params['where[0][value]'] = f"'{filter_value}'"
             
             headers = await LoginTool.get_auth_headers()
             

@@ -1,78 +1,59 @@
-2025-12-25 19:43:17.335 | INFO     | src.agents.graph:run_agent_stream:463 | 流式运行智能体 - 会话: cf6fec85-3a8b-4858-91d8-481a5701761d
-2025-12-25 19:43:17.335 | INFO     | src.agents.graph:create_agent_graph:275 | 创建智能体状态图...
-2025-12-25 19:43:17.337 | INFO     | src.agents.graph:create_agent_graph:331 | 智能体状态图创建完成
-2025-12-25 19:43:17.345 | INFO     | src.agents.graph:get_agent_graph:358 | 智能体图编译完成
-2025-12-25 19:43:17.623 | INFO     | src.agents.controller:__init__:90 | Controller初始化完成
-2025-12-25 19:43:17.626 | INFO     | src.agents.planner:__init__:168 | Planner初始化完成
-2025-12-25 19:43:17.626 | INFO     | src.agents.planner:analyze_intent:214 | 开始分析用户意图: 盘石头水库当前水位？...
-2025-12-25 19:43:23.253 | INFO     | src.agents.planner:analyze_intent:227 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'location': '盘石头水库', 'parameter': '水位', 'time': '当前'}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'web_page'}
-2025-12-25 19:43:23.253 | INFO     | src.agents.planner:check_workflow_match:270 | 检查工作流匹配...
-2025-12-25 19:43:23.253 | INFO     | src.agents.planner:generate_plan:306 | 开始生成执行计划...
-2025-12-25 19:43:23.253 | INFO     | src.rag.retriever:__init__:38 | RAG检索器初始化完成
-2025-12-25 19:43:23.254 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
-2025-12-25 19:43:23.418 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
-2025-12-25 19:43:23.418 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
-2025-12-25 19:43:23.560 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
-2025-12-25 19:43:23.560 | INFO     | src.agents.planner:generate_plan:322 | 计划生成RAG检索完成，获取到 3 条相关文档
-2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:357 | 生成了4个执行步骤
-2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:358 | ============================================================
-2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:359 | 执行计划:
-2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:364 |   步骤1: 登录卫共流域数字孪生系统以获取访问令牌 (工具: login_basin_system)
-2025-12-25 19:43:40.361 | INFO     | src.agents.planner:generate_plan:364 |   步骤2: 查询“盘石头水库”的地理要素信息，获取其测站编码(stcd) (工具: get_map_data)
-2025-12-25 19:43:40.362 | INFO     | src.agents.planner:generate_plan:364 |   步骤3: 根据测站编码查询盘石头水库的最新实时水情数据，包括当前水位 (工具: query_reservoir_last)
-2025-12-25 19:43:40.362 | INFO     | src.agents.planner:generate_plan:364 |   步骤4: 查询盘石头水库的防洪特征值详情（如汛限水位、正常蓄水位），用于水位状态评价 (工具: get_reservoir_flood_detail)
-2025-12-25 19:43:40.362 | INFO     | src.agents.planner:generate_plan:365 | ============================================================
-2025-12-25 19:43:40.362 | INFO     | src.agents.planner:generate_plan:366 | 
-2025-12-25 19:43:40.364 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
-2025-12-25 19:43:40.365 | INFO     | src.agents.executor:__init__:39 | Executor初始化完成
-2025-12-25 19:43:40.365 | INFO     | src.agents.executor:execute_step:70 | 执行步骤 1: 登录卫共流域数字孪生系统以获取访问令牌
-2025-12-25 19:43:40.365 | INFO     | src.agents.executor:execute_step:72 | 工具名称: login_basin_system, 原始参数: {}
-2025-12-25 19:43:40.366 | INFO     | src.agents.executor:_load_tool:159 | 尝试从工具注册表加载工具: login_basin_system
-2025-12-25 19:43:40.366 | INFO     | src.agents.executor:_load_tool:170 | 成功加载工具: login_basin_system
-2025-12-25 19:43:40.366 | INFO     | src.tools.auth:execute:170 | 正在尝试登录系统，账号: admin
-2025-12-25 19:43:40.623 | INFO     | src.tools.auth:execute:192 | Token过期时间: 2026-01-01 19:44:07
-2025-12-25 19:43:40.623 | INFO     | src.tools.auth:execute:199 | 登录成功，获取到Token: eyJhbGciOiJIUzUxMiJ9...
-2025-12-25 19:43:40.623 | INFO     | src.tools.auth:execute:202 | 等待服务器建立会话...
-2025-12-25 19:43:42.129 | INFO     | src.agents.executor:execute_step:88 | 步骤 1 执行成功，耗时 1763ms
-2025-12-25 19:43:42.129 | INFO     | src.agents.executor:execute_step:89 | 步骤 1 执行结果: success=True data={'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI0ZjQ1MzQ5Zi0yNWZjLTQ1ZDgtYmQ3ZS02MjcyNTlkNzY1N2MiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjcyNjc4NDczNTEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2NjY2MzA0NywiZXhwIjoxNzY3MjY3ODQ3fQ.enosH6pbCHGJO1ODnYHE_WD4T_QFpQ6hXt6GhHRrPd_Nhkko4P00jOBSNcAriF-WneLrtsvb9P0Yze32DTA5qg', 'userId': '1339550467939639299', 'message': '登录成功'} error=None execution_time_ms=1763 metadata={'code': '00000', 'message': '请求成功'}
-2025-12-25 19:43:42.129 | INFO     | src.agents.executor:execute_step:90 | 
-2025-12-25 19:43:42.131 | INFO     | src.agents.executor:execute_step:70 | 执行步骤 2: 查询“盘石头水库”的地理要素信息，获取其测站编码(stcd)
-2025-12-25 19:43:42.131 | INFO     | src.agents.executor:execute_step:72 | 工具名称: get_map_data, 原始参数: {'ref_table': 'geo_res_base', 'filter_field': 'res_name', 'filter_operator': 'like', 'filter_value': '盘石头水库'}
-2025-12-25 19:43:42.131 | INFO     | src.agents.executor:_load_tool:159 | 尝试从工具注册表加载工具: get_map_data
-2025-12-25 19:43:42.131 | INFO     | src.agents.executor:_load_tool:170 | 成功加载工具: get_map_data
-2025-12-25 19:43:42.187 | INFO     | src.agents.executor:execute_step:88 | 步骤 2 执行成功，耗时 56ms
-2025-12-25 19:43:42.188 | INFO     | src.agents.executor:execute_step:89 | 步骤 2 执行结果: success=True data=[{'county': '淇滨区', 'dead_cap': '2250', 'res_name': '盘石头水库', 'che_flo_sta': '0.05', 'che_flo_lev': '275', 'main_dam_wav_wal_elev': '276.9', 'main_dam_top_len': '606', 'wat_shed_area': 1915.0, 'id': '298ab3d2-b828-4f6c-8bf3-9198b57a4baa', 'norm_pool_stag_cap': '30275', 'longitude': 114.053761, 'tot_cap': '60800', 'ben_res_cap': '28750', 'daad_mul_aver_ruof': '36000', 'che_flo_flow': '15400', 'town': '大河涧乡', 'shape': 'POINT (114.053761714 35.8415127740001)', 'res_type': '1', 'sw_che_fl_flow': '2374', 'fl_low_lim_lev': '248', 'stcd': '31005650', 'des_flo_cri': '1', 'dead_lev': '207', 'upp_lev_flco': '270', 'res_loc': '河南省鹤壁市淇滨区大河涧乡', 'sw_patt': '正槽式溢洪道', 'code': 'HP0014106110000076', 'norm_wat_lev': '254', 'city': '鹤壁市', 'latitude': 35.841512, 'sw_weir_top_wid': '48', 'main_dam_top_elev': '275.7', 'eng_scal': '2', 'coll_date': '2', 'main_dam_top_wid': '8', 'flco_cap': '27560', 'loc_rv_cd': 'FFFAB1A0000L', 'start_date': '1998-10-01', 'stor_fl_cap': '36300', 'norm_pool_stag_area': '13', 'sw_hs_mode': '无控制', 'main_dam_max_heig': '102.2', 'eng_stat': '1', 'sw_weir_top_elev': '254', 'fl_low_lim_lev_cap': '24500', 'sw_nm': '正常溢洪道', 'des_flo_lev': '270.7', 'comp_date': '2007-01-01', 'adm_dep': '9', 'sw_des_fl_flow': '1', 'eng_grad': '2', 'des_flo_flow': '6900', 'loc_rv_nm': '淇河'}] error=None execution_time_ms=55 metadata={'code': '00000', 'message': '请求成功'}
-2025-12-25 19:43:42.188 | INFO     | src.agents.executor:execute_step:90 | 
-2025-12-25 19:43:42.189 | ERROR    | src.agents.executor:_get_value_by_path:413 | 解析路径 step_2[0].stcd 出错: invalid literal for int() with base 10: '2[0]'
-2025-12-25 19:43:42.189 | INFO     | src.agents.executor:execute_step:70 | 执行步骤 3: 根据测站编码查询盘石头水库的最新实时水情数据，包括当前水位
-2025-12-25 19:43:42.190 | INFO     | src.agents.executor:execute_step:72 | 工具名称: query_reservoir_last, 原始参数: {'stcd': '$$step_2[0].stcd$$'}
-2025-12-25 19:43:42.190 | INFO     | src.agents.executor:execute_step:74 | 解析后参数: {'stcd': None}
-2025-12-25 19:43:42.190 | INFO     | src.agents.executor:_load_tool:159 | 尝试从工具注册表加载工具: query_reservoir_last
-2025-12-25 19:43:42.190 | INFO     | src.agents.executor:_load_tool:170 | 成功加载工具: query_reservoir_last
-2025-12-25 19:43:42.190 | INFO     | src.agents.executor:execute_step:88 | 步骤 3 执行成功，耗时 0ms
-2025-12-25 19:43:42.190 | INFO     | src.agents.executor:execute_step:89 | 步骤 3 执行结果: success=False data=None error='参数 stcd 应为字符串类型' execution_time_ms=None metadata=None
-2025-12-25 19:43:42.191 | INFO     | src.agents.executor:execute_step:90 | 
-2025-12-25 19:43:42.192 | ERROR    | src.agents.executor:_get_value_by_path:413 | 解析路径 step_2[0].stcd 出错: invalid literal for int() with base 10: '2[0]'
-2025-12-25 19:43:42.192 | INFO     | src.agents.executor:execute_step:70 | 执行步骤 4: 查询盘石头水库的防洪特征值详情（如汛限水位、正常蓄水位），用于水位状态评价
-2025-12-25 19:43:42.192 | INFO     | src.agents.executor:execute_step:72 | 工具名称: get_reservoir_flood_detail, 原始参数: {'stcd': '$$step_2[0].stcd$$'}
-2025-12-25 19:43:42.192 | INFO     | src.agents.executor:execute_step:74 | 解析后参数: {'stcd': None}
-2025-12-25 19:43:42.193 | INFO     | src.agents.executor:_load_tool:159 | 尝试从工具注册表加载工具: get_reservoir_flood_detail
-2025-12-25 19:43:42.193 | INFO     | src.agents.executor:_load_tool:170 | 成功加载工具: get_reservoir_flood_detail
-2025-12-25 19:43:42.193 | INFO     | src.agents.executor:execute_step:88 | 步骤 4 执行成功，耗时 0ms
-2025-12-25 19:43:42.193 | INFO     | src.agents.executor:execute_step:89 | 步骤 4 执行结果: success=False data=None error='参数 stcd 应为字符串类型' execution_time_ms=None metadata=None
-2025-12-25 19:43:42.193 | INFO     | src.agents.executor:execute_step:90 | 
-2025-12-25 19:43:42.194 | INFO     | src.agents.controller:synthesize_response:102 | 开始合成最终响应...
-2025-12-25 19:43:42.195 | INFO     | src.agents.controller:_generate_web_page_response:198 | 准备生成Web页面...
-2025-12-25 19:43:42.195 | INFO     | src.output.templates:__init__:278 | 模板管理器初始化完成
-2025-12-25 19:43:42.195 | INFO     | src.output.page_generator:__init__:44 | 页面生成器初始化完成，输出目录: web\generated_pages
-2025-12-25 19:43:42.195 | INFO     | src.output.page_generator:generate_page:63 | 生成报告页面: generic
-2025-12-25 19:43:42.196 | INFO     | src.output.page_generator:generate_page:85 | 页面生成成功: /pages/generic_20251225_194342_32ce7fa5.html
-2025-12-25 19:43:48.864 | INFO     | src.agents.controller:_generate_web_page_response:242 | LLM生成文字回复成功
-2025-12-25 19:47:12.906 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
-2025-12-25 19:47:12.906 | INFO     | src.main:lifespan:77 | 智能体已关闭
-2025-12-25 19:47:12.921 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
-2025-12-25 19:47:12.921 | INFO     | src.main:lifespan:77 | 智能体已关闭
-2025-12-25 19:47:12.953 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
-2025-12-25 19:47:12.953 | INFO     | src.main:lifespan:77 | 智能体已关闭
-2025-12-25 19:47:12.969 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
-2025-12-25 19:47:12.969 | INFO     | src.main:lifespan:77 | 智能体已关闭
+2025-12-25 20:19:52.013 | INFO     | src.agents.graph:run_agent_stream:463 | 流式运行智能体 - 会话: bbeb4e77-cfd1-4781-850e-01a74a29dc6f
+2025-12-25 20:19:52.013 | INFO     | src.agents.graph:create_agent_graph:275 | 创建智能体状态图...
+2025-12-25 20:19:52.015 | INFO     | src.agents.graph:create_agent_graph:331 | 智能体状态图创建完成
+2025-12-25 20:19:52.023 | INFO     | src.agents.graph:get_agent_graph:358 | 智能体图编译完成
+2025-12-25 20:19:52.299 | INFO     | src.agents.controller:__init__:90 | Controller初始化完成
+2025-12-25 20:19:52.301 | INFO     | src.agents.planner:__init__:168 | Planner初始化完成
+2025-12-25 20:19:52.301 | INFO     | src.agents.planner:analyze_intent:214 | 开始分析用户意图: 盘石头水库当前水位？...
+2025-12-25 20:19:58.664 | INFO     | src.agents.planner:analyze_intent:227 | 意图分析结果: {'intent': 'data_query', 'confidence': 0.98, 'entities': {'station_name': '盘石头水库', 'data_type': '水位', 'time': '当前'}, 'requires_data_query': True, 'requires_model_call': False, 'output_type': 'web_page'}
+2025-12-25 20:19:58.664 | INFO     | src.agents.planner:check_workflow_match:270 | 检查工作流匹配...
+2025-12-25 20:19:58.664 | INFO     | src.agents.planner:generate_plan:306 | 开始生成执行计划...
+2025-12-25 20:19:58.664 | INFO     | src.rag.retriever:__init__:38 | RAG检索器初始化完成
+2025-12-25 20:19:58.664 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
+2025-12-25 20:19:58.829 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
+2025-12-25 20:19:58.829 | INFO     | src.rag.retriever:retrieve:57 | RAG检索: 盘石头水库当前水位？...
+2025-12-25 20:19:58.975 | INFO     | src.rag.retriever:retrieve:72 | 检索到 3 条相关文档
+2025-12-25 20:19:58.976 | INFO     | src.agents.planner:generate_plan:322 | 计划生成RAG检索完成，获取到 3 条相关文档
+2025-12-25 20:20:10.124 | INFO     | src.agents.planner:generate_plan:357 | 生成了3个执行步骤
+2025-12-25 20:20:10.125 | INFO     | src.agents.planner:generate_plan:358 | ============================================================
+2025-12-25 20:20:10.125 | INFO     | src.agents.planner:generate_plan:359 | 执行计划:
+2025-12-25 20:20:10.125 | INFO     | src.agents.planner:generate_plan:364 |   步骤1: 登录卫共流域数字孪生系统，获取访问令牌 (工具: login_basin_system)
+2025-12-25 20:20:10.125 | INFO     | src.agents.planner:generate_plan:364 |   步骤2: 查询“盘石头水库”的测站编码(stcd) (工具: get_map_data)
+2025-12-25 20:20:10.125 | INFO     | src.agents.planner:generate_plan:364 |   步骤3: 根据获取的测站编码查询该水库的最新实时水情数据，包括水位信息 (工具: query_reservoir_last)
+2025-12-25 20:20:10.125 | INFO     | src.agents.planner:generate_plan:365 | ============================================================
+2025-12-25 20:20:10.126 | INFO     | src.agents.planner:generate_plan:366 | 
+2025-12-25 20:20:10.127 | INFO     | src.agents.graph:rag_retrieval_node:73 | 执行RAG检索...
+2025-12-25 20:20:10.128 | INFO     | src.agents.executor:__init__:40 | Executor初始化完成
+2025-12-25 20:20:10.128 | INFO     | src.agents.executor:execute_step:71 | 执行步骤 1: 登录卫共流域数字孪生系统，获取访问令牌
+2025-12-25 20:20:10.129 | INFO     | src.agents.executor:execute_step:73 | 工具名称: login_basin_system, 原始参数: {}
+2025-12-25 20:20:10.129 | INFO     | src.agents.executor:_load_tool:160 | 尝试从工具注册表加载工具: login_basin_system
+2025-12-25 20:20:10.129 | INFO     | src.agents.executor:_load_tool:171 | 成功加载工具: login_basin_system
+2025-12-25 20:20:10.129 | INFO     | src.tools.auth:execute:170 | 正在尝试登录系统，账号: admin
+2025-12-25 20:20:10.420 | INFO     | src.tools.auth:execute:192 | Token过期时间: 2026-01-01 20:20:37
+2025-12-25 20:20:10.421 | INFO     | src.tools.auth:execute:199 | 登录成功，获取到Token: eyJhbGciOiJIUzUxMiJ9...
+2025-12-25 20:20:10.421 | INFO     | src.tools.auth:execute:202 | 等待服务器建立会话...
+2025-12-25 20:20:11.926 | INFO     | src.agents.executor:execute_step:89 | 步骤 1 执行成功，耗时 1797ms
+2025-12-25 20:20:11.926 | INFO     | src.agents.executor:execute_step:90 | 步骤 1 执行结果: success=True data={'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI5NjY3YjIyMi1lZWIzLTRlYmQtOTY4NS00NDBiOTY5ZjZlN2UiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjcyNzAwMzcxNTMsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2NjY2NTIzNywiZXhwIjoxNzY3MjcwMDM3fQ.PXqMO2DvMJC77Eg3BY22mfzccs09SqpFgsmLC39h61NMf1uXZYKfkgP6EBGaIgxggvKuqb4foRd6Rfx4GYS19w', 'userId': '1339550467939639299', 'message': '登录成功'} error=None execution_time_ms=1797 metadata={'code': '00000', 'message': '请求成功'}
+2025-12-25 20:20:11.926 | INFO     | src.agents.executor:execute_step:91 | 
+2025-12-25 20:20:11.928 | INFO     | src.agents.executor:execute_step:71 | 执行步骤 2: 查询“盘石头水库”的测站编码(stcd)
+2025-12-25 20:20:11.928 | INFO     | src.agents.executor:execute_step:73 | 工具名称: get_map_data, 原始参数: {'ref_table': 'geo_res_base', 'filter_field': 'res_name', 'filter_operator': '=', 'filter_value': '盘石头水库'}
+2025-12-25 20:20:11.928 | INFO     | src.agents.executor:_load_tool:160 | 尝试从工具注册表加载工具: get_map_data
+2025-12-25 20:20:11.928 | INFO     | src.agents.executor:_load_tool:171 | 成功加载工具: get_map_data
+2025-12-25 20:20:11.996 | INFO     | src.agents.executor:execute_step:89 | 步骤 2 执行成功，耗时 67ms
+2025-12-25 20:20:11.997 | INFO     | src.agents.executor:execute_step:90 | 步骤 2 执行结果: success=True data=[{'county': '淇滨区', 'dead_cap': '2250', 'res_name': '盘石头水库', 'che_flo_sta': '0.05', 'che_flo_lev': '275', 'main_dam_wav_wal_elev': '276.9', 'main_dam_top_len': '606', 'wat_shed_area': 1915.0, 'id': '298ab3d2-b828-4f6c-8bf3-9198b57a4baa', 'norm_pool_stag_cap': '30275', 'longitude': 114.053761, 'tot_cap': '60800', 'ben_res_cap': '28750', 'daad_mul_aver_ruof': '36000', 'che_flo_flow': '15400', 'town': '大河涧乡', 'shape': 'POINT (114.053761714 35.8415127740001)', 'res_type': '1', 'sw_che_fl_flow': '2374', 'fl_low_lim_lev': '248', 'stcd': '31005650', 'des_flo_cri': '1', 'dead_lev': '207', 'upp_lev_flco': '270', 'res_loc': '河南省鹤壁市淇滨区大河涧乡', 'sw_patt': '正槽式溢洪道', 'code': 'HP0014106110000076', 'norm_wat_lev': '254', 'city': '鹤壁市', 'latitude': 35.841512, 'sw_weir_top_wid': '48', 'main_dam_top_elev': '275.7', 'eng_scal': '2', 'coll_date': '2', 'main_dam_top_wid': '8', 'flco_cap': '27560', 'loc_rv_cd': 'FFFAB1A0000L', 'start_date': '1998-10-01', 'stor_fl_cap': '36300', 'norm_pool_stag_area': '13', 'sw_hs_mode': '无控制', 'main_dam_max_heig': '102.2', 'eng_stat': '1', 'sw_weir_top_elev': '254', 'fl_low_lim_lev_cap': '24500', 'sw_nm': '正常溢洪道', 'des_flo_lev': '270.7', 'comp_date': '2007-01-01', 'adm_dep': '9', 'sw_des_fl_flow': '1', 'eng_grad': '2', 'des_flo_flow': '6900', 'loc_rv_nm': '淇河'}] error=None execution_time_ms=66 metadata={'code': '00000', 'message': '请求成功'}
+2025-12-25 20:20:11.997 | INFO     | src.agents.executor:execute_step:91 | 
+2025-12-25 20:20:11.998 | INFO     | src.agents.executor:execute_step:71 | 执行步骤 3: 根据获取的测站编码查询该水库的最新实时水情数据，包括水位信息
+2025-12-25 20:20:11.998 | INFO     | src.agents.executor:execute_step:73 | 工具名称: query_reservoir_last, 原始参数: {'stcd': '$$step_2.data[0].stcd$$'}
+2025-12-25 20:20:11.999 | INFO     | src.agents.executor:execute_step:75 | 解析后参数: {'stcd': '31005650'}
+2025-12-25 20:20:11.999 | INFO     | src.agents.executor:_load_tool:160 | 尝试从工具注册表加载工具: query_reservoir_last
+2025-12-25 20:20:11.999 | INFO     | src.agents.executor:_load_tool:171 | 成功加载工具: query_reservoir_last
+2025-12-25 20:20:12.063 | INFO     | src.agents.executor:execute_step:89 | 步骤 3 执行成功，耗时 64ms
+2025-12-25 20:20:12.063 | INFO     | src.agents.executor:execute_step:90 | 步骤 3 执行结果: success=True data=[{'sort': None, 'lgtd': 114.1281, 'lttd': 35.83131, 'stnm': '盘石头', 'warn': None, 'stazt': None, 'rvnm': '淇河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '豫-淇县', 'addvcd': '410622', 'sttp': 'RR', 'tm': '2025-12-25 08:00:00', 'stcd': '31005650', 'rz': 245.08, 'w': 212.74, 'otq': 6.56, 'rwptn': '5', 'inq': 8.53, 'rwchrcd': None, 'inqdr': 24.0, 'msqmt': None, 'blrz': None}] error=None execution_time_ms=63 metadata={'query_type': 'reservoir_last', 'record_count': 1}
+2025-12-25 20:20:12.063 | INFO     | src.agents.executor:execute_step:91 | 
+2025-12-25 20:20:12.064 | INFO     | src.agents.controller:synthesize_response:102 | 开始合成最终响应...
+2025-12-25 20:20:12.065 | INFO     | src.agents.controller:_generate_web_page_response:198 | 准备生成Web页面...
+2025-12-25 20:20:12.065 | INFO     | src.output.templates:__init__:278 | 模板管理器初始化完成
+2025-12-25 20:20:12.065 | INFO     | src.output.page_generator:__init__:44 | 页面生成器初始化完成，输出目录: web\generated_pages
+2025-12-25 20:20:12.065 | INFO     | src.output.page_generator:generate_page:63 | 生成报告页面: generic
+2025-12-25 20:20:12.066 | INFO     | src.output.page_generator:generate_page:85 | 页面生成成功: /pages/generic_20251225_202012_72ccccbf.html
+2025-12-25 20:20:16.714 | INFO     | src.agents.controller:_generate_web_page_response:242 | LLM生成文字回复成功
