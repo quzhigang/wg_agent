@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
+from ..config.llm_prompt_logger import log_llm_call
 from .state import AgentState, PlanStep, StepStatus, OutputType
 
 logger = get_logger(__name__)
@@ -217,12 +218,26 @@ class Planner:
             # 格式化聊天历史
             chat_history_str = self._format_chat_history(state.get('chat_history', []))
             
-            # 调用意图分析链
-            result = await self.intent_chain.ainvoke({
+            # 准备上下文变量
+            context_vars = {
                 "context_summary": state.get('context_summary') or "无",
                 "chat_history": chat_history_str or "无",
                 "user_message": state['user_message']
-            })
+            }
+            
+            # 调用意图分析链
+            result = await self.intent_chain.ainvoke(context_vars)
+            
+            # 记录LLM调用日志
+            full_prompt = INTENT_ANALYSIS_PROMPT.format(**context_vars)
+            log_llm_call(
+                step_name="意图分析",
+                module_name="Planner.analyze_intent",
+                prompt_template_name="INTENT_ANALYSIS_PROMPT",
+                context_variables=context_vars,
+                full_prompt=full_prompt,
+                response=str(result)
+            )
             
             logger.info(f"意图分析结果: {result}")
             
@@ -329,15 +344,29 @@ class Planner:
             # 3. 获取可用工作流描述
             available_workflows = self._get_available_workflows_description()
             
-            # 4. 调用计划生成链（包含RAG上下文）
-            result = await self.plan_chain.ainvoke({
+            # 4. 准备上下文变量
+            plan_context_vars = {
                 "available_tools": available_tools,
                 "available_workflows": available_workflows,
                 "rag_context": rag_context,
                 "intent": state.get('intent', 'unknown'),
                 "entities": state.get('entities', {}),
                 "user_message": state['user_message']
-            })
+            }
+            
+            # 调用计划生成链（包含RAG上下文）
+            result = await self.plan_chain.ainvoke(plan_context_vars)
+            
+            # 记录LLM调用日志
+            full_prompt = PLAN_GENERATION_PROMPT.format(**plan_context_vars)
+            log_llm_call(
+                step_name="计划生成",
+                module_name="Planner.generate_plan",
+                prompt_template_name="PLAN_GENERATION_PROMPT",
+                context_variables=plan_context_vars,
+                full_prompt=full_prompt,
+                response=str(result)
+            )
             
             # 解析步骤
             steps = []

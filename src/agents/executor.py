@@ -14,6 +14,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
+from ..config.llm_prompt_logger import log_llm_call
 from .state import AgentState, PlanStep, ExecutionResult, StepStatus
 
 logger = get_logger(__name__)
@@ -189,7 +190,7 @@ class Executor:
         Returns:
             LLM生成的结果
         """
-        prompt = ChatPromptTemplate.from_template("""你是卫共流域数字孪生系统的智能助手。
+        prompt_template = """你是卫共流域数字孪生系统的智能助手。
 
 ## 任务
 {task_description}
@@ -204,7 +205,8 @@ class Executor:
 {retrieved_documents}
 
 请根据以上信息完成任务，给出清晰、准确的回答。
-""")
+"""
+        prompt = ChatPromptTemplate.from_template(prompt_template)
         
         chain = prompt | self.llm
         
@@ -212,12 +214,26 @@ class Executor:
         results_str = self._format_execution_results(state.get('execution_results', []))
         docs_str = self._format_retrieved_documents(state.get('retrieved_documents', []))
         
-        response = await chain.ainvoke({
+        # 准备上下文变量
+        context_vars = {
             "task_description": task_description,
             "user_message": state.get('user_message', ''),
             "execution_results": results_str or "无",
             "retrieved_documents": docs_str or "无"
-        })
+        }
+        
+        response = await chain.ainvoke(context_vars)
+        
+        # 记录LLM调用日志
+        full_prompt = prompt_template.format(**context_vars)
+        log_llm_call(
+            step_name="任务执行(LLM)",
+            module_name="Executor._execute_with_llm",
+            prompt_template_name="EXECUTOR_LLM_PROMPT",
+            context_variables=context_vars,
+            full_prompt=full_prompt,
+            response=response.content
+        )
         
         return response.content
     

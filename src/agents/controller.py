@@ -9,6 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
+from ..config.llm_prompt_logger import log_llm_call
 from .state import AgentState, OutputType
 
 logger = get_logger(__name__)
@@ -128,14 +129,28 @@ class Controller:
                     "next_action": "end"
                 }
             
-            # 生成文本响应
-            response = await self.response_chain.ainvoke({
+            # 准备上下文变量
+            context_vars = {
                 "user_message": state.get('user_message', ''),
                 "intent": state.get('intent', 'unknown'),
                 "plan_summary": plan_summary or "无执行计划",
                 "execution_results": execution_summary or "无执行结果",
                 "retrieved_documents": docs_summary or "无相关知识"
-            })
+            }
+            
+            # 生成文本响应
+            response = await self.response_chain.ainvoke(context_vars)
+            
+            # 记录LLM调用日志
+            full_prompt = RESPONSE_GENERATION_PROMPT.format(**context_vars)
+            log_llm_call(
+                step_name="响应合成",
+                module_name="Controller.synthesize_response",
+                prompt_template_name="RESPONSE_GENERATION_PROMPT",
+                context_variables=context_vars,
+                full_prompt=full_prompt,
+                response=response.content
+            )
             
             logger.info("响应合成完成")
             
@@ -231,14 +246,29 @@ class Controller:
             plan_summary = self._format_plan_summary(state.get('plan', []))
             
             try:
-                llm_response = await self.response_chain.ainvoke({
+                # 准备上下文变量
+                web_context_vars = {
                     "user_message": state.get('user_message', ''),
                     "intent": state.get('intent', 'unknown'),
                     "plan_summary": plan_summary or "无执行计划",
                     "execution_results": execution_summary or "无执行结果",
                     "retrieved_documents": docs_summary or "无相关知识"
-                })
+                }
+                
+                llm_response = await self.response_chain.ainvoke(web_context_vars)
                 text_response = llm_response.content
+                
+                # 记录LLM调用日志
+                full_prompt = RESPONSE_GENERATION_PROMPT.format(**web_context_vars)
+                log_llm_call(
+                    step_name="Web页面响应合成",
+                    module_name="Controller._generate_web_page_response",
+                    prompt_template_name="RESPONSE_GENERATION_PROMPT",
+                    context_variables=web_context_vars,
+                    full_prompt=full_prompt,
+                    response=text_response
+                )
+                
                 logger.info("LLM生成文字回复成功")
             except Exception as llm_error:
                 logger.warning(f"LLM生成文字回复失败，使用默认模板: {llm_error}")

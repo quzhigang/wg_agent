@@ -11,6 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from ..config.logging_config import get_logger
 from ..config.settings import settings
+from ..config.llm_prompt_logger import start_session, end_session
 from .state import AgentState, create_initial_state, OutputType
 from .planner import planner_node, get_planner
 from .executor import executor_node, get_executor
@@ -382,6 +383,9 @@ async def run_agent(
     """
     logger.info(f"运行智能体 - 会话: {conversation_id}")
     
+    # 开始LLM提示词日志会话
+    start_session(conversation_id, user_message)
+    
     # 创建初始状态
     initial_state = create_initial_state(
         conversation_id=conversation_id,
@@ -404,6 +408,9 @@ async def run_agent(
     try:
         # 非流式执行
         final_state = await graph.ainvoke(initial_state, config)
+        
+        # 结束LLM提示词日志会话
+        end_session()
         
         return {
             "conversation_id": conversation_id,
@@ -461,6 +468,9 @@ async def run_agent_stream(
         - node: "error" - 错误
     """
     logger.info(f"流式运行智能体 - 会话: {conversation_id}")
+    
+    # 开始LLM提示词日志会话
+    start_session(conversation_id, user_message)
     
     # 创建初始状态
     initial_state = create_initial_state(
@@ -612,6 +622,8 @@ async def run_agent_stream(
                 elif node_name == "quick_chat":
                     # 快速对话节点 - 直接发送最终响应
                     if node_output.get('final_response'):
+                        # 结束LLM提示词日志会话
+                        end_session()
                         yield {
                             "node": "final",
                             "response": node_output.get('final_response'),
@@ -622,6 +634,8 @@ async def run_agent_stream(
                 elif node_name == "respond":
                     # 响应节点 - 发送最终响应
                     if node_output.get('final_response'):
+                        # 结束LLM提示词日志会话
+                        end_session()
                         yield {
                             "node": "final",
                             "response": node_output.get('final_response'),
