@@ -2,3 +2,33 @@ logs/error.log
 logs/wg_agent.log
 开发资料/
 web/generated_pages/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Environment
+.env*
+!.env.example
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
+
+# PageIndex specific
+PageIndex/temp/*
+PageIndex/log/*
+PageIndex/logs/
+PageIndex/parts/*
+PageIndex/json_results/*
+PageIndex/uploads/images/
+PageIndex/notebook/
+PageIndex/SDK/*
+PageIndex/files/
+PageIndex/index/
+PageIndex/results/
+PageIndex/uploads/
+PageIndex/uploads/images/

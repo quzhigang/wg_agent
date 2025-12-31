@@ -38,3 +38,13 @@ loguru>=0.7.0
 
 # For Web Search (optional)
 duckduckgo-search>=6.3.0
+
+# PageIndex Dependencies (知识库检索系统)
+openai>=1.0.0
+pymupdf>=1.26.0
+PyPDF2>=3.0.0
+tiktoken>=0.5.0
+pyyaml>=6.0.0
+streamlit>=1.28.0
+pandas>=2.0.0
+requests>=2.31.0

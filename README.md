@@ -71,12 +71,10 @@ API_PORT=8000
 
 ```bash
 python -m src.main
-```
-
-或使用uvicorn：
-
-```bash
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+python PageIndex/api.py
+streamlit run PageIndex/app.py
+- 
+#注意：不需要启动PageIndex里的api.py和app.py，主程序也可运行，彼此独立
 ```
 
 ### 停止服务

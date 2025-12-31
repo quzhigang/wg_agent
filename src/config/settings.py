@@ -52,10 +52,10 @@ class Settings(BaseSettings):
         return f"mysql+aiomysql://{self.mysql_user}:{self.mysql_password}@{self.mysql_host}:{self.mysql_port}/{self.mysql_database}?charset=utf8mb4"
     
     # ===========================================
-    # ChromaDB Configuration
+    # ChromaDB Configuration (使用PageIndex的向量库)
     # ===========================================
-    chroma_persist_directory: str = "./chroma_db"
-    chroma_collection_name: str = "wg_knowledge"
+    chroma_persist_directory: str = "./PageIndex/chroma_db"
+    chroma_collection_name: str = "pageindex_nodes"
     
     # ===========================================
     # API Server Configuration
@@ -109,9 +109,9 @@ class Settings(BaseSettings):
     log_file: str = "./logs/wg_agent.log"
     
     # ===========================================
-    # Knowledge Base
+    # Knowledge Base (已废弃，使用PageIndex)
     # ===========================================
-    knowledge_dir: str = "./knowledge"
+    # knowledge_dir: str = "./knowledge"  # 已废弃
     
     # ===========================================
     # MCP Server Configuration (MCP服务器配置)

@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
     # 确保必要目录存在
     Path(settings.generated_pages_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.chroma_persist_directory).mkdir(parents=True, exist_ok=True)
-    Path(settings.knowledge_dir).mkdir(parents=True, exist_ok=True)
+    # knowledge_dir 已废弃，使用 PageIndex
     logger.info("目录结构检查完成")
     
     # 初始化工具注册表

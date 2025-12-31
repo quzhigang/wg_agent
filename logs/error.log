@@ -33,3 +33,5 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2025-12-29 17:43:23.170 | ERROR    | src.agents.executor:execute_step:104 | 步骤 1 执行失败: Error code: 401 - {'error': {'code': '', 'message': '该令牌额度已用尽 TokenStatusExhausted[sk-I5v***NjN] (request id: 20251229174348128949506AmHPAyKm)', 'type': 'new_api_error'}}
 2025-12-29 17:43:23.189 | ERROR    | src.agents.graph:run_agent_stream:670 | 流式执行失败: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
 For troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT
+2025-12-31 22:04:07.996 | ERROR    | src.tools.flood_otherbusiness:execute:893 | 水雨情态势过程回溯失败: Server error '500 ' for url 'http://10.20.2.153:8089/modelPlatf/monitor/rsvr/track?st=2023-07-28+00%3A00%3A00&ed=2023-08-05+23%3A59%3A59'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500
