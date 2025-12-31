@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # ===========================================
     # LLM Configuration
     # ===========================================
-    openai_api_key: str = "sk-I5vfVYeLNP8TlgAcimuwUVJBFPKkL1X72qGYvFdf4adKuNjN"
+    openai_api_key: str = "sk-fYNBIb1rjJveHJpsVxhb27NKyMOIa9SwRrr8U6lxFGCztIC2"
     openai_api_base: str = "https://max.openai365.top/v1"
     openai_model_name: str = "gemini-3-flash"
     openai_temperature: float = 0.7
