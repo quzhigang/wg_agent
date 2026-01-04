@@ -1,0 +1,188 @@
+# PageIndex 📄
+
+PageIndex 是一个专门用于从 PDF和md文档中提取高精度、层级化目录结构（Table of Contents, TOC）的 Python 库。它为检索增强生成（RAG）场景提供了“无需向量（Vectorless）”的全新思路，通过对文档结构的深度理解，实现更符合人类阅读习惯的精准检索与推理。
+
+## 🌟 核心特性
+
+- **高精度目录提取**：利用 LLM 智能解析PDF和MD文档，不仅能提取原有的目录，还能为没有目录的文档自动生成层级结构。
+- **物理页面映射**：将层级标题精确映射到 PDF和MD文档 的物理页码，确保检索定位的准确性。
+- **Vectorless RAG**：不同于传统的切片和向量化方案，PageIndex 支持基于推理的原文检索，保留文档上下文的完整性。
+- **多模态支持**：支持直接在页面图像上进行推理（Vision-based），无需复杂的 OCR 流程。
+- **灵活的配置**：支持添加节点 ID、摘要、全文内容以及文档整体描述。
+
+## 🚀 快速开始
+
+### 安装
+
+```bash
+cd PageIndex
+pip install -r requirements.txt
+```
+
+### 环境配置
+
+复制 `.env.example` 为 `.env` 并配置以下环境变量：
+
+```bash
+# 大模型 API 配置
+CHATGPT_API_KEY=your-api-key
+CHATGPT_API_BASE=https://api.openai.com/v1
+CHATGPT_MODEL=gpt-4o  # 大模型名称
+
+# Embedding 模型配置 (用于向量检索)
+EMBEDDING_MODEL_NAME=bge-m3:latest
+EMBEDDING_MODEL_API_URL=http://localhost:11434
+EMBEDDING_MODEL_TYPE=ollama
+
+# ChromaDB 向量数据库存储路径
+CHROMA_PERSIST_DIR=./chroma_db
+```
+
+## 网页界面 (UI) 与 API
+PageIndex 提供了直观的 Streamlit 网页界面以及 REST API，方便进行文档处理和自动化集成。
+
+### cmd命令启动方式（如果电脑没安装依赖，先进入目录执行pip install -r requirements.txt）--带窗体
+cd \PageIndex
+**网页界面启动**: streamlit run PageIndex/app.py
+**REST API服务启动**: python PageIndex/api.py
+
+### 前端页面和api地址
+页面地址：http://localhost:8501/
+接口地址：http://localhost:8502/query(合成结果接口) 、http://localhost:8502/query/raw(原始结果接口) 
+
+### 主要功能
+
+-   **文档处理**：支持 PDF/Markdown 文件批量上传、自动解析目录、生成摘要及物理页码映射。
+-   **已处理清单**：集中管理已解析的文档，支持查看详细信息及删除操作。
+-   **智能对话 (RAG)**：
+    -   **跨文档检索**：模型会自动识别与问题相关的文档。
+    -   **精准定位**：基于 PageIndex 的层级结构，直接定位到具体章节或页面。
+    -   **推理原生回答**：整合多处上下文，给出引经据典的详细回答。
+
+### REST API 使用说明
+
+启动 `api.py` 后，API 服务运行在 **8502** 端口，可以通过以下接口进行文档检索：
+
+#### 1. 智能问答接口（带大模型生成答案）
+- **Endpoint**: `POST /query`
+- **Body**: `{"q": "用户的问题", "top_k": 10}`
+- **示例**:
+  ```bash
+  curl -X POST "http://localhost:8502/query" -H "Content-Type: application/json" -d '{"q": "什么是PageIndex？"}'
+  ```
+- **返回**: 包含 AI 回答、参考来源以及推理过程的 JSON 对象。
+
+#### 2. 原始检索结果接口（不调用大模型）
+- **Endpoint**: `POST /query/raw`
+- **Body**: `{"q": "用户的问题", "top_k": 10}`
+- **示例**:
+  ```bash
+  curl -X POST "http://localhost:8502/query/raw" -H "Content-Type: application/json" -d '{"q": "什么是PageIndex？"}'
+  ```
+- **返回**: 只返回向量检索的原始结果，包含文档名、节点ID、标题、相似度分数、摘要和原文内容，不调用大模型生成答案。
+
+#### 3. 其他接口
+- `GET /index/stats` - 获取向量索引统计信息
+- `POST /index/rebuild` - 重建所有文档的向量索引
+- `DELETE /index/{doc_name}` - 删除指定文档的向量索引
+
+## 📂 项目结构
+
+- `pageindex/`: 核心代码库。
+- `cookbook/`: 示例 Jupyter Notebooks。
+- `results/`: 存储解析后的文档JSON结构。
+- `uploads/`: 存储上传的输入文档。
+- `tutorials/`: 更多深入教程。
+
+## 🛠️ 技术细节
+
+PageIndex 通过以下步骤处理 PDF：
+1. **TOC 检测**：识别文档是否自带目录。
+2. **结构转换**：将原始文本目录转换为结构化的 JSON 数据。
+3. **偏移修正**：自动计算物理页码与逻辑页码之间的偏移。
+4. **层级递归补全**：对于缺失目录的部分，通过 LLM 递归生成细分层级。
+
+
+## PageIndex 检索原理对比
+### 一、三种检索方式对比
+| 特性 | 传统向量检索 | PageIndex 原版（Vectorless） | 本次优化（混合检索） |
+|------|-------------|---------------------------|-------------------|
+| 索引方式 | 文档切片 → 向量化 | 文档 → 目录树结构 | 目录树 + 节点向量 |
+| 检索方式 | 向量相似度匹配 | LLM 推理定位 | 向量召回 + 结构定位 |
+| Token 消耗 | 0（检索阶段） | 高（每次查询需多次 LLM 调用） | 0（检索阶段） |
+| 检索速度 | 毫秒级 | 秒级（依赖 LLM 响应） | 毫秒级 |
+| 上下文保留 | 差（切片破坏上下文） | 优（保留文档层级结构） | 优（保留结构信息） |
+| 语义理解 | 浅层（向量相似度） | 深层（LLM 推理） | 中等（向量 + 摘要） |
+
+### 二、PageIndex 原版检索原理（Vectorless RAG）
+核心理念：不对文档进行向量化，而是利用 LLM 的推理能力在文档目录结构中定位信息。
+
+检索流程：
+
+用户查询 
+    ↓
+1. LLM 筛选相关文档（根据文档名称和描述）
+    ↓
+2. LLM 在目录树中推理定位（传递完整树结构给 LLM）
+    ↓
+3. 根据定位的节点提取原文（start_index → end_index）
+    ↓
+4. LLM 生成最终答案
+
+优点：
+    保留文档的层级结构和上下文关系
+    LLM 可以进行深层语义推理
+    不需要向量数据库
+
+缺点：
+    每次查询消耗大量 Token（需要传递完整树结构）  
+    检索速度慢（依赖 LLM 响应时间）
+    文档数量增多时，Token 消耗线性增长
+
+### 三、传统向量检索原理
+核心理念：将文档切分为固定大小的块，向量化后通过相似度匹配检索。
+
+检索流程：
+
+用户查询 
+    ↓
+1. 查询文本向量化
+    ↓
+2. 向量相似度检索 Top-K 文档块
+    ↓
+3. 拼接检索到的文档块
+    ↓
+4. LLM 生成最终答案
+
+优点：
+    检索速度快（毫秒级）
+    检索阶段不消耗 Token
+缺点：
+    切片破坏文档上下文
+    无法理解文档层级结构
+    可能检索到不相关的片段
+
+### 四、本次优化方案（混合检索）
+核心理念：结合向量检索的速度优势和目录树结构的上下文优势。
+
+检索流程：
+
+用户查询 
+    ↓
+1. 查询文本向量化
+    ↓
+2. 向量检索 Top-K 相关节点（基于节点标题+摘要的向量）
+    ↓
+3. 根据节点的 start_index/end_index 提取原文
+    ↓
+4. LLM 生成最终答案
+
+优点：
+    检索速度快（毫秒级）
+    检索阶段不消耗 Token
+    保留了文档的层级结构信息
+    每个节点有完整的上下文（不是随机切片）
+关键差异：
+    向量化的是节点摘要而非原文切片
+    检索单位是目录节点而非固定大小的块
+    保留了节点的层级路径和页码范围信息
