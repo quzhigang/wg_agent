@@ -275,7 +275,7 @@ if st.session_state.get("show_principle", False):
             st.rerun()
     show_principle_dialog()
 
-tab1, tab2, tab3, tab4 = st.tabs(["💬 智能对话", "📄 文档处理", "📚 知识库管理", "📊 向量索引"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["💬 智能对话", "📄 文档处理", "📚 知识库管理", "📊 向量索引", "🔍 向量检索"])
 
 # 目录配置（相对于当前工作目录）
 # 当从PageIndex目录运行时使用相对路径 ./uploads 和 ./results
@@ -1022,6 +1022,195 @@ with tab3:
         st.caption(f"共 {len(kb_list)} 个知识库")
     else:
         st.info("暂无知识库，请创建新的知识库。")
+
+# 选项卡 5: 向量检索
+with tab5:
+    # 知识库多选
+    kb_manager_tab5 = get_kb_manager()
+    kb_list_tab5 = kb_manager_tab5.list_all()
+
+    if not kb_list_tab5:
+        st.warning("⚠️ 请先在「知识库管理」选项卡中创建知识库并上传文档。")
+    else:
+        # 知识库复选框列表
+        st.subheader("选择检索的知识库")
+
+        # 初始化所有知识库的选中状态（首次加载时默认选中）
+        for kb in kb_list_tab5:
+            if f"api_kb_cb_{kb.id}" not in st.session_state:
+                st.session_state[f"api_kb_cb_{kb.id}"] = True
+
+        # 初始化全选复选框状态
+        if "api_select_all_kb_state" not in st.session_state:
+            st.session_state.api_select_all_kb_state = True
+
+        # 全选复选框回调函数
+        def on_api_select_all_change():
+            new_value = st.session_state.api_select_all_kb_checkbox
+            for kb in kb_list_tab5:
+                st.session_state[f"api_kb_cb_{kb.id}"] = new_value
+            st.session_state.api_select_all_kb_state = new_value
+
+        # 全选/全不选 复选框
+        col_select_all, col_spacer = st.columns([1, 5])
+        with col_select_all:
+            st.checkbox(
+                "全选",
+                value=st.session_state.api_select_all_kb_state,
+                key="api_select_all_kb_checkbox",
+                on_change=on_api_select_all_change
+            )
+
+        # 横向排列知识库复选框，每行4列
+        cols_per_row = 4
+        api_kb_selections = {}
+
+        for i in range(0, len(kb_list_tab5), cols_per_row):
+            cols = st.columns(cols_per_row)
+            for j, col in enumerate(cols):
+                kb_idx = i + j
+                if kb_idx < len(kb_list_tab5):
+                    kb = kb_list_tab5[kb_idx]
+                    with col:
+                        api_kb_selections[kb.id] = st.checkbox(
+                            f"📚 {kb.name}",
+                            key=f"api_kb_cb_{kb.id}",
+                            help=kb.id
+                        )
+
+        # 更新全选状态（根据各知识库的实际选中状态）
+        api_all_selected_now = all(api_kb_selections.values()) if api_kb_selections else True
+        if api_all_selected_now != st.session_state.api_select_all_kb_state:
+            st.session_state.api_select_all_kb_state = api_all_selected_now
+
+        # 获取选中的知识库ID列表
+        api_selected_kb_ids = [kb_id for kb_id, selected in api_kb_selections.items() if selected]
+
+        if not api_selected_kb_ids:
+            st.info("ℹ️ 未选择知识库，将搜索所有知识库")
+        else:
+            st.success(f"✅ 已选择 {len(api_selected_kb_ids)} 个知识库")
+
+        st.markdown("---")
+
+        # API 配置
+        col_api, col_topk = st.columns([3, 1])
+        with col_api:
+            api_url = st.text_input(
+                "API 地址",
+                value="http://localhost:8502/query/raw",
+                key="api_test_url"
+            )
+        with col_topk:
+            api_top_k = st.number_input(
+                "Top K",
+                min_value=1,
+                max_value=50,
+                value=10,
+                key="api_test_topk"
+            )
+
+        # 查询输入
+        api_query = st.text_input(
+            "查询内容",
+            placeholder="请输入要检索的问题...",
+            key="api_test_query"
+        )
+
+        # 发送请求按钮
+        if st.button("🚀 发送请求", type="primary", key="api_test_send"):
+            if not api_query:
+                st.error("请输入查询内容")
+            else:
+                import requests
+
+                # 构建请求体（如果没有选择知识库，则不传 kb_ids，API 会搜索所有知识库）
+                request_body = {
+                    "q": api_query,
+                    "top_k": api_top_k
+                }
+                if api_selected_kb_ids:
+                    request_body["kb_ids"] = api_selected_kb_ids
+
+                # 显示请求信息
+                with st.expander("📤 请求详情", expanded=False):
+                    st.code(f"POST {api_url}", language="text")
+                    st.json(request_body)
+
+                # 发送请求
+                with st.spinner("正在请求 API..."):
+                    try:
+                        response = requests.post(
+                            api_url,
+                            json=request_body,
+                            timeout=60
+                        )
+
+                        # 显示响应状态
+                        if response.status_code == 200:
+                            st.success(f"✅ 请求成功 (HTTP {response.status_code})")
+                        else:
+                            st.error(f"❌ 请求失败 (HTTP {response.status_code})")
+
+                        # 解析响应
+                        try:
+                            response_data = response.json()
+
+                            # 显示统计信息
+                            if response_data.get("status") == "ok":
+                                total_results = response_data.get("total_results", 0)
+                                searched_kb = response_data.get("searched_kb", [])
+                                st.info(f"📊 检索到 {total_results} 个结果，来自 {len(searched_kb)} 个知识库")
+
+                            # 显示结果列表
+                            results = response_data.get("results", [])
+                            if results:
+                                st.subheader("检索结果")
+                                for i, result in enumerate(results):
+                                    score = result.get("score", 0)
+                                    title = result.get("title", "")
+                                    kb_name = result.get("kb_name", "")
+                                    doc_name = result.get("doc_name", "")
+                                    summary = result.get("summary", "")
+                                    text = result.get("text", "")
+
+                                    with st.expander(
+                                        f"#{i+1} [{kb_name}] {doc_name} - {title} (相似度: {score:.4f})",
+                                        expanded=(i < 3)  # 前3个默认展开
+                                    ):
+                                        st.write(f"**知识库:** {kb_name} ({result.get('kb_id', '')})")
+                                        st.write(f"**文档:** {doc_name}")
+                                        st.write(f"**节点ID:** {result.get('node_id', '')}")
+                                        st.write(f"**相似度:** {score:.4f}")
+
+                                        if summary:
+                                            st.write("**摘要:**")
+                                            st.markdown(f"> {summary}")
+
+                                        if text:
+                                            st.write("**原文内容:**")
+                                            st.text_area(
+                                                "内容",
+                                                value=text[:2000] + ("..." if len(text) > 2000 else ""),
+                                                height=200,
+                                                key=f"api_result_text_{i}",
+                                                label_visibility="collapsed"
+                                            )
+
+                            # 显示完整响应 JSON
+                            with st.expander("📥 完整响应 JSON", expanded=False):
+                                st.json(response_data)
+
+                        except Exception as e:
+                            st.error(f"解析响应失败: {e}")
+                            st.text(response.text)
+
+                    except requests.exceptions.ConnectionError:
+                        st.error("❌ 连接失败，请确保 API 服务已启动 (python api.py)")
+                    except requests.exceptions.Timeout:
+                        st.error("❌ 请求超时")
+                    except Exception as e:
+                        st.error(f"❌ 请求失败: {e}")
 
 st.markdown("---")
 st.caption("由 PageIndex 框架驱动 - 混合向量检索 RAG")

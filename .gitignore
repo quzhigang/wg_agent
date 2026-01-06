@@ -32,3 +32,8 @@ PageIndex/index/
 PageIndex/results/
 PageIndex/uploads/
 PageIndex/uploads/images/
+nul
+.setting/mcp-mysql-cli.log
+.setting/mcp-mysql.log
+logs/wg_agent.log
+logs/wg_agent.log
