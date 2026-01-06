@@ -893,42 +893,83 @@ def add_node_text_with_labels(node, pdf_pages):
 
 async def generate_node_summary(node, model=None):
     """
-    为节点生成摘要
-    
+    为节点生成结构化摘要（包含摘要和关键描述点）
+
     参数:
         node: 包含 text 字段的节点
         model: 使用的模型
-    
-    返回:
-        生成的摘要
-    """
-    prompt = f"""You are given a part of a document, your task is to generate a description of the partial document about what are main points covered in the partial document.
 
-    Partial Document Text: {node['text']}
-    
-    Directly return the description, do not include any other text.
+    返回:
+        dict: 包含 summary 和 key_points 的字典
     """
+    prompt = f"""你是一个文档分析专家。请阅读以下文档片段，生成结构化的中文摘要信息。
+
+【文档片段】
+{node['text']}
+
+【输出要求】
+请以JSON格式输出，包含以下字段：
+1. summary: 核心主题词或短语（不超过100字），概括文档片段的主题
+2. key_points: 关键描述点数组，每个描述点是一个简短的短句（4-30字），描述文档的一个具体方面
+
+【输出示例】
+{{
+    "summary": "地图数据源查询接口技术规范，定义了地理要素数据的标准化查询方式",
+    "key_points": [
+        "支持GeoJSON格式",
+        "REST API接口调用",
+        "返回河流、湖泊等水文要素数据",
+        "支持按区域范围筛选"
+    ]
+}}
+
+请直接返回JSON，不要包含其他内容。必须使用中文输出。
+"""
     response = await ChatGPT_API_async(model, prompt)
-    return response
+
+    # 解析JSON返回
+    try:
+        # 尝试清理可能的markdown代码块标记
+        clean_response = response.strip()
+        if clean_response.startswith("```json"):
+            clean_response = clean_response[7:]
+        elif clean_response.startswith("```"):
+            clean_response = clean_response[3:]
+        if clean_response.endswith("```"):
+            clean_response = clean_response[:-3]
+        clean_response = clean_response.strip()
+
+        result = json.loads(clean_response)
+        return {
+            "summary": result.get("summary", ""),
+            "key_points": result.get("key_points", [])
+        }
+    except (json.JSONDecodeError, Exception):
+        # 降级处理：将整个响应作为摘要，key_points为空
+        return {
+            "summary": response.strip() if response else "",
+            "key_points": []
+        }
 
 
 async def generate_summaries_for_structure(structure, model=None):
     """
-    为结构中的所有节点生成摘要
-    
+    为结构中的所有节点生成结构化摘要（包含摘要和关键描述点）
+
     参数:
         structure: 树结构
         model: 使用的模型
-    
+
     返回:
-        添加了摘要的结构
+        添加了 summary 和 key_points 的结构
     """
     nodes = structure_to_list(structure)
     tasks = [generate_node_summary(node, model=model) for node in nodes]
-    summaries = await asyncio.gather(*tasks)
-    
-    for node, summary in zip(nodes, summaries):
-        node['summary'] = summary
+    results = await asyncio.gather(*tasks)
+
+    for node, result in zip(nodes, results):
+        node['summary'] = result.get('summary', '')
+        node['key_points'] = result.get('key_points', [])
     return structure
 
 
@@ -936,24 +977,24 @@ def create_clean_structure_for_description(structure):
     """
     创建用于文档描述生成的干净结构
     排除不必要的字段如 'text'
-    
+
     参数:
         structure: 原始结构
-    
+
     返回:
         清理后的结构
     """
     if isinstance(structure, dict):
         clean_node = {}
         # 只包含描述所需的基本字段
-        for key in ['title', 'node_id', 'summary', 'prefix_summary']:
+        for key in ['title', 'node_id', 'summary', 'prefix_summary', 'key_points', 'prefix_key_points']:
             if key in structure:
                 clean_node[key] = structure[key]
-        
+
         # 递归处理子节点
         if 'nodes' in structure and structure['nodes']:
             clean_node['nodes'] = create_clean_structure_for_description(structure['nodes'])
-        
+
         return clean_node
     elif isinstance(structure, list):
         return [create_clean_structure_for_description(item) for item in structure]

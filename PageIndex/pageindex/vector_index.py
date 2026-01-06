@@ -164,104 +164,149 @@ class MultiKBVectorIndex:
                 metadata={"description": f"知识库 {kb_id} 的文档节点向量索引"}
             )
         return self._collections[kb_id]
-    
+
     def _get_node_text(self, node: Dict[str, Any]) -> str:
-        """获取节点的文本表示（用于生成 embedding）"""
+        """获取节点的主文本表示（用于生成主 embedding）"""
         title = node.get("title", "")
         summary = node.get("summary", "") or node.get("prefix_summary", "")
         if summary:
             return f"{title}: {summary}"
         return title
-    
+
+    def _prepare_node_vectors(self, node: Dict[str, Any], doc_name: str,
+                               doc_description: str, kb_id: str) -> List[Dict[str, Any]]:
+        """
+        为单个节点准备向量化数据（包含主向量和细分向量）
+
+        返回:
+            向量数据列表，每个元素包含 id, text, metadata
+        """
+        vectors = []
+        title = node.get("title", "")
+        summary = node.get("summary", "") or node.get("prefix_summary", "")
+        key_points = node.get("key_points", []) or node.get("prefix_key_points", [])
+        node_id = node.get("node_id", "")
+
+        base_metadata = {
+            "kb_id": kb_id,
+            "doc_name": doc_name,
+            "doc_description": doc_description,
+            "node_id": node_id,
+            "title": title,
+            "path": node.get("path", ""),
+            "start_index": str(node.get("start_index", "")),
+            "end_index": str(node.get("end_index", "")),
+            "line_num": str(node.get("line_num", "")),
+            "has_children": str(node.get("has_children", False)),
+            "summary": summary[:500] if summary else ""
+        }
+
+        # 1. 主向量：title + summary
+        if summary:
+            vectors.append({
+                "id": f"{doc_name}_{node_id}_main",
+                "text": f"{title}: {summary}",
+                "metadata": {**base_metadata, "vector_type": "main"}
+            })
+
+        # 2. 细分向量：每个 key_point 单独向量化
+        for i, kp in enumerate(key_points):
+            if kp:  # 确保 key_point 非空
+                vectors.append({
+                    "id": f"{doc_name}_{node_id}_kp_{i}",
+                    "text": f"{title}: {kp}",
+                    "metadata": {**base_metadata, "vector_type": "key_point", "key_point": kp[:200]}
+                })
+
+        # 3. 如果没有摘要和关键点，仅用标题
+        if not vectors and title:
+            vectors.append({
+                "id": f"{doc_name}_{node_id}_title",
+                "text": title,
+                "metadata": {**base_metadata, "vector_type": "title_only"}
+            })
+
+        return vectors
+
     def _flatten_structure(self, structure: Any, doc_name: str) -> List[Dict[str, Any]]:
         """将树结构扁平化为节点列表"""
         nodes = []
-        
+
         def traverse(node, parent_path=""):
             if isinstance(node, dict):
                 node_id = node.get("node_id", "")
                 title = node.get("title", "")
                 current_path = f"{parent_path}/{title}" if parent_path else title
-                
+
                 nodes.append({
                     "doc_name": doc_name,
                     "node_id": node_id,
                     "title": title,
                     "path": current_path,
                     "summary": node.get("summary", "") or node.get("prefix_summary", ""),
+                    "key_points": node.get("key_points", []) or node.get("prefix_key_points", []),
                     "start_index": node.get("start_index"),
                     "end_index": node.get("end_index"),
                     "line_num": node.get("line_num"),
                     "has_children": bool(node.get("nodes")),
                     "text": node.get("text", "")
                 })
-                
+
                 if node.get("nodes"):
                     for child in node["nodes"]:
                         traverse(child, current_path)
-            
+
             elif isinstance(node, list):
                 for item in node:
                     traverse(item, parent_path)
-        
+
         traverse(structure)
         return nodes
-    
-    def add_document(self, kb_id: str, chroma_dir: str, doc_name: str, 
+
+    def add_document(self, kb_id: str, chroma_dir: str, doc_name: str,
                      structure: Any, doc_description: str = "") -> int:
         """
         将文档添加到指定知识库的向量索引
-        
+
         参数:
             kb_id: 知识库ID
             chroma_dir: ChromaDB 存储目录
             doc_name: 文档名称
             structure: 文档的树结构
             doc_description: 文档描述
-        
+
         返回:
-            添加的节点数量
+            添加的向量数量
         """
         collection = self._get_collection(kb_id, chroma_dir)
-        
+
         # 先删除该文档的旧索引
         self.delete_document(kb_id, chroma_dir, doc_name)
-        
+
         # 扁平化结构
         nodes = self._flatten_structure(structure, doc_name)
-        
+
         if not nodes:
             return 0
-        
-        # 准备数据
-        ids = []
-        texts = []
-        metadatas = []
-        
+
+        # 准备向量化数据（每个节点可能生成多条向量）
+        all_vectors = []
         for node in nodes:
-            node_id = f"{doc_name}_{node['node_id']}"
-            text = self._get_node_text(node)
-            
-            ids.append(node_id)
-            texts.append(text)
-            metadatas.append({
-                "kb_id": kb_id,
-                "doc_name": doc_name,
-                "doc_description": doc_description,
-                "node_id": node["node_id"],
-                "title": node["title"],
-                "path": node["path"],
-                "start_index": str(node.get("start_index", "")),
-                "end_index": str(node.get("end_index", "")),
-                "line_num": str(node.get("line_num", "")),
-                "has_children": str(node["has_children"]),
-                "summary": node.get("summary", "")[:500]
-            })
-        
+            vectors = self._prepare_node_vectors(node, doc_name, doc_description, kb_id)
+            all_vectors.extend(vectors)
+
+        if not all_vectors:
+            return 0
+
+        # 提取数据
+        ids = [v["id"] for v in all_vectors]
+        texts = [v["text"] for v in all_vectors]
+        metadatas = [v["metadata"] for v in all_vectors]
+
         # 生成 embeddings
-        print(f"正在为 [{kb_id}] {doc_name} 生成 {len(texts)} 个节点的 embedding...")
+        print(f"正在为 [{kb_id}] {doc_name} 生成 {len(texts)} 个向量的 embedding...")
         embeddings = self.embedding_model.embed_batch(texts)
-        
+
         # 添加到 ChromaDB
         collection.add(
             ids=ids,
@@ -269,30 +314,51 @@ class MultiKBVectorIndex:
             metadatas=metadatas,
             documents=texts
         )
-        
-        print(f"已将 {len(nodes)} 个节点添加到知识库 [{kb_id}] 的向量索引")
-        return len(nodes)
+
+        print(f"已将 {len(nodes)} 个节点（{len(all_vectors)} 个向量）添加到知识库 [{kb_id}] 的向量索引")
+        return len(all_vectors)
+
+    def _deduplicate_by_node(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        按 node_id 去重，保留每个节点最高分的结果
+
+        由于同一节点可能有多个向量（主向量 + key_points 向量），
+        检索时可能返回同一节点的多个结果，需要去重。
+
+        参数:
+            results: 检索结果列表
+
+        返回:
+            去重后的结果列表
+        """
+        seen_nodes = {}
+        for result in results:
+            # 使用 doc_name + node_id 作为唯一标识
+            node_key = f"{result.get('doc_name', '')}_{result.get('node_id', '')}"
+            if node_key not in seen_nodes or result.get('score', 0) > seen_nodes[node_key].get('score', 0):
+                seen_nodes[node_key] = result
+        return list(seen_nodes.values())
     
-    def search(self, kb_id: str, chroma_dir: str, query: str, 
+    def search(self, kb_id: str, chroma_dir: str, query: str,
                top_k: int = 10, doc_filter: List[str] = None) -> List[Dict[str, Any]]:
         """
         在指定知识库中进行向量相似度检索
-        
+
         参数:
             kb_id: 知识库ID
             chroma_dir: ChromaDB 存储目录
             query: 查询文本
-            top_k: 返回的最大结果数
+            top_k: 返回的最大结果数（去重后）
             doc_filter: 限定搜索的文档名称列表（可选）
-        
+
         返回:
-            检索结果列表
+            检索结果列表（按 node_id 去重，保留最高分）
         """
         collection = self._get_collection(kb_id, chroma_dir)
-        
+
         # 生成查询 embedding
         query_embedding = self.embedding_model.embed(query)
-        
+
         # 构建过滤条件
         where_filter = None
         if doc_filter:
@@ -300,15 +366,16 @@ class MultiKBVectorIndex:
                 where_filter = {"doc_name": doc_filter[0]}
             else:
                 where_filter = {"doc_name": {"$in": doc_filter}}
-        
-        # 执行检索
+
+        # 执行检索（多检索一些结果以应对去重后数量减少）
+        search_top_k = top_k * 3
         results = collection.query(
             query_embeddings=[query_embedding],
-            n_results=top_k,
+            n_results=search_top_k,
             where=where_filter,
             include=["metadatas", "distances", "documents"]
         )
-        
+
         # 格式化结果
         formatted_results = []
         if results and results["ids"] and results["ids"][0]:
@@ -316,7 +383,7 @@ class MultiKBVectorIndex:
                 metadata = results["metadatas"][0][i] if results["metadatas"] else {}
                 distance = results["distances"][0][i] if results["distances"] else 0
                 document = results["documents"][0][i] if results["documents"] else ""
-                
+
                 formatted_results.append({
                     "id": id,
                     "kb_id": kb_id,
@@ -331,44 +398,55 @@ class MultiKBVectorIndex:
                     "summary": metadata.get("summary", ""),
                     "has_children": metadata.get("has_children", "False") == "True",
                     "score": 1 - distance,
-                    "document": document
+                    "document": document,
+                    "vector_type": metadata.get("vector_type", ""),
+                    "key_point": metadata.get("key_point", "")
                 })
-        
-        return formatted_results
+
+        # 按 node_id 去重，保留最高分
+        deduplicated_results = self._deduplicate_by_node(formatted_results)
+
+        # 按分数排序并返回 top_k
+        deduplicated_results.sort(key=lambda x: x.get("score", 0), reverse=True)
+        return deduplicated_results[:top_k]
     
-    def search_multi_kb(self, kb_configs: List[Dict[str, str]], query: str, 
+    def search_multi_kb(self, kb_configs: List[Dict[str, str]], query: str,
                         top_k: int = 10) -> List[Dict[str, Any]]:
         """
         跨多个知识库进行向量相似度检索
-        
+
         参数:
             kb_configs: 知识库配置列表，每个元素包含 {"kb_id": ..., "chroma_dir": ...}
             query: 查询文本
-            top_k: 每个知识库返回的最大结果数
-        
+            top_k: 返回的最大结果数（去重后）
+
         返回:
-            合并后的检索结果列表（按相似度排序）
+            合并后的检索结果列表（按相似度排序，按 node_id 去重）
         """
         all_results = []
-        
+
         for config in kb_configs:
             kb_id = config.get("kb_id")
             chroma_dir = config.get("chroma_dir")
-            
+
             if not kb_id or not chroma_dir:
                 continue
-            
+
             try:
-                results = self.search(kb_id, chroma_dir, query, top_k)
+                # 每个知识库多检索一些，因为后续会跨知识库去重
+                results = self.search(kb_id, chroma_dir, query, top_k * 2)
                 all_results.extend(results)
             except Exception as e:
                 print(f"搜索知识库 [{kb_id}] 失败: {e}")
-        
+
+        # 跨知识库按 node_id 去重
+        deduplicated_results = self._deduplicate_by_node(all_results)
+
         # 按相似度分数排序
-        all_results.sort(key=lambda x: x.get("score", 0), reverse=True)
-        
+        deduplicated_results.sort(key=lambda x: x.get("score", 0), reverse=True)
+
         # 返回 top_k 个结果
-        return all_results[:top_k]
+        return deduplicated_results[:top_k]
     
     def delete_document(self, kb_id: str, chroma_dir: str, doc_name: str) -> int:
         """
@@ -494,117 +572,174 @@ class VectorIndex:
         self.embedding_model = OllamaEmbedding()
     
     def _get_node_text(self, node: Dict[str, Any]) -> str:
-        """获取节点的文本表示（用于生成 embedding）"""
+        """获取节点的主文本表示（用于生成主 embedding）"""
         title = node.get("title", "")
         summary = node.get("summary", "") or node.get("prefix_summary", "")
         if summary:
             return f"{title}: {summary}"
         return title
-    
+
+    def _prepare_node_vectors(self, node: Dict[str, Any], doc_name: str,
+                               doc_description: str) -> List[Dict[str, Any]]:
+        """
+        为单个节点准备向量化数据（包含主向量和细分向量）
+
+        返回:
+            向量数据列表，每个元素包含 id, text, metadata
+        """
+        vectors = []
+        title = node.get("title", "")
+        summary = node.get("summary", "") or node.get("prefix_summary", "")
+        key_points = node.get("key_points", []) or node.get("prefix_key_points", [])
+        node_id = node.get("node_id", "")
+
+        base_metadata = {
+            "doc_name": doc_name,
+            "doc_description": doc_description,
+            "node_id": node_id,
+            "title": title,
+            "path": node.get("path", ""),
+            "start_index": str(node.get("start_index", "")),
+            "end_index": str(node.get("end_index", "")),
+            "line_num": str(node.get("line_num", "")),
+            "has_children": str(node.get("has_children", False)),
+            "summary": summary[:500] if summary else ""
+        }
+
+        # 1. 主向量：title + summary
+        if summary:
+            vectors.append({
+                "id": f"{doc_name}_{node_id}_main",
+                "text": f"{title}: {summary}",
+                "metadata": {**base_metadata, "vector_type": "main"}
+            })
+
+        # 2. 细分向量：每个 key_point 单独向量化
+        for i, kp in enumerate(key_points):
+            if kp:  # 确保 key_point 非空
+                vectors.append({
+                    "id": f"{doc_name}_{node_id}_kp_{i}",
+                    "text": f"{title}: {kp}",
+                    "metadata": {**base_metadata, "vector_type": "key_point", "key_point": kp[:200]}
+                })
+
+        # 3. 如果没有摘要和关键点，仅用标题
+        if not vectors and title:
+            vectors.append({
+                "id": f"{doc_name}_{node_id}_title",
+                "text": title,
+                "metadata": {**base_metadata, "vector_type": "title_only"}
+            })
+
+        return vectors
+
+    def _deduplicate_by_node(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """按 node_id 去重，保留每个节点最高分的结果"""
+        seen_nodes = {}
+        for result in results:
+            node_key = f"{result.get('doc_name', '')}_{result.get('node_id', '')}"
+            if node_key not in seen_nodes or result.get('score', 0) > seen_nodes[node_key].get('score', 0):
+                seen_nodes[node_key] = result
+        return list(seen_nodes.values())
+
     def _flatten_structure(self, structure: Any, doc_name: str) -> List[Dict[str, Any]]:
         """将树结构扁平化为节点列表"""
         nodes = []
-        
+
         def traverse(node, parent_path=""):
             if isinstance(node, dict):
                 node_id = node.get("node_id", "")
                 title = node.get("title", "")
                 current_path = f"{parent_path}/{title}" if parent_path else title
-                
+
                 nodes.append({
                     "doc_name": doc_name,
                     "node_id": node_id,
                     "title": title,
                     "path": current_path,
                     "summary": node.get("summary", "") or node.get("prefix_summary", ""),
+                    "key_points": node.get("key_points", []) or node.get("prefix_key_points", []),
                     "start_index": node.get("start_index"),
                     "end_index": node.get("end_index"),
                     "line_num": node.get("line_num"),
                     "has_children": bool(node.get("nodes")),
                     "text": node.get("text", "")
                 })
-                
+
                 if node.get("nodes"):
                     for child in node["nodes"]:
                         traverse(child, current_path)
-            
+
             elif isinstance(node, list):
                 for item in node:
                     traverse(item, parent_path)
-        
+
         traverse(structure)
         return nodes
-    
+
     def add_document(self, doc_name: str, structure: Any, doc_description: str = "") -> int:
         """将文档添加到向量索引"""
         self.delete_document(doc_name)
-        
+
         nodes = self._flatten_structure(structure, doc_name)
-        
+
         if not nodes:
             return 0
-        
-        ids = []
-        texts = []
-        metadatas = []
-        
+
+        # 准备向量化数据（每个节点可能生成多条向量）
+        all_vectors = []
         for node in nodes:
-            node_id = f"{doc_name}_{node['node_id']}"
-            text = self._get_node_text(node)
-            
-            ids.append(node_id)
-            texts.append(text)
-            metadatas.append({
-                "doc_name": doc_name,
-                "doc_description": doc_description,
-                "node_id": node["node_id"],
-                "title": node["title"],
-                "path": node["path"],
-                "start_index": str(node.get("start_index", "")),
-                "end_index": str(node.get("end_index", "")),
-                "line_num": str(node.get("line_num", "")),
-                "has_children": str(node["has_children"]),
-                "summary": node.get("summary", "")[:500]
-            })
-        
-        print(f"正在为 {doc_name} 生成 {len(texts)} 个节点的 embedding...")
+            vectors = self._prepare_node_vectors(node, doc_name, doc_description)
+            all_vectors.extend(vectors)
+
+        if not all_vectors:
+            return 0
+
+        # 提取数据
+        ids = [v["id"] for v in all_vectors]
+        texts = [v["text"] for v in all_vectors]
+        metadatas = [v["metadata"] for v in all_vectors]
+
+        print(f"正在为 {doc_name} 生成 {len(texts)} 个向量的 embedding...")
         embeddings = self.embedding_model.embed_batch(texts)
-        
+
         self.collection.add(
             ids=ids,
             embeddings=embeddings,
             metadatas=metadatas,
             documents=texts
         )
-        
-        print(f"已将 {len(nodes)} 个节点添加到向量索引")
-        return len(nodes)
-    
+
+        print(f"已将 {len(nodes)} 个节点（{len(all_vectors)} 个向量）添加到向量索引")
+        return len(all_vectors)
+
     def search(self, query: str, top_k: int = 10, doc_filter: List[str] = None) -> List[Dict[str, Any]]:
-        """向量相似度检索"""
+        """向量相似度检索（按 node_id 去重）"""
         query_embedding = self.embedding_model.embed(query)
-        
+
         where_filter = None
         if doc_filter:
             if len(doc_filter) == 1:
                 where_filter = {"doc_name": doc_filter[0]}
             else:
                 where_filter = {"doc_name": {"$in": doc_filter}}
-        
+
+        # 多检索一些结果以应对去重后数量减少
+        search_top_k = top_k * 3
         results = self.collection.query(
             query_embeddings=[query_embedding],
-            n_results=top_k,
+            n_results=search_top_k,
             where=where_filter,
             include=["metadatas", "distances", "documents"]
         )
-        
+
         formatted_results = []
         if results and results["ids"] and results["ids"][0]:
             for i, id in enumerate(results["ids"][0]):
                 metadata = results["metadatas"][0][i] if results["metadatas"] else {}
                 distance = results["distances"][0][i] if results["distances"] else 0
                 document = results["documents"][0][i] if results["documents"] else ""
-                
+
                 formatted_results.append({
                     "id": id,
                     "doc_name": metadata.get("doc_name", ""),
@@ -618,10 +753,17 @@ class VectorIndex:
                     "summary": metadata.get("summary", ""),
                     "has_children": metadata.get("has_children", "False") == "True",
                     "score": 1 - distance,
-                    "document": document
+                    "document": document,
+                    "vector_type": metadata.get("vector_type", ""),
+                    "key_point": metadata.get("key_point", "")
                 })
-        
-        return formatted_results
+
+        # 按 node_id 去重，保留最高分
+        deduplicated_results = self._deduplicate_by_node(formatted_results)
+
+        # 按分数排序并返回 top_k
+        deduplicated_results.sort(key=lambda x: x.get("score", 0), reverse=True)
+        return deduplicated_results[:top_k]
     
     def delete_document(self, doc_name: str) -> int:
         """删除文档的向量索引"""

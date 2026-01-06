@@ -72,7 +72,7 @@ API_PORT=8000
 ```bash
 python -m src.main
 python PageIndex/api.py
-streamlit run PageIndex/app.py
+
 - 
 #注意：不需要启动PageIndex里的api.py和app.py，主程序也可运行，彼此独立
 ```

@@ -8,27 +8,48 @@ except:
     from utils import *
 
 async def get_node_summary(node, summary_token_threshold=200, model=None):
+    """
+    获取节点的结构化摘要（包含摘要和关键描述点）
+
+    如果节点文本较短（token数小于阈值），直接使用原文本作为摘要
+    否则调用LLM生成结构化摘要
+
+    返回:
+        dict: 包含 summary 和 key_points 的字典
+    """
     node_text = node.get('text')
     num_tokens = count_tokens(node_text, model=model)
     # 确保 summary_token_threshold 有默认值
     if summary_token_threshold is None:
         summary_token_threshold = 200
     if num_tokens < summary_token_threshold:
-        return node_text
+        # 短文本直接返回，key_points为空
+        return {
+            "summary": node_text,
+            "key_points": []
+        }
     else:
         return await generate_node_summary(node, model=model)
 
 
 async def generate_summaries_for_structure_md(structure, summary_token_threshold, model=None):
+    """
+    为结构中的所有节点生成结构化摘要（包含摘要和关键描述点）
+    """
     nodes = structure_to_list(structure)
     tasks = [get_node_summary(node, summary_token_threshold=summary_token_threshold, model=model) for node in nodes]
-    summaries = await asyncio.gather(*tasks)
-    
-    for node, summary in zip(nodes, summaries):
+    results = await asyncio.gather(*tasks)
+
+    for node, result in zip(nodes, results):
+        summary = result.get('summary', '')
+        key_points = result.get('key_points', [])
+
         if not node.get('nodes'):
             node['summary'] = summary
+            node['key_points'] = key_points
         else:
             node['prefix_summary'] = summary
+            node['prefix_key_points'] = key_points
     return structure
 
 
