@@ -12,7 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from ..config.logging_config import get_logger
 from ..config.settings import settings
 from ..config.llm_prompt_logger import start_session, end_session
-from .state import AgentState, create_initial_state, OutputType
+from .state import AgentState, create_initial_state, OutputType, IntentCategory
 from .planner import planner_node, get_planner
 from .executor import executor_node, get_executor
 from .controller import controller_node, get_controller
@@ -61,80 +61,131 @@ def should_continue(state: AgentState) -> Literal["plan", "execute", "respond", 
 
 async def rag_retrieval_node(state: AgentState) -> Dict[str, Any]:
     """
-    RAG检索节点
-    
-    根据用户问题和意图，从知识库中检索相关文档。
+    RAG检索节点（用于业务场景的辅助检索）
+
     当RAG检索失败或无法获取到信息时，会尝试使用MCP网络搜索作为备选方案。
-    
-    注意：MCP网络搜索仅在以下条件下使用：
-    1. 仅在规划步骤中需要RAG检索时
-    2. RAG检索失败或无法获取到信息时
-    3. 其他情况下均不使用MCP工具
     """
     logger.info("执行RAG检索...")
-    
-    intent = state.get('intent', '')
+
+    intent_category = state.get('intent_category', '')
     user_message = state.get('user_message', '')
-    
-    # 只对知识问答类意图进行检索
-    if intent in ['knowledge_qa', 'general_chat']:
-        retrieved_docs = []
-        retrieval_source = "rag"  # 标记检索来源
-        
+
+    retrieved_docs = []
+    retrieval_source = "rag"
+
+    try:
+        rag_retriever = get_rag_retriever()
+        retrieved_docs = await rag_retriever.retrieve(
+            query=user_message,
+            top_k=5
+        )
+        logger.info(f"RAG检索完成，获取到 {len(retrieved_docs)} 条结果")
+
+    except Exception as e:
+        logger.error(f"RAG检索异常: {e}")
+
+    # RAG无结果时尝试MCP网络搜索
+    if not retrieved_docs and is_mcp_websearch_enabled():
+        logger.info("RAG无结果，尝试MCP网络搜索...")
         try:
-            # 1. 首先尝试RAG检索
-            rag_retriever = get_rag_retriever()
-            retrieved_docs = await rag_retriever.retrieve(
-                query=user_message,
-                top_k=5
-            )
-            
-            logger.info(f"RAG检索完成，获取到 {len(retrieved_docs)} 条结果")
-            
+            web_results = await mcp_web_search(user_message, max_results=5)
+            if web_results:
+                retrieved_docs = [
+                    {
+                        'content': r.get('content', r.get('snippet', '')),
+                        'metadata': {
+                            'category': '网络搜索',
+                            'source': r.get('url', r.get('link', '')),
+                            'title': r.get('title', '')
+                        }
+                    }
+                    for r in web_results
+                ]
+                retrieval_source = "mcp_websearch"
         except Exception as e:
-            logger.error(f"RAG检索异常: {e}")
-            retrieved_docs = []
-        
-        # 2. 判断RAG检索是否成功获取到有效信息
-        # 如果RAG检索失败或无结果，尝试使用MCP网络搜索
-        if not retrieved_docs or len(retrieved_docs) == 0:
-            logger.info("RAG检索无结果，检查是否可以使用MCP网络搜索...")
-            
-            if is_mcp_websearch_enabled():
-                logger.info("MCP网络搜索已启用，尝试进行网络搜索...")
-                try:
-                    # 调用MCP网络搜索
-                    web_results = await mcp_web_search(user_message, max_results=5)
-                    
-                    if web_results:
-                        # 将网络搜索结果转换为与RAG结果相同的格式
-                        retrieved_docs = [
-                            {
-                                'content': result.get('content', result.get('snippet', '')),
-                                'metadata': {
-                                    'category': '网络搜索',
-                                    'source': result.get('url', result.get('link', '')),
-                                    'title': result.get('title', '')
-                                }
-                            }
-                            for result in web_results
-                        ]
-                        retrieval_source = "mcp_websearch"
-                        logger.info(f"MCP网络搜索完成，获取到 {len(retrieved_docs)} 条结果")
-                    else:
-                        logger.warning("MCP网络搜索也未获取到结果")
-                        
-                except Exception as e:
-                    logger.error(f"MCP网络搜索异常: {e}")
-            else:
-                logger.info("MCP网络搜索未启用，跳过网络搜索")
-        
+            logger.error(f"MCP网络搜索异常: {e}")
+
+    return {
+        "retrieved_documents": retrieved_docs,
+        "retrieval_source": retrieval_source
+    }
+
+
+async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
+    """
+    知识库检索节点（第2类：固有知识查询专用）
+
+    意图识别→调用知识库检索→大模型合成结果，同一会话内完成
+    如果知识库检索结果匹配度不高，尝试MCP网络搜索补充
+    """
+    logger.info("执行知识库检索（knowledge场景）...")
+
+    user_message = state.get('user_message', '')
+    target_kbs = state.get('target_kbs', [])  # 获取目标知识库列表
+    likely_needs_web_search = state.get('likely_needs_web_search', False)  # LLM预判是否需要网络搜索
+    retrieved_docs = []
+    retrieval_source = "rag"
+
+    if target_kbs:
+        logger.info(f"目标知识库: {target_kbs}")
+    if likely_needs_web_search:
+        logger.info("LLM预判可能需要网络搜索（时效性问题）")
+
+    try:
+        rag_retriever = get_rag_retriever()
+        retrieved_docs = await rag_retriever.retrieve(
+            query=user_message,
+            top_k=5,
+            target_kbs=target_kbs  # 传递目标知识库列表
+        )
+        logger.info(f"知识库检索完成，获取到 {len(retrieved_docs)} 条结果")
+
+        # 检查检索结果质量：最高分是否达到阈值
+        max_score = 0
+        if retrieved_docs:
+            max_score = max(doc.get('score', 0) for doc in retrieved_docs)
+        logger.info(f"知识库检索最高匹配度: {max_score}")
+
+        # 动态阈值：如果LLM预判需要网络搜索，提高阈值（更容易触发MCP）
+        score_threshold = 0.7 if likely_needs_web_search else 0.6
+        if max_score < score_threshold and is_mcp_websearch_enabled():
+            logger.info(f"知识库匹配度({max_score})低于阈值，尝试MCP网络搜索...")
+            try:
+                web_results = await mcp_web_search(user_message, max_results=5)
+                if web_results:
+                    mcp_docs = [
+                        {
+                            'content': r.get('content', r.get('snippet', '')),
+                            'metadata': {
+                                'category': '网络搜索',
+                                'source': r.get('url', r.get('link', '')),
+                                'title': r.get('title', '')
+                            },
+                            'score': 0.8  # MCP结果给予较高分数
+                        }
+                        for r in web_results
+                    ]
+                    # 合并结果：MCP结果优先
+                    retrieved_docs = mcp_docs + [d for d in retrieved_docs if d.get('score', 0) >= 0.4]
+                    retrieval_source = "mcp_websearch"
+                    logger.info(f"MCP网络搜索完成，获取到 {len(mcp_docs)} 条结果")
+            except Exception as e:
+                logger.error(f"MCP网络搜索异常: {e}")
+
         return {
             "retrieved_documents": retrieved_docs,
-            "retrieval_source": retrieval_source  # 标记检索来源：rag 或 mcp_websearch
+            "retrieval_source": retrieval_source,
+            "next_action": "respond"
         }
-    
-    return {"retrieved_documents": [], "retrieval_source": None}
+
+    except Exception as e:
+        logger.error(f"知识库检索异常: {e}")
+        return {
+            "retrieved_documents": [],
+            "retrieval_source": None,
+            "error": f"知识库检索失败: {str(e)}",
+            "next_action": "respond"
+        }
 
 
 async def workflow_executor_node(state: AgentState) -> Dict[str, Any]:
@@ -250,87 +301,109 @@ async def async_wait_node(state: AgentState) -> Dict[str, Any]:
 
 def plan_router(state: AgentState) -> str:
     """
-    规划节点路由函数
-    
-    根据规划结果决定下一步走向
+    规划节点路由函数（三大类分类）
+
+    根据意图类别决定下一步走向：
+    - chat: 快速对话
+    - knowledge: 知识库检索
+    - business: 业务执行（模板或动态规划）
     """
-    # 快速闲聊路径
-    if state.get('is_quick_chat') or state.get('next_action') == 'quick_respond':
+    intent_category = state.get('intent_category')
+    next_action = state.get('next_action')
+
+    # 第1类：chat - 快速对话
+    if intent_category == IntentCategory.CHAT.value or next_action == 'quick_respond':
         return "quick_chat"
-    
-    # 匹配到工作流
-    if state.get('matched_workflow'):
-        return "workflow"
-    
-    # 默认走RAG路径
-    return "rag"
+
+    # 第2类：knowledge - 知识库检索
+    if intent_category == IntentCategory.KNOWLEDGE.value or next_action == 'knowledge_rag':
+        return "knowledge_rag"
+
+    # 第3类：business - 业务执行
+    if intent_category == IntentCategory.BUSINESS.value:
+        # 匹配到模板，直接执行
+        if state.get('matched_workflow'):
+            return "workflow"
+        # 未匹配，走动态规划后执行
+        return "execute"
+
+    # 默认走知识库检索
+    return "knowledge_rag"
 
 
 def create_agent_graph() -> StateGraph:
     """
-    创建智能体状态图
-    
+    创建智能体状态图（三大类分类架构）
+
+    流程：
+    - 第1类 chat: plan → quick_chat → END
+    - 第2类 knowledge: plan → knowledge_rag → respond → END
+    - 第3类 business:
+        - 匹配模板: plan → workflow → execute → respond → END
+        - 动态规划: plan → execute → respond → END
+
     Returns:
         配置好的StateGraph实例
     """
     logger.info("创建智能体状态图...")
-    
+
     # 创建状态图
     workflow = StateGraph(AgentState)
-    
+
     # 添加节点
     workflow.add_node("plan", planner_node)
-    workflow.add_node("quick_chat", quick_chat_node)  # 新增快速对话节点
-    workflow.add_node("rag", rag_retrieval_node)
+    workflow.add_node("quick_chat", quick_chat_node)
+    workflow.add_node("knowledge_rag", knowledge_rag_node)  # 新增：知识库检索节点
     workflow.add_node("workflow", workflow_executor_node)
     workflow.add_node("execute", executor_node)
     workflow.add_node("wait_async", async_wait_node)
     workflow.add_node("respond", controller_node)
-    
+
     # 设置入口点
     workflow.set_entry_point("plan")
-    
-    # 添加条件边 - 规划后的路由
+
+    # 添加条件边 - 规划后的三大类路由
     workflow.add_conditional_edges(
         "plan",
         plan_router,
         {
-            "quick_chat": "quick_chat",  # 快速闲聊路径
-            "workflow": "workflow",
-            "rag": "rag"
+            "quick_chat": "quick_chat",      # 第1类：chat
+            "knowledge_rag": "knowledge_rag", # 第2类：knowledge
+            "workflow": "workflow",           # 第3类：business（模板匹配）
+            "execute": "execute"              # 第3类：business（动态规划）
         }
     )
-    
+
     # 快速对话直接结束
     workflow.add_edge("quick_chat", END)
-    
-    # RAG后进入执行
-    workflow.add_edge("rag", "execute")
-    
+
+    # 知识库检索后直接响应
+    workflow.add_edge("knowledge_rag", "respond")
+
     # 工作流后进入执行
     workflow.add_edge("workflow", "execute")
-    
+
     # 执行节点的条件路由
     workflow.add_conditional_edges(
         "execute",
         should_continue,
         {
-            "execute": "execute",  # 继续执行下一步
-            "wait_async": "wait_async",  # 等待异步任务
-            "respond": "respond",  # 生成响应
-            "plan": "plan",  # 重新规划（很少用）
+            "execute": "execute",
+            "wait_async": "wait_async",
+            "respond": "respond",
+            "plan": "plan",
             "end": END
         }
     )
-    
+
     # 异步等待后生成响应
     workflow.add_edge("wait_async", "respond")
-    
+
     # 响应节点结束
     workflow.add_edge("respond", END)
-    
+
     logger.info("智能体状态图创建完成")
-    
+
     return workflow
 
 
@@ -548,11 +621,11 @@ async def run_agent_stream(
                             }
                         }
                 
-                elif node_name == "rag":
-                    # RAG检索节点
+                elif node_name == "knowledge_rag":
+                    # 知识库检索节点
                     retrieved_docs = node_output.get('retrieved_documents', [])
                     retrieval_source = node_output.get('retrieval_source', 'rag')
-                    
+
                     yield {
                         "type": "rag",
                         "node": node_name,
@@ -561,6 +634,7 @@ async def run_agent_stream(
                         "progress": progress,
                         "state": {
                             "intent": node_output.get('intent'),
+                            "intent_category": node_output.get('intent_category'),
                             "current_step": 0,
                             "total_steps": 0,
                             "next_action": node_output.get('next_action')

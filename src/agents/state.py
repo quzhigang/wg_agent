@@ -25,6 +25,23 @@ class OutputType(str, Enum):
     WEB_PAGE = "web_page"
 
 
+class IntentCategory(str, Enum):
+    """意图大类"""
+    CHAT = "chat"                    # 第1类：一般对话、闲聊
+    KNOWLEDGE = "knowledge"          # 第2类：固有知识查询
+    BUSINESS = "business"            # 第3类：业务相关
+
+
+class BusinessSubIntent(str, Enum):
+    """业务子意图（第3类细分）"""
+    DATA_QUERY = "data_query"              # 监测数据查询
+    FLOOD_FORECAST = "flood_forecast"      # 洪水预报
+    FLOOD_SIMULATION = "flood_simulation"  # 洪水预演
+    EMERGENCY_PLAN = "emergency_plan"      # 预案生成
+    DAMAGE_ASSESSMENT = "damage_assessment"  # 灾损评估
+    OTHER = "other"                        # 其他业务
+
+
 class PlanStep(BaseModel):
     """执行计划步骤"""
     step_id: int = Field(..., description="步骤ID")
@@ -49,56 +66,60 @@ class ExecutionResult(BaseModel):
 class AgentState(TypedDict):
     """
     LangGraph智能体状态
-    
+
     使用TypedDict定义状态结构，支持状态更新和持久化
     """
     # 会话信息
     conversation_id: str
     user_id: Optional[str]
-    
+
     # 用户输入
     user_message: str
-    
+
     # 上下文信息
     chat_history: List[Dict[str, str]]
     context_summary: Optional[str]
-    
-    # 意图识别结果
-    intent: Optional[str]
+
+    # 意图识别结果 - 新增三大类分类
+    intent_category: Optional[str]  # IntentCategory: chat/knowledge/business
+    business_sub_intent: Optional[str]  # BusinessSubIntent: 业务子意图
+    intent: Optional[str]  # 保留原字段兼容
     intent_confidence: Optional[float]
-    
+    target_kbs: Optional[List[str]]  # 目标知识库列表（用于knowledge场景）
+
     # 快速对话相关
     is_quick_chat: Optional[bool]
     direct_response: Optional[str]
-    
+
     # 工作流匹配
     matched_workflow: Optional[str]
     workflow_params: Optional[Dict[str, Any]]
-    
+    workflow_from_template: Optional[bool]  # 是否来自模板匹配
+
     # 执行计划
     plan: List[Dict[str, Any]]  # List[PlanStep] 序列化后的形式
     current_step_index: int
-    
+
     # 执行结果 - 使用Annotated支持结果累积
     execution_results: Annotated[List[Dict[str, Any]], add]  # List[ExecutionResult]
-    
+
     # RAG相关
     retrieved_documents: List[Dict[str, Any]]
     retrieval_source: Optional[str]  # 检索来源: "rag" 或 "mcp_websearch"
-    
+
     # 最终输出
     output_type: str  # OutputType
     final_response: Optional[str]
     generated_page_url: Optional[str]
-    
+
     # 异步任务
     async_task_ids: List[str]
     pending_async_results: Dict[str, Any]
-    
+
     # 错误处理
     error: Optional[str]
     should_retry: bool
-    
+
     # 流程控制
     next_action: Optional[str]  # 下一步动作: "plan", "execute", "respond", "wait_async", "end"
 
@@ -127,50 +148,54 @@ def create_initial_state(
         # 会话信息
         conversation_id=conversation_id,
         user_id=user_id,
-        
+
         # 用户输入
         user_message=user_message,
-        
+
         # 上下文信息
         chat_history=chat_history or [],
         context_summary=context_summary,
-        
+
         # 意图识别结果
+        intent_category=None,
+        business_sub_intent=None,
         intent=None,
         intent_confidence=None,
-        
+        target_kbs=None,
+
         # 快速对话相关
         is_quick_chat=None,
         direct_response=None,
-        
+
         # 工作流匹配
         matched_workflow=None,
         workflow_params=None,
-        
+        workflow_from_template=None,
+
         # 执行计划
         plan=[],
         current_step_index=0,
-        
+
         # 执行结果
         execution_results=[],
-        
+
         # RAG相关
         retrieved_documents=[],
         retrieval_source=None,
-        
+
         # 最终输出
         output_type=OutputType.TEXT.value,
         final_response=None,
         generated_page_url=None,
-        
+
         # 异步任务
         async_task_ids=[],
         pending_async_results={},
-        
+
         # 错误处理
         error=None,
         should_retry=False,
-        
+
         # 流程控制
         next_action="plan"
     )

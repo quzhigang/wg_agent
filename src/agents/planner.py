@@ -4,15 +4,18 @@ Planner - 规划调度器
 """
 
 from typing import Dict, Any, List, Optional
+import json
+import uuid
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 
 from ..config.settings import settings
+from ..models.database import SavedWorkflow, SessionLocal
 from ..config.logging_config import get_logger
 from ..config.llm_prompt_logger import log_llm_call
-from .state import AgentState, PlanStep, StepStatus, OutputType
+from .state import AgentState, PlanStep, StepStatus, OutputType, IntentCategory, BusinessSubIntent
 
 logger = get_logger(__name__)
 
@@ -34,17 +37,36 @@ class TaskPlan(BaseModel):
     output_type: str = Field(default="text", description="输出类型")
 
 
-# 意图分析提示词（带直接回复功能）
+# 意图分析提示词（三大类分类）
 INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"小卫"，负责分析用户意图。
 
-## 用户意图类别
-1. general_chat - 一般对话、闲聊（如问候、感谢、闲聊、询问你的信息等）
-2. knowledge_qa - 流域知识问答（关于流域概况、水利设施、防洪知识、监测站点、历时洪水、调度预案、工程治理、系统功能、专业模型等）
-3. data_query - 监测数据查询（获取水情、雨情、水位、流量、视频等实时或历史监测数据）
-4. flood_forecast - 洪水预报（进行洪水预报、查询预报结果、查询预警信息、查询洪水风险、获取预报边界条件等）
-5. flood_simulation - 洪水预演（进行洪水预演、查询预演结果、查询预警信息、查询洪水风险、获取预演边界条件等）
-6. emergency_plan - 预案生成（防洪应急预案）
-7. damage_assessment - 灾损评估、避险转移等业务
+## 意图分类体系（三大类）
+
+### 第1类：chat（一般对话/闲聊）
+- 问候、感谢、告别、闲聊
+- 询问助手信息（你是谁、你能做什么等）
+- 与流域业务无关的日常对话
+
+### 第2类：knowledge（固有知识查询）
+以下知识库范围内的问题属于此类：
+- catchment_basin(流域概况)：卫共流域概况、流域各节点控制面积、流域内行政区划等
+- water_project(水利工程)：水库、河道、闸站、蓄滞洪区、险工险段、南水北调工程、各河段防洪标准、工程现场照片等
+- monitor_site(监测站点)：雨量站、水库和河道水文站、视频监测、取水监测、安全监测、AI监测等站点基础信息
+- history_flood(历史洪水)："21.7"、"23.7"等典型历史洪水的全要素信息、发生过程和受灾情况
+- flood_preplan(防洪预案)：水库汛期调度运用计划、蓄滞洪区运用预案、流域和河道防洪预案等
+- system_function(系统功能)：防洪"四预"系统的功能介绍、操作使用手册、系统api接口等
+- hydro_model(专业模型)：水利专业模型简介、模型类别、模型编码、模型算法、模型原理等
+- catchment_planning(防洪规划)：海河流域防洪规划、防洪形势、暴雨洪水、防洪工程体系等
+- project_designplan(工程治理)：水库、河道和蓄滞洪区等水利工程的设计治理方案报告
+
+### 第3类：business（业务相关）
+需进一步细分为以下子类：
+- data_query: 监测数据查询（水情、雨情、水位、流量等实时或历史数据）
+- flood_forecast: 洪水预报（进行预报、查询预报结果、预警信息）
+- flood_simulation: 洪水预演（进行预演、查询预演结果）
+- emergency_plan: 预案生成（防洪应急预案）
+- damage_assessment: 灾损评估、避险转移
+- other: 其他业务操作
 
 ## 上下文信息
 对话历史摘要: {context_summary}
@@ -58,28 +80,37 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
 ## 输出要求
 请分析用户意图，返回JSON格式:
 
-**如果是 general_chat（一般对话/闲聊），请直接生成回复内容：**
+**如果是 chat（一般对话/闲聊），直接生成回复：**
 {{
-    "intent": "general_chat",
+    "intent_category": "chat",
     "confidence": 0.95,
-    "direct_response": "你的友好回复内容（控制在100字以内）",
-    "output_type": "text"
+    "direct_response": "你的友好回复内容（控制在100字以内）"
 }}
 
-**如果是其他业务意图，返回：**
+**如果是 knowledge（固有知识查询）：**
 {{
-    "intent": "意图类别",
+    "intent_category": "knowledge",
     "confidence": 0.95,
-    "entities": {{"提取的关键实体": "值"}},
-    "requires_data_query": true/false,
-    "requires_model_call": true/false,
+    "target_kbs": ["知识库id1", "知识库id2"],
+    "entities": {{"关键词": "值"}},
+    "likely_needs_web_search": false
+}}
+注意：
+- target_kbs从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, hydro_model, catchment_planning, project_designplan
+- likely_needs_web_search：当问题涉及时效性信息（如"最新"、"今天"、"2024年"、"近期"等）或明显超出知识库范围时设为true
+
+**如果是 business（业务相关）：**
+{{
+    "intent_category": "business",
+    "business_sub_intent": "data_query/flood_forecast/flood_simulation/emergency_plan/damage_assessment/other",
+    "confidence": 0.95,
+    "entities": {{"站点": "xxx", "时间": "xxx"}},
     "output_type": "text 或 web_page"
 }}
 
 注意:
-- 对于一般对话，你需要友好地回复用户，可以简要介绍自己的能力（流域介绍、工程信息查询、实时水雨情查询、洪水预报预演及应急预案生成等）
-- 如果涉及图表展示（如水位趋势图、雨量分布图等），output_type应为"web_page"
-- 如果只是简单文字回答，output_type应为"text"
+- 对于chat类，需友好回复并简要介绍能力
+- 如果涉及图表展示，output_type应为"web_page"
 """
 
 # 计划生成提示词
@@ -204,30 +235,30 @@ class Planner:
     
     async def analyze_intent(self, state: AgentState) -> Dict[str, Any]:
         """
-        分析用户意图
-        
+        分析用户意图（三大类分类）
+
         Args:
             state: 当前智能体状态
-            
+
         Returns:
             包含意图分析结果的状态更新
         """
         logger.info(f"开始分析用户意图: {state['user_message'][:50]}...")
-        
+
         try:
             # 格式化聊天历史
             chat_history_str = self._format_chat_history(state.get('chat_history', []))
-            
+
             # 准备上下文变量
             context_vars = {
                 "context_summary": state.get('context_summary') or "无",
                 "chat_history": chat_history_str or "无",
                 "user_message": state['user_message']
             }
-            
+
             # 调用意图分析链
             result = await self.intent_chain.ainvoke(context_vars)
-            
+
             # 记录LLM调用日志
             full_prompt = INTENT_ANALYSIS_PROMPT.format(**context_vars)
             log_llm_call(
@@ -238,33 +269,60 @@ class Planner:
                 full_prompt=full_prompt,
                 response=str(result)
             )
-            
+
             logger.info(f"意图分析结果: {result}")
-            
-            intent = result.get("intent", "general_chat")
-            
-            # 如果是一般对话且有直接回复，标记为快速响应
-            if intent == "general_chat" and result.get("direct_response"):
-                logger.info("意图为一般对话，使用直接回复")
+
+            intent_category = result.get("intent_category", "chat")
+
+            # 第1类：chat - 一般对话
+            if intent_category == "chat":
                 return {
-                    "intent": "general_chat",
+                    "intent_category": IntentCategory.CHAT.value,
+                    "intent": "general_chat",  # 兼容旧字段
                     "intent_confidence": result.get("confidence", 0.95),
-                    "output_type": "text",
                     "direct_response": result.get("direct_response"),
                     "is_quick_chat": True,
                     "next_action": "quick_respond"
                 }
-            
+
+            # 第2类：knowledge - 固有知识查询
+            if intent_category == "knowledge":
+                return {
+                    "intent_category": IntentCategory.KNOWLEDGE.value,
+                    "intent": "knowledge_qa",  # 兼容旧字段
+                    "intent_confidence": result.get("confidence", 0.9),
+                    "entities": result.get("entities", {}),
+                    "target_kbs": result.get("target_kbs", []),  # 目标知识库列表
+                    "likely_needs_web_search": result.get("likely_needs_web_search", False),
+                    "next_action": "knowledge_rag"  # 直接走知识库检索流程
+                }
+
+            # 第3类：business - 业务相关
+            if intent_category == "business":
+                sub_intent = result.get("business_sub_intent", "other")
+                return {
+                    "intent_category": IntentCategory.BUSINESS.value,
+                    "business_sub_intent": sub_intent,
+                    "intent": sub_intent,  # 兼容旧字段
+                    "intent_confidence": result.get("confidence", 0.9),
+                    "entities": result.get("entities", {}),
+                    "output_type": result.get("output_type", "text"),
+                    "next_action": "business_match"  # 先匹配业务流程模板
+                }
+
+            # 默认当作闲聊处理
             return {
-                "intent": intent,
-                "intent_confidence": result.get("confidence", 0.5),
-                "output_type": result.get("output_type", "text"),
-                "entities": result.get("entities", {})
+                "intent_category": IntentCategory.CHAT.value,
+                "intent": "general_chat",
+                "intent_confidence": 0.5,
+                "is_quick_chat": True,
+                "next_action": "quick_respond"
             }
-            
+
         except Exception as e:
             logger.error(f"意图分析失败: {e}")
             return {
+                "intent_category": IntentCategory.CHAT.value,
                 "intent": "general_chat",
                 "intent_confidence": 0.0,
                 "error": f"意图分析失败: {str(e)}"
@@ -272,40 +330,90 @@ class Planner:
     
     async def check_workflow_match(self, state: AgentState) -> Dict[str, Any]:
         """
-        检查是否匹配预定义工作流
-        
+        检查是否匹配预定义工作流（用于第3类业务场景）
+
+        通过向量检索匹配预制业务流程模板
+
         Args:
             state: 当前智能体状态
-            
+
         Returns:
             包含工作流匹配结果的状态更新
         """
-        # TODO: 从workflows模块导入工作流注册表
-        # 这里先返回空匹配
-        logger.info("检查工作流匹配...")
-        
-        # 根据意图进行简单匹配
-        intent = state.get('intent', '')
-        
-        workflow_mapping = {
-            'flood_forecast': 'flood_forecast_workflow',
-            'flood_simulation': 'flood_simulation_workflow',
-            'emergency_plan': 'emergency_plan_workflow',
-            'damage_assessment': 'damage_assessment_workflow'
-        }
-        
-        matched = workflow_mapping.get(intent)
-        
-        if matched:
-            logger.info(f"匹配到工作流: {matched}")
-            return {
-                "matched_workflow": matched,
-                "next_action": "execute"  # 有匹配的工作流，直接执行
+        logger.info("检查业务流程模板匹配...")
+
+        intent_category = state.get('intent_category')
+        sub_intent = state.get('business_sub_intent')
+
+        # 只对业务类意图进行模板匹配
+        if intent_category != IntentCategory.BUSINESS.value:
+            return {"matched_workflow": None, "workflow_from_template": False}
+
+        try:
+            # 1. 尝试通过向量检索匹配业务流程模板
+            from ..rag.retriever import get_rag_retriever
+            rag_retriever = get_rag_retriever()
+
+            # 在 business_workflow 知识库中检索
+            workflow_docs = await rag_retriever.retrieve(
+                query=state['user_message'],
+                top_k=3,
+                category="business_workflow"
+            )
+
+            # 检查是否有高置信度匹配
+            if workflow_docs and len(workflow_docs) > 0:
+                top_doc = workflow_docs[0]
+                score = top_doc.get('score', 0)
+
+                # 置信度阈值 0.75
+                if score >= 0.75:
+                    workflow_name = top_doc.get('metadata', {}).get('workflow_name')
+                    if workflow_name:
+                        logger.info(f"向量匹配到业务流程模板: {workflow_name}, 置信度: {score}")
+                        return {
+                            "matched_workflow": workflow_name,
+                            "workflow_from_template": True,
+                            "retrieved_documents": workflow_docs,
+                            "next_action": "execute"
+                        }
+
+            # 2. 基于子意图的静态映射（备选方案）
+            workflow_mapping = {
+                'flood_forecast': 'flood_forecast_workflow',
+                'flood_simulation': 'flood_simulation_workflow',
+                'emergency_plan': 'emergency_plan_workflow',
+                'damage_assessment': 'damage_assessment_workflow',
+                'data_query': None  # 数据查询通常需要动态规划
             }
-        
+
+            matched = workflow_mapping.get(sub_intent)
+            if matched:
+                # 检查工作流是否已注册
+                from ..workflows.registry import get_workflow_registry
+                registry = get_workflow_registry()
+                if registry.has_workflow(matched):
+                    logger.info(f"静态映射到工作流: {matched}")
+                    return {
+                        "matched_workflow": matched,
+                        "workflow_from_template": True,
+                        "next_action": "execute"
+                    }
+
+        except Exception as e:
+            logger.warning(f"工作流模板匹配失败: {e}")
+
+        # 3. 尝试匹配自动保存的流程
+        saved_match = self._match_saved_workflow(state)
+        if saved_match:
+            return saved_match
+
+        # 未匹配到模板，需要动态规划
+        logger.info("未匹配到业务流程模板，将进行动态规划")
         return {
             "matched_workflow": None,
-            "next_action": "plan"  # 没有匹配，需要动态规划
+            "workflow_from_template": False,
+            "next_action": "dynamic_plan"
         }
     
     async def generate_plan(self, state: AgentState) -> Dict[str, Any]:
@@ -393,7 +501,10 @@ class Planner:
                 logger.info(f"  步骤{step_id}: {description} (工具: {tool_name})")
             logger.info("=" * 60)
             logger.info("")  # 空行
-            
+
+            # 自动保存动态生成的流程
+            self._save_dynamic_plan(state, steps, result.get('output_type', 'text'))
+
             return {
                 "plan": steps,
                 "current_step_index": 0,
@@ -460,7 +571,7 @@ class Planner:
         return """
 1. flood_forecast_workflow - 洪水预报工作流
    触发条件: 用户询问洪水预报相关问题
-   
+
 2. flood_simulation_workflow - 洪水预演工作流
    触发条件: 用户要求进行洪水模拟
 
@@ -470,6 +581,67 @@ class Planner:
 4. latest_flood_forecast_query - 最新洪水预报结果查询
    触发条件: 用户询问最新预报结果
 """
+
+    def _match_saved_workflow(self, state: AgentState) -> Optional[Dict[str, Any]]:
+        """匹配自动保存的流程"""
+        try:
+            db = SessionLocal()
+            sub_intent = state.get('business_sub_intent')
+
+            # 查询同类子意图的已保存流程
+            saved = db.query(SavedWorkflow).filter(
+                SavedWorkflow.is_active == True,
+                SavedWorkflow.sub_intent == sub_intent
+            ).order_by(SavedWorkflow.use_count.desc()).first()
+
+            if saved:
+                # 更新使用次数
+                saved.use_count += 1
+                db.commit()
+
+                logger.info(f"匹配到已保存流程: {saved.name}")
+                return {
+                    "matched_workflow": None,
+                    "workflow_from_template": False,
+                    "saved_workflow_id": saved.id,
+                    "plan": json.loads(saved.plan_steps),
+                    "current_step_index": 0,
+                    "output_type": saved.output_type,
+                    "next_action": "execute"
+                }
+            db.close()
+        except Exception as e:
+            logger.warning(f"匹配已保存流程失败: {e}")
+        return None
+
+    def _save_dynamic_plan(self, state: AgentState, steps: List[Dict], output_type: str):
+        """保存动态生成的流程"""
+        if len(steps) < 2:
+            return  # 步骤太少不保存
+
+        try:
+            db = SessionLocal()
+            sub_intent = state.get('business_sub_intent', 'other')
+            user_msg = state.get('user_message', '')[:100]
+
+            workflow = SavedWorkflow(
+                id=str(uuid.uuid4()),
+                name=f"auto_{sub_intent}_{uuid.uuid4().hex[:6]}",
+                description=f"自动保存: {user_msg}",
+                trigger_pattern=user_msg,
+                intent_category=state.get('intent_category', 'business'),
+                sub_intent=sub_intent,
+                entities_pattern=json.dumps(state.get('entities', {}), ensure_ascii=False),
+                plan_steps=json.dumps(steps, ensure_ascii=False),
+                output_type=output_type,
+                source="auto"
+            )
+            db.add(workflow)
+            db.commit()
+            db.close()
+            logger.info(f"已自动保存流程: {workflow.name}")
+        except Exception as e:
+            logger.warning(f"保存动态流程失败: {e}")
 
 
 # 创建全局Planner实例
@@ -487,34 +659,50 @@ def get_planner() -> Planner:
 async def planner_node(state: AgentState) -> Dict[str, Any]:
     """
     LangGraph节点函数 - 规划节点
-    
-    执行意图分析、工作流匹配和计划生成
-    
-    注意：LangGraph节点函数应返回字典来更新状态，而不是直接修改state对象
+
+    执行意图分析，根据三大类分类决定后续流程：
+    - chat: 直接返回回复
+    - knowledge: 走知识库检索流程
+    - business: 先匹配模板，未匹配则动态规划
     """
     planner = get_planner()
-    
-    # 1. 分析意图（LLM会判断是否为闲聊，如果是闲聊会直接返回回复）
+
+    # 1. 分析意图（三大类分类）
     intent_result = await planner.analyze_intent(state)
-    
-    # 如果意图分析已经返回了直接回复（一般对话），直接返回意图分析结果
-    if intent_result.get('is_quick_chat') and intent_result.get('direct_response'):
-        logger.info("LLM判断为一般对话，使用直接回复")
+
+    intent_category = intent_result.get('intent_category')
+
+    # 第1类：chat - 直接返回
+    if intent_category == IntentCategory.CHAT.value:
+        logger.info("意图类别: chat，直接返回回复")
         return intent_result
-    
-    # 2. 检查工作流匹配
-    # 先合并意图分析结果到临时状态
-    temp_state = dict(state)
-    temp_state.update(intent_result)
-    
-    workflow_result = await planner.check_workflow_match(temp_state)
-    
-    # 3. 如果没有匹配工作流，生成动态计划
-    if not workflow_result.get('matched_workflow'):
+
+    # 第2类：knowledge - 直接走知识库检索
+    if intent_category == IntentCategory.KNOWLEDGE.value:
+        logger.info("意图类别: knowledge，走知识库检索流程")
+        return intent_result
+
+    # 第3类：business - 先匹配模板
+    if intent_category == IntentCategory.BUSINESS.value:
+        logger.info(f"意图类别: business，子意图: {intent_result.get('business_sub_intent')}")
+
+        # 合并意图结果到临时状态
+        temp_state = dict(state)
+        temp_state.update(intent_result)
+
+        # 检查业务流程模板匹配
+        workflow_result = await planner.check_workflow_match(temp_state)
+
+        # 如果匹配到模板，直接执行
+        if workflow_result.get('matched_workflow'):
+            logger.info(f"匹配到业务流程模板: {workflow_result.get('matched_workflow')}")
+            return {**intent_result, **workflow_result}
+
+        # 未匹配到模板，进行动态规划（先检索知识库辅助规划）
+        logger.info("未匹配到模板，进行动态规划")
         temp_state.update(workflow_result)
         plan_result = await planner.generate_plan(temp_state)
-        # 合并所有结果
         return {**intent_result, **workflow_result, **plan_result}
-    
-    # 合并意图分析和工作流匹配结果
-    return {**intent_result, **workflow_result}
+
+    # 默认返回意图结果
+    return intent_result

@@ -7,10 +7,12 @@ from .health import router as health_router
 from .chat import router as chat_router
 from .pages import router as pages_router
 from .knowledge import router as knowledge_router
+from .saved_workflows import router as saved_workflows_router
 
 __all__ = [
     "health_router",
     "chat_router",
     "pages_router",
-    "knowledge_router"
+    "knowledge_router",
+    "saved_workflows_router"
 ]

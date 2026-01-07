@@ -87,6 +87,27 @@ class GeneratedPage(Base):
     access_count = Column(Integer, default=0)
 
 
+class SavedWorkflow(Base):
+    """自动保存的动态流程表"""
+    __tablename__ = "saved_workflows"
+
+    id = Column(String(36), primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    trigger_pattern = Column(Text, nullable=False)  # 触发模式（用户消息特征）
+    intent_category = Column(String(50), nullable=False)
+    sub_intent = Column(String(50), nullable=True)
+    entities_pattern = Column(Text, nullable=True)  # JSON
+    plan_steps = Column(Text, nullable=False)  # JSON
+    output_type = Column(String(50), default="text")
+    source = Column(String(20), default="auto")  # auto/manual
+    use_count = Column(Integer, default=0)
+    success_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+
+
 class ToolCallLog(Base):
     """工具调用日志表"""
     __tablename__ = "tool_call_logs"

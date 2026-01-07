@@ -92,31 +92,38 @@ class RAGRetriever:
         self,
         query: str,
         top_k: Optional[int] = None,
-        filter_category: Optional[str] = None
+        filter_category: Optional[str] = None,
+        target_kbs: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """
         检索相关文档
-        
+
         Args:
             query: 查询文本
             top_k: 返回结果数量
             filter_category: 按类别过滤（暂不支持，保留接口兼容）
-            
+            target_kbs: 目标知识库ID列表，如 ["water_project", "history_flood"]
+
         Returns:
             相关文档列表
         """
         logger.info(f"RAG检索: {query[:50]}...")
-        
+        if target_kbs:
+            logger.info(f"目标知识库: {target_kbs}")
+
         if self._vector_index is None:
             logger.warning("向量索引未初始化")
             return []
-        
+
         k = top_k or self._default_top_k
-        
+
         try:
             from pageindex.vector_index import search_documents
-            search_results = search_documents(query, top_k=k)
-            
+
+            # 如果指定了目标知识库，增加检索数量后过滤
+            search_k = k * 3 if target_kbs else k
+            search_results = search_documents(query, top_k=search_k)
+
             # 转换为统一格式
             results = []
             for result in search_results:
@@ -125,7 +132,12 @@ class RAGRetriever:
                 title = result.get("title", "")
                 summary = result.get("summary", "")
                 score = result.get("score", 0)
-                
+                kb_id = result.get("kb_id", "")  # 知识库ID
+
+                # 如果指定了目标知识库，过滤不匹配的结果
+                if target_kbs and kb_id and kb_id not in target_kbs:
+                    continue
+
                 # 尝试获取完整文本
                 content = summary
                 doc_data = self._load_document_structure(doc_name)
@@ -134,23 +146,27 @@ class RAGRetriever:
                     node = node_map.get(node_id)
                     if node and node.get("text"):
                         content = node["text"]
-                
+
                 results.append({
                     'content': content,
                     'metadata': {
                         'doc_name': doc_name,
                         'node_id': node_id,
                         'title': title,
-                        'category': doc_name,  # 使用文档名作为类别
+                        'category': kb_id or doc_name,
                         'source': 'pageindex'
                     },
                     'id': f"{doc_name}_{node_id}",
                     'score': score
                 })
-            
+
+                # 达到目标数量后停止
+                if len(results) >= k:
+                    break
+
             logger.info(f"检索到 {len(results)} 条相关文档")
             return results
-            
+
         except Exception as e:
             logger.error(f"向量检索失败: {e}")
             return []
