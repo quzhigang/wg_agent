@@ -5,9 +5,9 @@
 ## 功能特性
 
 - **一般对话**：日常对话和流域相关知识问答
-- **流域数据查询**：基础数据和实时监测数据查询
-- **洪水预报预演**：洪水预报模型调用和结果分析
-- **预案生成**：应急响应预案自动生成
+- **固有知识查询**：查询流域固有知识
+- **流域业务**：水雨情查询、预报预演等
+
 
 ## 技术架构
 
@@ -16,6 +16,7 @@
 - **Planner（规划调度器）**：分析用户意图，制定执行计划
 - **Executor（任务执行器）**：执行工具调用，处理异步任务
 - **Controller（结果合成器）**：整合结果，生成最终响应
+
 
 ### 核心模块
 
@@ -84,6 +85,8 @@ taskkill /F /IM python.exe
 
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+- 智能体主页面: http://localhost:8000/ui/index.html
+- 动态流程管理页面: http://localhost:8000/ui/saved_workflows.html
 
 ## API接口
 
@@ -139,6 +142,32 @@ GET /pages
 # 获取具体页面
 GET /pages/{filename}
 ```
+
+### 自动保存流程管理
+
+```http
+# 获取流程清单（分页）
+GET /saved-workflows?page=1&size=20&sub_intent=data_query
+
+# 获取流程详情
+GET /saved-workflows/{id}
+
+# 编辑流程
+PUT /saved-workflows/{id}
+{
+    "name": "新名称",
+    "description": "新描述",
+    "is_active": true
+}
+
+# 删除流程
+DELETE /saved-workflows/{id}
+
+# 启用/禁用流程
+PATCH /saved-workflows/{id}/toggle
+```
+
+管理页面：`/ui/saved_workflows.html`
 
 ## 工具系统（共7类模块，175个工具）
 
@@ -228,7 +257,8 @@ wg_agent/
 │   │   ├── health.py          # 健康检查
 │   │   ├── chat.py            # 对话接口
 │   │   ├── pages.py           # 页面服务
-│   │   └── knowledge.py       # 知识库管理
+│   │   ├── knowledge.py       # 知识库管理
+│   │   └── saved_workflows.py # 自动保存流程管理
 │   ├── config/                 # 配置
 │   │   ├── settings.py        # 配置管理
 │   │   └── logging_config.py  # 日志配置
