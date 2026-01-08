@@ -577,11 +577,6 @@ with tab1:
                             help=kb.id
                         )
 
-        # 更新全选状态（根据各知识库的实际选中状态）
-        all_selected_now = all(kb_selections.values()) if kb_selections else True
-        if all_selected_now != st.session_state.select_all_kb_state:
-            st.session_state.select_all_kb_state = all_selected_now
-
         # 获取选中的知识库ID列表
         selected_kb_ids = [kb_id for kb_id, selected in kb_selections.items() if selected]
 
@@ -774,28 +769,8 @@ with tab4:
     from pageindex.vector_index import get_multi_kb_vector_index
     multi_kb_index_tab3 = get_multi_kb_vector_index()
 
-    # 计算所有知识库的总统计信息
-    total_kb_count = len(kb_list_tab3)
-    total_nodes_all = 0
-    total_docs_all = 0
-
-    for kb in kb_list_tab3:
-        try:
-            kb_chroma_dir = kb_manager_tab3.get_chroma_dir(kb.id)
-            stats = multi_kb_index_tab3.get_stats(kb.id, kb_chroma_dir)
-            total_nodes_all += stats.get("total_nodes", 0)
-            total_docs_all += stats.get("total_documents", 0)
-        except Exception:
-            pass
-
-    # 显示总体统计信息（紧凑布局）
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("总知识库数", total_kb_count)
-    with col2:
-        st.metric("总索引文档数", total_docs_all)
-    with col3:
-        st.metric("总节点数", total_nodes_all)
+    # 显示知识库数量
+    st.metric("总知识库数", len(kb_list_tab3))
 
     st.markdown("---")
 
@@ -1083,11 +1058,6 @@ with tab5:
                             key=f"api_kb_cb_{kb.id}",
                             help=kb.id
                         )
-
-        # 更新全选状态（根据各知识库的实际选中状态）
-        api_all_selected_now = all(api_kb_selections.values()) if api_kb_selections else True
-        if api_all_selected_now != st.session_state.api_select_all_kb_state:
-            st.session_state.api_select_all_kb_state = api_all_selected_now
 
         # 获取选中的知识库ID列表
         api_selected_kb_ids = [kb_id for kb_id, selected in api_kb_selections.items() if selected]

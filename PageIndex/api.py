@@ -46,9 +46,9 @@ default_config = config_loader.load()
 MODEL_NAME = os.getenv("OPENAI_MODEL_NAME") or os.getenv("CHATGPT_MODEL", "gpt-4o")
 
 # 图片引用正则表达式
-IMAGE_PATTERN = re.compile(r'\s*\n!\[\]\(images/([a-zA-Z0-9]+)\.jpg\)\s*\n')
+IMAGE_PATTERN = re.compile(r'!\[\]\(images/([a-fA-F0-9]+)\.jpg\)')
 IMAGE_CAPTION_PATTERN = re.compile(r'^图\s*[\d\.\-\s]+\s*(.+)$')
-IMAGE_WITH_CAPTION_PATTERN = re.compile(r'\s*\n!\[\]\(images/([a-zA-Z0-9]+)\.jpg\)\s*\n(图\s*[\d\.\-\s]+[^\n]*)\s*\n?')
+IMAGE_WITH_CAPTION_PATTERN = re.compile(r'!\[\]\(images/([a-fA-F0-9]+)\.jpg\)\s*\n?(图\s*[\d\.\-\s]+[^\n]*)?')
 STANDALONE_CAPTION_PATTERN = re.compile(r'\n(图\s*[\d\.\-\s]+[^\n]*)\s*\n')
 
 
@@ -60,20 +60,18 @@ def extract_image_info(text: str) -> list:
     """从文本中提取所有图片信息"""
     if not text:
         return []
-    
+
     results = []
     for match in IMAGE_WITH_CAPTION_PATTERN.finditer(text):
         code = match.group(1)
-        caption_line = match.group(2).strip()
-        caption_match = IMAGE_CAPTION_PATTERN.match(caption_line)
-        caption = caption_match.group(1).strip() if caption_match else caption_line
+        caption_line = match.group(2)
+        caption = ""
+        if caption_line:
+            caption_line = caption_line.strip()
+            caption_match = IMAGE_CAPTION_PATTERN.match(caption_line)
+            caption = caption_match.group(1).strip() if caption_match else caption_line
         results.append({"code": code, "caption": caption})
-    
-    all_codes = set(IMAGE_PATTERN.findall(text))
-    found_codes = set(item["code"] for item in results)
-    for code in all_codes - found_codes:
-        results.append({"code": code, "caption": ""})
-    
+
     return results
 
 
@@ -88,8 +86,8 @@ def remove_image_references(text: str) -> str:
     """删除文本中的所有图片引用和图名"""
     if not text:
         return text
-    text = IMAGE_WITH_CAPTION_PATTERN.sub('\n', text)
-    text = IMAGE_PATTERN.sub('\n', text)
+    text = IMAGE_WITH_CAPTION_PATTERN.sub('', text)
+    text = IMAGE_PATTERN.sub('', text)
     text = STANDALONE_CAPTION_PATTERN.sub('\n', text)
     return text
 
