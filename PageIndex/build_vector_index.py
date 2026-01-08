@@ -8,7 +8,7 @@ import os
 import json
 import time
 from pageindex.kb_manager import get_kb_manager
-from pageindex.multi_kb_index import MultiKBVectorIndex
+from pageindex.vector_index import MultiKBVectorIndex
 
 
 def build_kb_index(kb_id: str, multi_kb_index: MultiKBVectorIndex, doc_delay: float = 1.0):

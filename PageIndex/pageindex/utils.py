@@ -952,19 +952,26 @@ async def generate_node_summary(node, model=None):
         }
 
 
-async def generate_summaries_for_structure(structure, model=None):
+async def generate_summaries_for_structure(structure, model=None, max_concurrent=10):
     """
     为结构中的所有节点生成结构化摘要（包含摘要和关键描述点）
 
     参数:
         structure: 树结构
         model: 使用的模型
+        max_concurrent: 最大并发数，默认5
 
     返回:
         添加了 summary 和 key_points 的结构
     """
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def limited_generate(node):
+        async with semaphore:
+            return await generate_node_summary(node, model=model)
+
     nodes = structure_to_list(structure)
-    tasks = [generate_node_summary(node, model=model) for node in nodes]
+    tasks = [limited_generate(node) for node in nodes]
     results = await asyncio.gather(*tasks)
 
     for node, result in zip(nodes, results):

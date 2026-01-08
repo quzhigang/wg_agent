@@ -8,6 +8,23 @@ from .utils import *
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# 全局信号量，限制 API 并发数
+_api_semaphore = None
+_api_max_concurrent = 10
+
+def set_api_max_concurrent(max_concurrent):
+    """设置全局 API 最大并发数"""
+    global _api_semaphore, _api_max_concurrent
+    _api_max_concurrent = max_concurrent
+    _api_semaphore = None  # 重置信号量，下次获取时使用新值
+
+def get_api_semaphore(max_concurrent=None):
+    """获取全局 API 信号量"""
+    global _api_semaphore, _api_max_concurrent
+    if _api_semaphore is None:
+        _api_semaphore = asyncio.Semaphore(max_concurrent or _api_max_concurrent)
+    return _api_semaphore
+
 
 ################### check title in page #########################################################
 async def check_title_appearance(item, page_list, start_index=1, model=None):    
@@ -81,12 +98,18 @@ async def check_title_appearance_in_start_concurrent(structure, page_list, model
             item['appear_start'] = 'no'
 
     # only for items with valid physical_index
+    semaphore = get_api_semaphore()
+
+    async def limited_check(title, page_text):
+        async with semaphore:
+            return await check_title_appearance_in_start(title, page_text, model=model, logger=logger)
+
     tasks = []
     valid_items = []
     for item in structure:
         if item.get('physical_index') is not None:
             page_text = page_list[item['physical_index'] - 1][0]
-            tasks.append(check_title_appearance_in_start(item['title'], page_text, model=model, logger=logger))
+            tasks.append(limited_check(item['title'], page_text))
             valid_items.append(item)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -826,9 +849,15 @@ async def fix_incorrect_toc(toc_with_page_number, page_list, incorrect_results, 
             'is_valid': check_result['answer'] == 'yes'
         }
 
-    # Process incorrect items concurrently
+    # Process incorrect items concurrently with semaphore
+    semaphore = get_api_semaphore()
+
+    async def limited_process(item):
+        async with semaphore:
+            return await process_and_check_item(item)
+
     tasks = [
-        process_and_check_item(item)
+        limited_process(item)
         for item in incorrect_results
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -921,9 +950,15 @@ async def verify_toc(page_list, list_result, start_index=1, N=None, model=None):
             item_with_index['list_index'] = idx  # Add the original index in list_result
             indexed_sample_list.append(item_with_index)
 
-    # Run checks concurrently
+    # Run checks concurrently with semaphore
+    semaphore = get_api_semaphore()
+
+    async def limited_check(item):
+        async with semaphore:
+            return await check_title_appearance(item, page_list, start_index, model)
+
     tasks = [
-        check_title_appearance(item, page_list, start_index, model)
+        limited_check(item)
         for item in indexed_sample_list
     ]
     results = await asyncio.gather(*tasks)
@@ -1010,8 +1045,14 @@ async def process_large_node_recursively(node, page_list, opt=None, logger=None)
             node['end_index'] = valid_node_toc_items[0]['start_index'] if valid_node_toc_items else node['end_index']
         
     if 'nodes' in node and node['nodes']:
+        semaphore = get_api_semaphore()
+
+        async def limited_process(child_node):
+            async with semaphore:
+                return await process_large_node_recursively(child_node, page_list, opt, logger=logger)
+
         tasks = [
-            process_large_node_recursively(child_node, page_list, opt, logger=logger)
+            limited_process(child_node)
             for child_node in node['nodes']
         ]
         await asyncio.gather(*tasks)
@@ -1046,8 +1087,14 @@ async def tree_parser(page_list, opt, doc=None, logger=None):
     valid_toc_items = [item for item in toc_with_page_number if item.get('physical_index') is not None]
     
     toc_tree = post_processing(valid_toc_items, len(page_list))
+    semaphore = get_api_semaphore()
+
+    async def limited_process(node):
+        async with semaphore:
+            return await process_large_node_recursively(node, page_list, opt, logger=logger)
+
     tasks = [
-        process_large_node_recursively(node, page_list, opt, logger=logger)
+        limited_process(node)
         for node in toc_tree
     ]
     await asyncio.gather(*tasks)

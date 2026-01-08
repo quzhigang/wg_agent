@@ -32,12 +32,18 @@ async def get_node_summary(node, summary_token_threshold=200, model=None):
         return await generate_node_summary(node, model=model)
 
 
-async def generate_summaries_for_structure_md(structure, summary_token_threshold, model=None):
+async def generate_summaries_for_structure_md(structure, summary_token_threshold, model=None, max_concurrent=10):
     """
     为结构中的所有节点生成结构化摘要（包含摘要和关键描述点）
     """
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def limited_get_summary(node):
+        async with semaphore:
+            return await get_node_summary(node, summary_token_threshold=summary_token_threshold, model=model)
+
     nodes = structure_to_list(structure)
-    tasks = [get_node_summary(node, summary_token_threshold=summary_token_threshold, model=model) for node in nodes]
+    tasks = [limited_get_summary(node) for node in nodes]
     results = await asyncio.gather(*tasks)
 
     for node, result in zip(nodes, results):

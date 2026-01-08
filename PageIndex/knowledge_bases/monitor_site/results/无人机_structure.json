@@ -1,0 +1,73 @@
+{
+  "doc_name": "无人机",
+  "structure": [
+    {
+      "title": "无人机 数据文档",
+      "node_id": "0001",
+      "text": "# 无人机 数据文档\n\n**数据条数:** 5\n\n---",
+      "line_num": 1,
+      "nodes": [
+        {
+          "title": "字段说明",
+          "node_id": "0002",
+          "text": "## 字段说明\n\n| 字段名 | 描述 |\n|--------|------|\n| drone | 无人机 |\n| gateway | 机场 |\n| sn | 设备编码 |\n| callsign | 站点名称 |\n| device_online_status | 设备状态 |\n| mode_code | 模式编码 |\n| camera_list | 相机清单 |\n| device_model | 设备参数 |",
+          "line_num": 7,
+          "summary": "## 字段说明\n\n| 字段名 | 描述 |\n|--------|------|\n| drone | 无人机 |\n| gateway | 机场 |\n| sn | 设备编码 |\n| callsign | 站点名称 |\n| device_online_status | 设备状态 |\n| mode_code | 模式编码 |\n| camera_list | 相机清单 |\n| device_model | 设备参数 |",
+          "key_points": []
+        },
+        {
+          "title": "数据详情",
+          "node_id": "0003",
+          "text": "## 数据详情",
+          "line_num": 20,
+          "nodes": [
+            {
+              "title": "记录 1",
+              "node_id": "0004",
+              "text": "### 记录 1\n\n- **gateway:** {\n  \"sn\": \"7CTDM7D00B18NY\",\n  \"callsign\": \"小南海水文站机场\",\n  \"device_model\": {\n    \"key\": \"3-2-0\",\n    \"domain\": \"3\",\n    \"type\": \"2\",\n    \"sub_type\": \"0\",\n    \"name\": \"DJI Dock 2\",\n    \"class\": \"airport\"\n  },\n  \"device_online_status\": true,\n  \"mode_code\": 0,\n  \"camera_list\": [\n    {\n      \"camera_index\": \"165-0-7\",\n      \"available_camera_positions\": [\n        \"indoor\",\n        \"outdoor\"\n      ],\n      \"camera_position\": \"outdoor\"\n    }\n  ]\n}\n- **drone:** {\n  \"sn\": \"1581F6Q8D247G00G2R6W\",\n  \"callsign\": \"小南海水文站无人机\",\n  \"device_model\": {\n    \"key\": \"0-91-1\",\n    \"domain\": \"0\",\n    \"type\": \"91\",\n    \"sub_type\": \"1\",\n    \"name\": \"M3TD\",\n    \"class\": \"drone\"\n  },\n  \"device_online_status\": false,\n  \"mode_code\": 14\n}\n\n---",
+              "line_num": 22,
+              "summary": "Error",
+              "key_points": []
+            },
+            {
+              "title": "记录 2",
+              "node_id": "0005",
+              "text": "### 记录 2\n\n- **gateway:** {\n  \"sn\": \"7CTDM6F00B85ZF\",\n  \"callsign\": \"合河水文站机场\",\n  \"device_model\": {\n    \"key\": \"3-2-0\",\n    \"domain\": \"3\",\n    \"type\": \"2\",\n    \"sub_type\": \"0\",\n    \"name\": \"DJI Dock 2\",\n    \"class\": \"airport\"\n  },\n  \"device_online_status\": true,\n  \"mode_code\": 0,\n  \"camera_list\": [\n    {\n      \"camera_index\": \"165-0-7\",\n      \"available_camera_positions\": [\n        \"indoor\",\n        \"outdoor\"\n      ],\n      \"camera_position\": \"outdoor\"\n    }\n  ]\n}\n- **drone:** {\n  \"sn\": \"1581F6Q8D247F00GJ4N5\",\n  \"callsign\": \"合河水文站无人机\",\n  \"device_model\": {\n    \"key\": \"0-91-1\",\n    \"domain\": \"0\",\n    \"type\": \"91\",\n    \"sub_type\": \"1\",\n    \"name\": \"M3TD\",\n    \"class\": \"drone\"\n  },\n  \"device_online_status\": false,\n  \"mode_code\": 14\n}\n\n---",
+              "line_num": 65,
+              "summary": "Error",
+              "key_points": []
+            },
+            {
+              "title": "记录 3",
+              "node_id": "0006",
+              "text": "### 记录 3\n\n- **gateway:** {\n  \"sn\": \"7CTDM7D00BPZ1L\",\n  \"callsign\": \"盘石头水文站机场\",\n  \"device_model\": {\n    \"key\": \"3-2-0\",\n    \"domain\": \"3\",\n    \"type\": \"2\",\n    \"sub_type\": \"0\",\n    \"name\": \"DJI Dock 2\",\n    \"class\": \"airport\"\n  },\n  \"device_online_status\": true,\n  \"mode_code\": 0,\n  \"camera_list\": [\n    {\n      \"camera_index\": \"165-0-7\",\n      \"available_camera_positions\": [\n        \"indoor\",\n        \"outdoor\"\n      ],\n      \"camera_position\": \"outdoor\"\n    }\n  ]\n}\n- **drone:** {\n  \"sn\": \"1581F6Q8D246D00GWZ57\",\n  \"callsign\": \"盘石头水文站无人机\",\n  \"device_model\": {\n    \"key\": \"0-91-1\",\n    \"domain\": \"0\",\n    \"type\": \"91\",\n    \"sub_type\": \"1\",\n    \"name\": \"M3TD\",\n    \"class\": \"drone\"\n  },\n  \"device_online_status\": false,\n  \"mode_code\": 14\n}\n\n---",
+              "line_num": 108,
+              "summary": "Error",
+              "key_points": []
+            },
+            {
+              "title": "记录 4",
+              "node_id": "0007",
+              "text": "### 记录 4\n\n- **gateway:** {\n  \"sn\": \"7CTDM6F00B16K5\",\n  \"callsign\": \"淇门水文站机场\",\n  \"device_model\": {\n    \"key\": \"3-2-0\",\n    \"domain\": \"3\",\n    \"type\": \"2\",\n    \"sub_type\": \"0\",\n    \"name\": \"DJI Dock 2\",\n    \"class\": \"airport\"\n  },\n  \"device_online_status\": true,\n  \"mode_code\": 0,\n  \"camera_list\": [\n    {\n      \"camera_index\": \"165-0-7\",\n      \"available_camera_positions\": [\n        \"indoor\",\n        \"outdoor\"\n      ],\n      \"camera_position\": \"outdoor\"\n    }\n  ]\n}\n- **drone:** {\n  \"sn\": \"1581F6Q8D247G00G0Q1T\",\n  \"callsign\": \"淇门水文站无人机\",\n  \"device_model\": {\n    \"key\": \"0-91-1\",\n    \"domain\": \"0\",\n    \"type\": \"91\",\n    \"sub_type\": \"1\",\n    \"name\": \"M3TD\",\n    \"class\": \"drone\"\n  },\n  \"device_online_status\": false,\n  \"mode_code\": 14\n}\n\n---",
+              "line_num": 151,
+              "summary": "Error",
+              "key_points": []
+            },
+            {
+              "title": "记录 5",
+              "node_id": "0008",
+              "text": "### 记录 5\n\n- **gateway:** {\n  \"sn\": \"7CTDM6F00B01QN\",\n  \"callsign\": \"修武水文站机场\",\n  \"device_model\": {\n    \"key\": \"3-2-0\",\n    \"domain\": \"3\",\n    \"type\": \"2\",\n    \"sub_type\": \"0\",\n    \"name\": \"DJI Dock 2\",\n    \"class\": \"airport\"\n  },\n  \"device_online_status\": false,\n  \"mode_code\": 0,\n  \"camera_list\": [\n    {\n      \"camera_index\": \"165-0-7\",\n      \"available_camera_positions\": [\n        \"indoor\",\n        \"outdoor\"\n      ],\n      \"camera_position\": \"outdoor\"\n    }\n  ]\n}\n- **drone:** {\n  \"sn\": \"1581F6Q8D246E00G8LJ7\",\n  \"callsign\": \"修武水文站无人机\",\n  \"device_model\": {\n    \"key\": \"0-91-1\",\n    \"domain\": \"0\",\n    \"type\": \"91\",\n    \"sub_type\": \"1\",\n    \"name\": \"M3TD\",\n    \"class\": \"drone\"\n  },\n  \"device_online_status\": false,\n  \"mode_code\": 0\n}\n\n---\n\n\n*文档生成完成*",
+              "line_num": 194,
+              "summary": "Error",
+              "key_points": []
+            }
+          ],
+          "prefix_summary": "## 数据详情",
+          "prefix_key_points": []
+        }
+      ],
+      "prefix_summary": "# 无人机 数据文档\n\n**数据条数:** 5\n\n---",
+      "prefix_key_points": []
+    }
+  ]
+}

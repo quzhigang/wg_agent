@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime
 from pageindex import page_index_main, config
 from pageindex.page_index_md import md_to_tree
+from pageindex.page_index import set_api_max_concurrent
 from pageindex.utils import ConfigLoader, ChatGPT_API, ChatGPT_API_async, get_text_of_pages, remove_fields
 from pageindex.kb_manager import get_kb_manager, KnowledgeBaseInfo
 import pandas as pd
@@ -150,6 +151,7 @@ config_loader = ConfigLoader()
 default_config = config_loader.load()
 # 统一使用本项目的配置（兼容两种环境变量名）
 model_name = st.sidebar.text_input("模型名称", value=os.getenv("OPENAI_MODEL_NAME") or os.getenv("CHATGPT_MODEL", "gpt-4o"))
+api_max_concurrent = st.sidebar.number_input("API调用并发数", min_value=1, max_value=20, value=10, help="控制大模型API的最大并发调用数，避免触发限流")
 
 st.sidebar.header("PageIndex 配置")
 toc_check_pages = st.sidebar.number_input("目录检查页数", value=default_config.toc_check_page_num)
@@ -330,6 +332,7 @@ with tab2:
                     st.error("请输入 API 密钥！")
                 else:
                     update_api_config(api_key, api_base)
+                    set_api_max_concurrent(api_max_concurrent)  # 设置API并发数
                     total_files = len(uploaded_files)
                     # 显示总体进度信息
                     overall_status = st.empty()
@@ -891,6 +894,9 @@ with tab4:
 
                     for doc in docs:
                         multi_kb_index_tab3.delete_document(selected_kb_id_tab3, kb_chroma_dir_tab3, doc)
+
+                    # 清除该知识库的缓存，避免旧collection引用问题
+                    multi_kb_index_tab3.clear_cache(selected_kb_id_tab3)
 
                     st.success(f"✅ 已清空 [{selected_kb_id_tab3}] 的 {len(docs)} 个文档索引")
                     st.rerun()
