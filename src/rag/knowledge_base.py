@@ -14,6 +14,8 @@ import hashlib
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'PageIndex'))
 
 from ..config.logging_config import get_logger
+from pageindex.kb_manager import get_kb_manager
+from pageindex.vector_index import get_multi_kb_vector_index
 
 logger = get_logger(__name__)
 
@@ -69,25 +71,33 @@ class KnowledgeBase:
     def __init__(self):
         if self._initialized:
             return
-        
-        self._vector_index = None
-        self._results_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'PageIndex', 'results')
-        
+
+        self._multi_kb_index = None
+        self._kb_manager = None
+        self._kb_base_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'PageIndex', 'knowledge_bases')
+
         self._init_vector_db()
         self._initialized = True
-        
+
         logger.info("知识库初始化完成（对接PageIndex）")
-    
+
     def _init_vector_db(self):
-        """初始化向量数据库"""
+        """初始化多知识库向量数据库"""
         try:
-            from pageindex.vector_index import get_vector_index
-            self._vector_index = get_vector_index()
-            stats = self._vector_index.get_stats()
-            logger.info(f"PageIndex向量索引连接成功: {stats['total_documents']} 个文档, {stats['total_nodes']} 个节点")
+            self._multi_kb_index = get_multi_kb_vector_index()
+            self._kb_manager = get_kb_manager()
+            kb_ids = self._kb_manager.list_ids()
+            total_docs = 0
+            total_nodes = 0
+            for kb_id in kb_ids:
+                chroma_dir = self._kb_manager.get_chroma_dir(kb_id)
+                stats = self._multi_kb_index.get_stats(kb_id, chroma_dir)
+                total_docs += stats.get('total_documents', 0)
+                total_nodes += stats.get('total_nodes', 0)
+            logger.info(f"PageIndex向量索引连接成功: {total_docs} 个文档, {total_nodes} 个节点")
         except Exception as e:
             logger.error(f"PageIndex向量索引初始化失败: {e}")
-            self._vector_index = None
+            self._multi_kb_index = None
     
     def _get_node_mapping(self, structure, mapping=None) -> Dict:
         """从树结构中构建node_id到节点的映射"""
@@ -125,60 +135,46 @@ class KnowledgeBase:
     
     def get_document(self, doc_id: str) -> Optional[Document]:
         """获取文档（通过doc_name查找）"""
-        if self._vector_index is None:
+        if self._multi_kb_index is None or self._kb_manager is None:
             return None
-        
+
         try:
-            # 尝试加载文档结构
-            structure_path = os.path.join(self._results_dir, f"{doc_id}_structure.json")
-            if os.path.exists(structure_path):
-                with open(structure_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                
-                # 提取文档内容
-                content_parts = []
-                structure = data.get("structure", [])
-                node_map = self._get_node_mapping(structure)
-                
-                for node_id, node in node_map.items():
-                    if node.get("text"):
-                        content_parts.append(node["text"])
-                    elif node.get("summary"):
-                        content_parts.append(node["summary"])
-                
-                return Document(
-                    content="\n\n".join(content_parts),
-                    metadata={
-                        "doc_name": data.get("doc_name", doc_id),
-                        "doc_description": data.get("doc_description", ""),
-                        "source": "pageindex"
-                    },
-                    doc_id=doc_id
-                )
+            # 在所有知识库中查找文档
+            for kb_id in self._kb_manager.list_ids():
+                results_dir = os.path.join(self._kb_base_dir, kb_id, "results")
+                structure_path = os.path.join(results_dir, f"{doc_id}_structure.json")
+                if os.path.exists(structure_path):
+                    with open(structure_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    content_parts = []
+                    structure = data.get("structure", [])
+                    node_map = self._get_node_mapping(structure)
+
+                    for node_id, node in node_map.items():
+                        if node.get("text"):
+                            content_parts.append(node["text"])
+                        elif node.get("summary"):
+                            content_parts.append(node["summary"])
+
+                    return Document(
+                        content="\n\n".join(content_parts),
+                        metadata={
+                            "doc_name": data.get("doc_name", doc_id),
+                            "doc_description": data.get("doc_description", ""),
+                            "source": "pageindex"
+                        },
+                        doc_id=doc_id
+                    )
         except Exception as e:
             logger.error(f"获取文档失败: {e}")
-        
+
         return None
-    
+
     def delete_document(self, doc_id: str) -> bool:
         """删除文档"""
-        if self._vector_index is None:
-            return False
-        
-        try:
-            # 删除向量索引
-            deleted_count = self._vector_index.delete_document(doc_id)
-            
-            # 删除结构文件
-            structure_path = os.path.join(self._results_dir, f"{doc_id}_structure.json")
-            if os.path.exists(structure_path):
-                os.remove(structure_path)
-            
-            logger.info(f"已删除文档 {doc_id}，共 {deleted_count} 个节点")
-            return True
-        except Exception as e:
-            logger.error(f"删除文档失败: {e}")
-            return False
+        logger.warning("PageIndex不支持直接删除文档，请通过PageIndex前端操作")
+        return False
     
     def search(
         self,
@@ -188,35 +184,36 @@ class KnowledgeBase:
     ) -> List[Dict[str, Any]]:
         """
         搜索相关文档
-        
+
         Args:
             query: 查询文本
             top_k: 返回结果数量
             filter_metadata: 元数据过滤条件（暂不支持）
-            
+
         Returns:
             相关文档列表
         """
-        if self._vector_index is None:
+        if self._multi_kb_index is None or self._kb_manager is None:
             logger.warning("向量索引未初始化")
             return []
-        
+
         try:
-            from pageindex.vector_index import search_documents
-            search_results = search_documents(query, top_k=top_k)
-            
-            # 转换为统一格式
+            kb_ids = self._kb_manager.list_ids()
+            kb_configs = [{"kb_id": kb_id, "chroma_dir": self._kb_manager.get_chroma_dir(kb_id)} for kb_id in kb_ids]
+            search_results = self._multi_kb_index.search_multi_kb(kb_configs, query, top_k=top_k, use_rerank=False)
+
             documents = []
             for result in search_results:
+                kb_id = result.get("kb_id", "")
                 doc_name = result.get("doc_name", "")
                 node_id = result.get("node_id", "")
                 title = result.get("title", "")
                 summary = result.get("summary", "")
                 score = result.get("score", 0)
-                
-                # 尝试获取完整文本
+
                 content = summary
-                structure_path = os.path.join(self._results_dir, f"{doc_name}_structure.json")
+                results_dir = os.path.join(self._kb_base_dir, kb_id, "results")
+                structure_path = os.path.join(results_dir, f"{doc_name}_structure.json")
                 if os.path.exists(structure_path):
                     try:
                         with open(structure_path, "r", encoding="utf-8") as f:
@@ -227,26 +224,26 @@ class KnowledgeBase:
                             content = node["text"]
                     except Exception:
                         pass
-                
+
                 documents.append({
                     'content': content,
                     'metadata': {
                         'doc_name': doc_name,
                         'node_id': node_id,
                         'title': title,
-                        'category': doc_name,
+                        'category': kb_id or doc_name,
                         'source': 'pageindex'
                     },
                     'id': f"{doc_name}_{node_id}",
-                    'distance': 1 - score  # 转换为距离
+                    'distance': 1 - score
                 })
-            
+
             return documents
-            
+
         except Exception as e:
             logger.error(f"搜索失败: {e}")
             return []
-    
+
     def list_documents(
         self,
         category: Optional[str] = None,
@@ -254,42 +251,44 @@ class KnowledgeBase:
     ) -> List[Document]:
         """列出文档"""
         documents = []
-        
-        if not os.path.exists(self._results_dir):
+
+        if self._kb_manager is None:
             return documents
-        
+
         try:
-            structure_files = [f for f in os.listdir(self._results_dir) if f.endswith("_structure.json")]
-            
-            for filename in structure_files[:limit]:
-                doc_id = filename.replace("_structure.json", "")
-                
-                # 如果指定了类别，进行过滤
-                if category and category != doc_id:
+            for kb_id in self._kb_manager.list_ids():
+                if category and category != kb_id:
                     continue
-                
-                doc = self.get_document(doc_id)
-                if doc:
-                    documents.append(doc)
+                results_dir = os.path.join(self._kb_base_dir, kb_id, "results")
+                if not os.path.exists(results_dir):
+                    continue
+                structure_files = [f for f in os.listdir(results_dir) if f.endswith("_structure.json")]
+                for filename in structure_files:
+                    if len(documents) >= limit:
+                        break
+                    doc_id = filename.replace("_structure.json", "")
+                    doc = self.get_document(doc_id)
+                    if doc:
+                        documents.append(doc)
         except Exception as e:
             logger.error(f"列出文档失败: {e}")
-        
+
         return documents
     
     def get_categories(self) -> List[str]:
-        """获取所有文档类别（返回文档名列表）"""
-        if self._vector_index is None:
+        """获取所有知识库ID列表"""
+        if self._kb_manager is None:
             return []
-        
+
         try:
-            return self._vector_index.get_all_documents()
+            return self._kb_manager.list_ids()
         except Exception as e:
             logger.error(f"获取类别失败: {e}")
             return []
     
     def get_stats(self) -> Dict[str, Any]:
         """获取知识库统计信息"""
-        if self._vector_index is None:
+        if self._multi_kb_index is None or self._kb_manager is None:
             return {
                 'total_documents': 0,
                 'total_nodes': 0,
@@ -297,13 +296,25 @@ class KnowledgeBase:
                 'using_vector_db': False,
                 'backend': 'pageindex'
             }
-        
+
         try:
-            stats = self._vector_index.get_stats()
+            kb_ids = self._kb_manager.list_ids()
+            total_docs = 0
+            total_nodes = 0
+            all_documents = []
+
+            for kb_id in kb_ids:
+                chroma_dir = self._kb_manager.get_chroma_dir(kb_id)
+                stats = self._multi_kb_index.get_stats(kb_id, chroma_dir)
+                total_docs += stats.get('total_documents', 0)
+                total_nodes += stats.get('total_nodes', 0)
+                all_documents.extend(stats.get('documents', []))
+
             return {
-                'total_documents': stats.get('total_documents', 0),
-                'total_nodes': stats.get('total_nodes', 0),
-                'categories': stats.get('documents', []),
+                'total_documents': total_docs,
+                'total_nodes': total_nodes,
+                'categories': all_documents,
+                'knowledge_bases': kb_ids,
                 'using_vector_db': True,
                 'backend': 'pageindex'
             }
@@ -320,16 +331,7 @@ class KnowledgeBase:
     
     def clear(self):
         """清空知识库"""
-        if self._vector_index is None:
-            return
-        
-        try:
-            docs = self._vector_index.get_all_documents()
-            for doc in docs:
-                self._vector_index.delete_document(doc)
-            logger.info(f"已清空 {len(docs)} 个文档的索引")
-        except Exception as e:
-            logger.error(f"清空知识库失败: {e}")
+        logger.warning("PageIndex不支持直接清空知识库，请通过PageIndex前端操作")
 
 
 # 全局知识库实例

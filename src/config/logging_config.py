@@ -43,15 +43,16 @@ def setup_logging():
     # 确保日志目录存在
     log_path = Path(settings.log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
+    # 清空之前的日志内容，只保留当前会话
+    with open(log_path, "w", encoding="utf-8") as f:
+        f.write("")
+
     # 添加文件处理器
     logger.add(
         settings.log_file,
         format=log_format,
         level=settings.log_level,
-        rotation="10 MB",  # 日志文件大小达到10MB时轮转
-        retention="30 days",  # 保留30天的日志
-        compression="zip",  # 压缩旧日志
         encoding="utf-8",
         backtrace=True,
         diagnose=True
@@ -59,13 +60,12 @@ def setup_logging():
     
     # 添加错误日志文件处理器
     error_log_path = log_path.parent / "error.log"
+    with open(error_log_path, "w", encoding="utf-8") as f:
+        f.write("")
     logger.add(
         str(error_log_path),
         format=log_format,
         level="ERROR",
-        rotation="10 MB",
-        retention="30 days",
-        compression="zip",
         encoding="utf-8",
         backtrace=True,
         diagnose=True

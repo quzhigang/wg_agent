@@ -11,6 +11,8 @@ from typing import Dict, Any, Optional, List
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'PageIndex'))
 
 from ..config.logging_config import get_logger
+from pageindex.kb_manager import get_kb_manager
+from pageindex.vector_index import get_multi_kb_vector_index
 
 logger = get_logger(__name__)
 
@@ -33,39 +35,41 @@ class RAGRetriever:
     def __init__(self):
         if self._initialized:
             return
-        
+
         self._default_top_k = 5
-        self._vector_index = None
-        self._results_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'PageIndex', 'results')
-        
+        self._multi_kb_index = None
+        self._kb_manager = None
+        self._kb_base_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'PageIndex', 'knowledge_bases')
+
         self._init_vector_index()
         self._initialized = True
-        
+
         logger.info("RAG检索器初始化完成（对接PageIndex）")
-    
+
     def _init_vector_index(self):
-        """初始化向量索引"""
+        """初始化多知识库向量索引"""
         try:
-            from pageindex.vector_index import get_vector_index
-            self._vector_index = get_vector_index()
-            stats = self._vector_index.get_stats()
-            logger.info(f"PageIndex向量索引连接成功: {stats['total_documents']} 个文档, {stats['total_nodes']} 个节点")
+            self._multi_kb_index = get_multi_kb_vector_index()
+            self._kb_manager = get_kb_manager()
+            kb_ids = self._kb_manager.list_ids()
+            logger.info(f"PageIndex多知识库索引连接成功: {len(kb_ids)} 个知识库 {kb_ids}")
         except Exception as e:
             logger.error(f"PageIndex向量索引初始化失败: {e}")
-            self._vector_index = None
+            self._multi_kb_index = None
     
-    def _load_document_structure(self, doc_name: str) -> Optional[Dict]:
+    def _load_document_structure(self, kb_id: str, doc_name: str) -> Optional[Dict]:
         """加载文档的结构JSON文件"""
         import json
-        
+
+        results_dir = os.path.join(self._kb_base_dir, kb_id, "results")
         possible_names = [
             f"{doc_name}_structure.json",
             f"{doc_name.replace('.pdf', '')}_structure.json",
             f"{doc_name.replace('.md', '')}_structure.json",
         ]
-        
+
         for name in possible_names:
-            path = os.path.join(self._results_dir, name)
+            path = os.path.join(results_dir, name)
             if os.path.exists(path):
                 try:
                     with open(path, "r", encoding="utf-8") as f:
@@ -111,36 +115,47 @@ class RAGRetriever:
         if target_kbs:
             logger.info(f"目标知识库: {target_kbs}")
 
-        if self._vector_index is None:
-            logger.warning("向量索引未初始化")
+        if self._multi_kb_index is None or self._kb_manager is None:
+            logger.warning("多知识库索引未初始化")
             return []
 
         k = top_k or self._default_top_k
 
         try:
-            from pageindex.vector_index import search_documents
+            # 构建知识库配置列表
+            all_kb_ids = self._kb_manager.list_ids()
+            search_kb_ids = target_kbs if target_kbs else all_kb_ids
 
-            # 如果指定了目标知识库，增加检索数量后过滤
-            search_k = k * 3 if target_kbs else k
-            search_results = search_documents(query, top_k=search_k)
+            kb_configs = []
+            for kb_id in search_kb_ids:
+                if kb_id in all_kb_ids:
+                    kb_configs.append({
+                        "kb_id": kb_id,
+                        "chroma_dir": self._kb_manager.get_chroma_dir(kb_id)
+                    })
+
+            if not kb_configs:
+                logger.warning(f"未找到有效的知识库: {search_kb_ids}")
+                return []
+
+            logger.info(f"搜索知识库: {[c['kb_id'] for c in kb_configs]}")
+
+            # 使用多知识库检索
+            search_results = self._multi_kb_index.search_multi_kb(kb_configs, query, top_k=k, use_rerank=False)
 
             # 转换为统一格式
             results = []
             for result in search_results:
+                kb_id = result.get("kb_id", "")
                 doc_name = result.get("doc_name", "")
                 node_id = result.get("node_id", "")
                 title = result.get("title", "")
                 summary = result.get("summary", "")
                 score = result.get("score", 0)
-                kb_id = result.get("kb_id", "")  # 知识库ID
-
-                # 如果指定了目标知识库，过滤不匹配的结果
-                if target_kbs and kb_id and kb_id not in target_kbs:
-                    continue
 
                 # 尝试获取完整文本
                 content = summary
-                doc_data = self._load_document_structure(doc_name)
+                doc_data = self._load_document_structure(kb_id, doc_name)
                 if doc_data:
                     node_map = self._get_node_mapping(doc_data.get("structure", []))
                     node = node_map.get(node_id)
@@ -159,10 +174,6 @@ class RAGRetriever:
                     'id': f"{doc_name}_{node_id}",
                     'score': score
                 })
-
-                # 达到目标数量后停止
-                if len(results) >= k:
-                    break
 
             logger.info(f"检索到 {len(results)} 条相关文档")
             return results
@@ -285,7 +296,7 @@ class RAGRetriever:
     
     def get_knowledge_stats(self) -> Dict[str, Any]:
         """获取知识库统计信息"""
-        if self._vector_index is None:
+        if self._multi_kb_index is None or self._kb_manager is None:
             return {
                 'total_documents': 0,
                 'total_nodes': 0,
@@ -293,13 +304,25 @@ class RAGRetriever:
                 'using_vector_db': False,
                 'backend': 'pageindex'
             }
-        
+
         try:
-            stats = self._vector_index.get_stats()
+            kb_ids = self._kb_manager.list_ids()
+            total_docs = 0
+            total_nodes = 0
+            all_documents = []
+
+            for kb_id in kb_ids:
+                chroma_dir = self._kb_manager.get_chroma_dir(kb_id)
+                stats = self._multi_kb_index.get_stats(kb_id, chroma_dir)
+                total_docs += stats.get('total_documents', 0)
+                total_nodes += stats.get('total_nodes', 0)
+                all_documents.extend(stats.get('documents', []))
+
             return {
-                'total_documents': stats.get('total_documents', 0),
-                'total_nodes': stats.get('total_nodes', 0),
-                'documents': stats.get('documents', []),
+                'total_documents': total_docs,
+                'total_nodes': total_nodes,
+                'documents': all_documents,
+                'knowledge_bases': kb_ids,
                 'using_vector_db': True,
                 'backend': 'pageindex'
             }

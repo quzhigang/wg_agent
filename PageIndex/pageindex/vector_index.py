@@ -472,6 +472,8 @@ class MultiKBVectorIndex:
                 distance = results["distances"][0][i] if results["distances"] else 0
                 document = results["documents"][0][i] if results["documents"] else ""
 
+                # L2距离转相似度: score = 1 / (1 + distance)，范围 (0, 1]
+                score = 1.0 / (1.0 + distance)
                 formatted_results.append({
                     "id": id,
                     "kb_id": kb_id,
@@ -485,7 +487,7 @@ class MultiKBVectorIndex:
                     "line_num": metadata.get("line_num", ""),
                     "summary": metadata.get("summary", ""),
                     "has_children": metadata.get("has_children", "False") == "True",
-                    "score": 1 - distance,
+                    "score": score,
                     "document": document,
                     "vector_type": metadata.get("vector_type", ""),
                     "key_point": metadata.get("key_point", "")
@@ -847,7 +849,7 @@ class VectorIndex:
                     "line_num": metadata.get("line_num", ""),
                     "summary": metadata.get("summary", ""),
                     "has_children": metadata.get("has_children", "False") == "True",
-                    "score": 1 - distance,
+                    "score": 1.0 / (1.0 + distance),
                     "document": document,
                     "vector_type": metadata.get("vector_type", ""),
                     "key_point": metadata.get("key_point", "")
