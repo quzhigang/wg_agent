@@ -63,7 +63,7 @@ async def rag_retrieval_node(state: AgentState) -> Dict[str, Any]:
     """
     RAG检索节点（用于业务场景的辅助检索）
 
-    当RAG检索失败或无法获取到信息时，会尝试使用MCP网络搜索作为备选方案。
+    当RAG检索失败或无法获取到信息时，会尝试使用网络搜索作为备选方案。
     """
     logger.info("执行RAG检索...")
 
@@ -84,9 +84,9 @@ async def rag_retrieval_node(state: AgentState) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"RAG检索异常: {e}")
 
-    # RAG无结果时尝试MCP网络搜索
+    # RAG无结果时尝试网络搜索
     if not retrieved_docs and is_mcp_websearch_enabled():
-        logger.info("RAG无结果，尝试MCP网络搜索...")
+        logger.info("RAG无结果，尝试网络搜索...")
         try:
             web_results = await mcp_web_search(user_message, max_results=5)
             if web_results:
@@ -103,7 +103,7 @@ async def rag_retrieval_node(state: AgentState) -> Dict[str, Any]:
                 ]
                 retrieval_source = "mcp_websearch"
         except Exception as e:
-            logger.error(f"MCP网络搜索异常: {e}")
+            logger.error(f"网络搜索异常: {e}")
 
     return {
         "retrieved_documents": retrieved_docs,
@@ -116,7 +116,7 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
     知识库检索节点（第2类：固有知识查询专用）
 
     意图识别→调用知识库检索→大模型合成结果，同一会话内完成
-    如果知识库检索结果匹配度不高，尝试MCP网络搜索补充
+    如果知识库检索结果匹配度不高，尝试网络搜索补充
     """
     logger.info("执行知识库检索（knowledge场景）...")
 
@@ -149,7 +149,7 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
         # 动态阈值：如果LLM预判需要网络搜索，提高阈值（更容易触发MCP）
         score_threshold = 0.7 if likely_needs_web_search else 0.6
         if max_score < score_threshold and is_mcp_websearch_enabled():
-            logger.info(f"知识库匹配度({max_score})低于阈值，尝试MCP网络搜索...")
+            logger.info(f"知识库匹配度({max_score})低于阈值，尝试网络搜索...")
             try:
                 web_results = await mcp_web_search(user_message, max_results=5)
                 if web_results:
@@ -168,9 +168,9 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
                     # 合并结果：MCP结果优先
                     retrieved_docs = mcp_docs + [d for d in retrieved_docs if d.get('score', 0) >= 0.4]
                     retrieval_source = "mcp_websearch"
-                    logger.info(f"MCP网络搜索完成，获取到 {len(mcp_docs)} 条结果")
+                    logger.info(f"网络搜索完成，获取到 {len(mcp_docs)} 条结果")
             except Exception as e:
-                logger.error(f"MCP网络搜索异常: {e}")
+                logger.error(f"网络搜索异常: {e}")
 
         return {
             "retrieved_documents": retrieved_docs,

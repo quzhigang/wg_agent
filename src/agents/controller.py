@@ -434,13 +434,17 @@ class Controller:
         """格式化文档摘要"""
         if not documents:
             return ""
-        
+
         formatted = []
         for i, doc in enumerate(documents[:5], 1):
-            content = doc.get('content', '')[:300]
-            source = doc.get('source', '未知来源')
-            formatted.append(f"[{i}] {source}\n{content}")
-        
+            content = doc.get('content', '')[:2000]  # 增加到2000字符以保留完整知识
+            source = doc.get('metadata', {}).get('doc_name', '未知来源')
+            title = doc.get('metadata', {}).get('title', '')
+            if title:
+                formatted.append(f"[{i}] {source} - {title}\n{content}")
+            else:
+                formatted.append(f"[{i}] {source}\n{content}")
+
         return "\n\n".join(formatted)
 
 

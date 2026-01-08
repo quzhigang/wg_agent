@@ -114,15 +114,9 @@ class Settings(BaseSettings):
     # knowledge_dir: str = "./knowledge"  # 已废弃
     
     # ===========================================
-    # MCP Server Configuration (MCP服务器配置)
+    # 网络搜索配置 (使用Bing搜索，无需API Key)
     # ===========================================
-    # 智谱Web Search MCP配置
-    mcp_zhipu_websearch_enabled: bool = False
-    mcp_zhipu_websearch_type: str = "sse"
-    mcp_zhipu_websearch_name: str = "智谱搜索MCP"
-    mcp_zhipu_websearch_description: str = "智谱Web Search MCP，整合了5家头部搜索引擎"
-    mcp_zhipu_websearch_url: str = ""
-    mcp_zhipu_websearch_api_key: str = ""
+    web_search_enabled: bool = False
 
 
 @lru_cache()
