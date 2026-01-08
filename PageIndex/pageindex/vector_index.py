@@ -25,7 +25,7 @@ EMBEDDING_MODEL_API_URL = os.getenv("EMBEDDING_MODEL_API_URL", "http://10.20.2.1
 EMBEDDING_MODEL_TYPE = os.getenv("EMBEDDING_MODEL_TYPE", "ollama")
 
 # Reranker 模型配置
-RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "BAAI/bge-reranker-v2-m3")
+RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "BAAI/bge-reranker-base")
 RERANKER_ENABLED = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
 RERANKER_TOP_K = int(os.getenv("RERANKER_TOP_K", "5"))
 
@@ -113,6 +113,9 @@ class OllamaEmbedding:
         return embeddings
 
 
+# 模块级别的模型缓存（避免 Streamlit 重复加载）
+_RERANKER_MODEL_CACHE = {}
+
 class Reranker:
     """
     基于 sentence-transformers 的重排序模型
@@ -120,7 +123,6 @@ class Reranker:
     使用交叉编码器对候选结果进行精确重排序
     """
     _instance = None
-    _model = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -128,12 +130,12 @@ class Reranker:
         return cls._instance
 
     def _load_model(self):
-        """延迟加载模型"""
-        if self._model is None:
+        """延迟加载模型，使用模块级缓存"""
+        if RERANKER_MODEL_NAME not in _RERANKER_MODEL_CACHE:
             try:
                 from sentence_transformers import CrossEncoder
                 print(f"正在加载 Reranker 模型: {RERANKER_MODEL_NAME}...")
-                self._model = CrossEncoder(RERANKER_MODEL_NAME, max_length=512)
+                _RERANKER_MODEL_CACHE[RERANKER_MODEL_NAME] = CrossEncoder(RERANKER_MODEL_NAME, max_length=512)
                 print("Reranker 模型加载完成")
             except ImportError:
                 print("警告: sentence-transformers 未安装，rerank 功能不可用")
@@ -154,11 +156,12 @@ class Reranker:
         返回:
             重排序后的结果列表
         """
-        if not RERANKER_ENABLED or not documents:
+        if not documents:
             return documents[:top_k] if top_k else documents
 
         self._load_model()
-        if self._model is None:
+        model = _RERANKER_MODEL_CACHE.get(RERANKER_MODEL_NAME)
+        if model is None:
             return documents[:top_k] if top_k else documents
 
         top_k = top_k or RERANKER_TOP_K
@@ -170,7 +173,7 @@ class Reranker:
             pairs.append([query, doc_text])
 
         # 计算相关性分数
-        scores = self._model.predict(pairs)
+        scores = model.predict(pairs)
 
         # 将分数添加到文档并排序
         for i, doc in enumerate(documents):
@@ -512,7 +515,7 @@ class MultiKBVectorIndex:
         all_results = []
 
         # 如果启用 rerank，多召回一些候选
-        recall_k = top_k * 4 if use_rerank and RERANKER_ENABLED else top_k * 2
+        recall_k = top_k * 2 if use_rerank else top_k
 
         for config in kb_configs:
             kb_id = config.get("kb_id")
@@ -534,7 +537,7 @@ class MultiKBVectorIndex:
         deduplicated_results.sort(key=lambda x: x.get("score", 0), reverse=True)
 
         # 使用 rerank 重排序
-        if use_rerank and RERANKER_ENABLED and len(deduplicated_results) > top_k:
+        if use_rerank and len(deduplicated_results) > top_k:
             reranker = get_reranker()
             return reranker.rerank(query, deduplicated_results, top_k)
 

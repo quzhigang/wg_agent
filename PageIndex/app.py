@@ -157,6 +157,7 @@ max_tokens_per_node = st.sidebar.number_input("每节点最大令牌数", value=
 
 st.sidebar.header("向量检索配置")
 vector_top_k = st.sidebar.slider("检索结果数量 (Top-K)", min_value=1, max_value=50, value=5)
+enable_rerank = st.sidebar.toggle("启用重排序", value=False, help="启用后使用交叉编码器对结果重排序，效果更好但速度较慢")
 
 # 默认设置
 if_add_doc_description = "no"
@@ -651,7 +652,7 @@ with tab1:
                             {"kb_id": kb_id, "chroma_dir": kb_manager_tab2.get_chroma_dir(kb_id)}
                             for kb_id in selected_kb_ids
                         ]
-                        search_results = multi_kb_index.search_multi_kb(kb_configs, query, top_k=vector_top_k)
+                        search_results = multi_kb_index.search_multi_kb(kb_configs, query, top_k=vector_top_k, use_rerank=enable_rerank)
                         thinking_parts.append(f"向量检索返回 {len(search_results)} 个相关节点")
                     except Exception as e:
                         st.error(f"向量检索失败: {e}")
