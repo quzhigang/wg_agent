@@ -36,9 +36,6 @@ st.markdown("""
         padding-top: 1rem;
         padding-bottom: 0rem;
     }
-    header {
-        visibility: hidden;
-    }
     .stMainBlockContainer {
         padding-top: 1rem;
     }
@@ -159,7 +156,7 @@ max_pages_per_node = st.sidebar.number_input("每节点最大页数", value=defa
 max_tokens_per_node = st.sidebar.number_input("每节点最大令牌数", value=default_config.max_token_num_each_node)
 
 st.sidebar.header("向量检索配置")
-vector_top_k = st.sidebar.slider("检索结果数量 (Top-K)", min_value=1, max_value=50, value=10)
+vector_top_k = st.sidebar.slider("检索结果数量 (Top-K)", min_value=1, max_value=50, value=5)
 
 # 默认设置
 if_add_doc_description = "no"
@@ -1070,21 +1067,11 @@ with tab5:
         st.markdown("---")
 
         # API 配置
-        col_api, col_topk = st.columns([3, 1])
-        with col_api:
-            api_url = st.text_input(
-                "API 地址",
-                value="http://localhost:8502/query/raw",
-                key="api_test_url"
-            )
-        with col_topk:
-            api_top_k = st.number_input(
-                "Top K",
-                min_value=1,
-                max_value=50,
-                value=10,
-                key="api_test_topk"
-            )
+        api_url = st.text_input(
+            "API 地址",
+            value="http://localhost:8502/query/raw",
+            key="api_test_url"
+        )
 
         # 查询输入
         api_query = st.text_input(
@@ -1103,7 +1090,7 @@ with tab5:
                 # 构建请求体（如果没有选择知识库，则不传 kb_ids，API 会搜索所有知识库）
                 request_body = {
                     "q": api_query,
-                    "top_k": api_top_k
+                    "top_k": vector_top_k
                 }
                 if api_selected_kb_ids:
                     request_body["kb_ids"] = api_selected_kb_ids

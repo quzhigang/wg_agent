@@ -24,6 +24,11 @@ EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "bge-m3:latest")
 EMBEDDING_MODEL_API_URL = os.getenv("EMBEDDING_MODEL_API_URL", "http://10.20.2.135:11434")
 EMBEDDING_MODEL_TYPE = os.getenv("EMBEDDING_MODEL_TYPE", "ollama")
 
+# Reranker 模型配置
+RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "BAAI/bge-reranker-v2-m3")
+RERANKER_ENABLED = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
+RERANKER_TOP_K = int(os.getenv("RERANKER_TOP_K", "5"))
+
 # ChromaDB 存储路径（使用绝对路径确保一致性）
 # 默认使用当前模块所在目录的上级目录下的 chroma_db
 _module_dir = os.path.dirname(os.path.abspath(__file__))
@@ -34,15 +39,15 @@ CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", _default_chroma_dir)
 class OllamaEmbedding:
     """
     Ollama Embedding 模型封装类
-    
+
     调用 Ollama API 生成文本的向量表示
     """
-    
+
     def __init__(self, model_name: str = None, api_url: str = None):
         self.model_name = model_name or EMBEDDING_MODEL_NAME
         self.api_url = api_url or EMBEDDING_MODEL_API_URL
         self.embed_endpoint = f"{self.api_url.rstrip('/')}/api/embeddings"
-        
+
         # 创建带有重试机制的 session
         self.session = requests.Session()
         retry_strategy = Retry(
@@ -53,7 +58,7 @@ class OllamaEmbedding:
         adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=1, pool_maxsize=1)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
-    
+
     def embed(self, text: str, max_retries: int = 3) -> List[float]:
         """
         为单个文本生成 embedding
@@ -106,6 +111,86 @@ class OllamaEmbedding:
             if i < len(texts) - 1 and batch_delay > 0:
                 time.sleep(batch_delay)
         return embeddings
+
+
+class Reranker:
+    """
+    基于 sentence-transformers 的重排序模型
+
+    使用交叉编码器对候选结果进行精确重排序
+    """
+    _instance = None
+    _model = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def _load_model(self):
+        """延迟加载模型"""
+        if self._model is None:
+            try:
+                from sentence_transformers import CrossEncoder
+                print(f"正在加载 Reranker 模型: {RERANKER_MODEL_NAME}...")
+                self._model = CrossEncoder(RERANKER_MODEL_NAME, max_length=512)
+                print("Reranker 模型加载完成")
+            except ImportError:
+                print("警告: sentence-transformers 未安装，rerank 功能不可用")
+                print("请运行: pip install sentence-transformers")
+            except Exception as e:
+                print(f"Reranker 模型加载失败: {e}")
+
+    def rerank(self, query: str, documents: List[Dict[str, Any]],
+               top_k: int = None) -> List[Dict[str, Any]]:
+        """
+        对检索结果进行重排序
+
+        参数:
+            query: 查询文本
+            documents: 检索结果列表，每个元素需包含 title 和 summary
+            top_k: 返回的结果数量，默认使用配置值
+
+        返回:
+            重排序后的结果列表
+        """
+        if not RERANKER_ENABLED or not documents:
+            return documents[:top_k] if top_k else documents
+
+        self._load_model()
+        if self._model is None:
+            return documents[:top_k] if top_k else documents
+
+        top_k = top_k or RERANKER_TOP_K
+
+        # 构建 query-document 对
+        pairs = []
+        for doc in documents:
+            doc_text = f"{doc.get('title', '')}: {doc.get('summary', '')}"
+            pairs.append([query, doc_text])
+
+        # 计算相关性分数
+        scores = self._model.predict(pairs)
+
+        # 将分数添加到文档并排序
+        for i, doc in enumerate(documents):
+            doc['rerank_score'] = float(scores[i])
+
+        # 按 rerank_score 降序排序
+        reranked = sorted(documents, key=lambda x: x.get('rerank_score', 0), reverse=True)
+
+        return reranked[:top_k]
+
+
+# 全局 Reranker 实例
+_reranker_instance = None
+
+def get_reranker() -> Reranker:
+    """获取全局 Reranker 实例"""
+    global _reranker_instance
+    if _reranker_instance is None:
+        _reranker_instance = Reranker()
+    return _reranker_instance
 
 
 class MultiKBVectorIndex:
@@ -411,7 +496,7 @@ class MultiKBVectorIndex:
         return deduplicated_results[:top_k]
     
     def search_multi_kb(self, kb_configs: List[Dict[str, str]], query: str,
-                        top_k: int = 10) -> List[Dict[str, Any]]:
+                        top_k: int = 10, use_rerank: bool = True) -> List[Dict[str, Any]]:
         """
         跨多个知识库进行向量相似度检索
 
@@ -419,11 +504,15 @@ class MultiKBVectorIndex:
             kb_configs: 知识库配置列表，每个元素包含 {"kb_id": ..., "chroma_dir": ...}
             query: 查询文本
             top_k: 返回的最大结果数（去重后）
+            use_rerank: 是否使用 rerank 重排序
 
         返回:
             合并后的检索结果列表（按相似度排序，按 node_id 去重）
         """
         all_results = []
+
+        # 如果启用 rerank，多召回一些候选
+        recall_k = top_k * 4 if use_rerank and RERANKER_ENABLED else top_k * 2
 
         for config in kb_configs:
             kb_id = config.get("kb_id")
@@ -433,8 +522,7 @@ class MultiKBVectorIndex:
                 continue
 
             try:
-                # 每个知识库多检索一些，因为后续会跨知识库去重
-                results = self.search(kb_id, chroma_dir, query, top_k * 2)
+                results = self.search(kb_id, chroma_dir, query, recall_k)
                 all_results.extend(results)
             except Exception as e:
                 print(f"搜索知识库 [{kb_id}] 失败: {e}")
@@ -445,7 +533,11 @@ class MultiKBVectorIndex:
         # 按相似度分数排序
         deduplicated_results.sort(key=lambda x: x.get("score", 0), reverse=True)
 
-        # 返回 top_k 个结果
+        # 使用 rerank 重排序
+        if use_rerank and RERANKER_ENABLED and len(deduplicated_results) > top_k:
+            reranker = get_reranker()
+            return reranker.rerank(query, deduplicated_results, top_k)
+
         return deduplicated_results[:top_k]
     
     def delete_document(self, kb_id: str, chroma_dir: str, doc_name: str) -> int:
