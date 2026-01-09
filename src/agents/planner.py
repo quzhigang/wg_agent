@@ -112,7 +112,7 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
      - 询问最新新闻、动态、政策变化
      - 询问天气预报、气象信息
      - 询问其他流域、非水利知识
-  3. 知识库部分能回答，需网络补充（如某水库最新运行状态、流域近期政策解读）：needs_kb_search=true, needs_web_search=true
+  3. 知识库部分能回答，需网络补充，或无法确定知识库是否有完整答案的情况：needs_kb_search=true, needs_web_search=true
 
 **如果是 business（业务相关）：**
 {{
