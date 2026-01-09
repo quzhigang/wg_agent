@@ -437,9 +437,11 @@ class Controller:
 
         formatted = []
         for i, doc in enumerate(documents[:5], 1):
-            content = doc.get('content', '')[:2000]  # 增加到2000字符以保留完整知识
-            source = doc.get('metadata', {}).get('doc_name', '未知来源')
-            title = doc.get('metadata', {}).get('title', '')
+            content = doc.get('content', '')[:2000]
+            metadata = doc.get('metadata', {})
+            # 优先使用source(网络搜索)，其次doc_name(知识库)
+            source = metadata.get('source') or metadata.get('doc_name') or '未知来源'
+            title = metadata.get('title', '')
             if title:
                 formatted.append(f"[{i}] {source} - {title}\n{content}")
             else:

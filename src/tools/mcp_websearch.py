@@ -1,22 +1,23 @@
 """
 网络搜索工具
-使用Bing搜索进行网络搜索，作为RAG检索失败时的备选方案
+使用博查Web Search API进行网络搜索
 """
 
 import asyncio
-import re
 import aiohttp
 from typing import Dict, Any, List, Optional
-from bs4 import BeautifulSoup
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
 
 logger = get_logger(__name__)
 
+BOCHA_API_KEY = "sk-eb6f4246548a43fdb4410b7b5e3507de"
+BOCHA_API_URL = "https://api.bochaai.com/v1/web-search"
+
 
 class MCPWebSearchClient:
-    """网络搜索客户端 - 使用Bing搜索"""
+    """网络搜索客户端 - 使用博查API"""
 
     _instance: Optional['MCPWebSearchClient'] = None
 
@@ -30,7 +31,6 @@ class MCPWebSearchClient:
         if self._initialized:
             return
         self._enabled = settings.web_search_enabled
-        self._timeout = aiohttp.ClientTimeout(total=30)
         self._initialized = True
         logger.info(f"网络搜索客户端初始化完成, enabled={self._enabled}")
 
@@ -39,7 +39,7 @@ class MCPWebSearchClient:
         return self._enabled
 
     async def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
-        """执行Bing网络搜索"""
+        """执行博查网络搜索"""
         if not self.is_enabled:
             logger.warning("网络搜索未启用")
             return []
@@ -47,80 +47,74 @@ class MCPWebSearchClient:
         logger.info(f"执行网络搜索: {query[:50]}...")
 
         try:
-            from urllib.parse import quote
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+                "Authorization": f"Bearer {BOCHA_API_KEY}",
+                "Content-Type": "application/json"
             }
-            encoded_query = quote(query)
-            url = f"https://www.bing.com/search?q={encoded_query}&count={max_results}"
+            payload = {
+                "query": query,
+                "count": max_results,
+                "summary": True
+            }
 
-            async with aiohttp.ClientSession(timeout=self._timeout) as session:
-                async with session.get(url, headers=headers) as response:
-                    if response.status != 200:
-                        logger.error(f"Bing搜索失败: {response.status}")
+            async with aiohttp.ClientSession() as session:
+                async with session.post(BOCHA_API_URL, json=payload, headers=headers) as resp:
+                    if resp.status != 200:
+                        logger.error(f"搜索失败: {resp.status}")
                         return []
-                    html = await response.text()
+                    data = await resp.json()
+                    logger.info(f"博查API返回结构: {list(data.keys()) if isinstance(data, dict) else type(data)}")
 
-            soup = BeautifulSoup(html, 'html.parser')
             results = []
-
-            for item in soup.select('.b_algo')[:max_results]:
-                title_elem = item.select_one('h2 a')
-                snippet_elem = item.select_one('.b_caption p')
-
-                if title_elem:
-                    results.append({
-                        'title': title_elem.get_text(strip=True),
-                        'url': title_elem.get('href', ''),
-                        'content': snippet_elem.get_text(strip=True) if snippet_elem else ''
-                    })
+            web_pages = data.get("data", {}).get("webPages", {}).get("value", [])
+            if not web_pages:
+                web_pages = data.get("webPages", {}).get("value", [])
+            if not web_pages:
+                web_pages = data.get("results", [])
+            if web_pages:
+                logger.info(f"第一条结果字段: {list(web_pages[0].keys()) if web_pages else 'empty'}")
+            for item in web_pages:
+                results.append({
+                    'title': item.get('name', '') or item.get('title', ''),
+                    'url': item.get('url', '') or item.get('link', ''),
+                    'content': item.get('snippet', '') or item.get('summary', '') or item.get('content', ''),
+                    'siteName': item.get('siteName', '')
+                })
 
             logger.info(f"网络搜索完成，获取到 {len(results)} 条结果")
             return results
-
         except Exception as e:
             logger.error(f"网络搜索异常: {e}")
             return []
-    
+
     async def search_and_format(self, query: str, max_results: int = 5) -> str:
-        """
-        执行搜索并格式化为上下文文本
-        
-        Args:
-            query: 搜索查询
-            max_results: 最大返回结果数
-            
-        Returns:
-            格式化的搜索结果文本
-        """
+        """执行搜索并格式化为上下文文本"""
         results = await self.search(query, max_results)
-        
+
         if not results:
             return ""
-        
-        # 格式化为上下文
+
         context_parts = ["以下是网络搜索结果：\n"]
-        
+
         for i, result in enumerate(results, 1):
             title = result.get('title', '无标题')
-            content = result.get('content', result.get('snippet', ''))
-            url = result.get('url', result.get('link', ''))
-            
+            content = result.get('content', '')
+            url = result.get('url', '')
+            site_name = result.get('siteName', '')
+
             context_parts.append(f"[{i}] {title}")
             if content:
-                # 截断过长的内容
                 if len(content) > 500:
                     content = content[:500] + "..."
                 context_parts.append(content)
             if url:
-                context_parts.append(f"来源: {url}")
-            context_parts.append("")  # 空行分隔
-        
+                source = f"来源: {site_name} - {url}" if site_name else f"来源: {url}"
+                context_parts.append(source)
+            context_parts.append("")
+
         return "\n".join(context_parts)
 
 
-# 全局客户端实例
 _mcp_client: Optional[MCPWebSearchClient] = None
 
 
@@ -133,31 +127,13 @@ def get_mcp_websearch_client() -> MCPWebSearchClient:
 
 
 async def mcp_web_search(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
-    """
-    网络搜索便捷函数
-    
-    Args:
-        query: 搜索查询
-        max_results: 最大返回结果数
-        
-    Returns:
-        搜索结果列表
-    """
+    """网络搜索便捷函数"""
     client = get_mcp_websearch_client()
     return await client.search(query, max_results)
 
 
 async def mcp_web_search_context(query: str, max_results: int = 5) -> str:
-    """
-    网络搜索并返回格式化上下文
-    
-    Args:
-        query: 搜索查询
-        max_results: 最大返回结果数
-        
-    Returns:
-        格式化的搜索结果文本
-    """
+    """网络搜索并返回格式化上下文"""
     client = get_mcp_websearch_client()
     return await client.search_and_format(query, max_results)
 

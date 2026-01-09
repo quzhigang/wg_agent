@@ -115,45 +115,43 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
     """
     知识库检索节点（第2类：固有知识查询专用）
 
-    意图识别→调用知识库检索→大模型合成结果，同一会话内完成
-    如果知识库检索结果匹配度不高，尝试网络搜索补充
+    根据意图分析结果决定是否进行知识库检索和网络搜索
     """
     logger.info("执行知识库检索（knowledge场景）...")
 
     user_message = state.get('user_message', '')
-    target_kbs = state.get('target_kbs', [])  # 获取目标知识库列表
-    likely_needs_web_search = state.get('likely_needs_web_search', False)  # LLM预判是否需要网络搜索
+    target_kbs = state.get('target_kbs', [])
+    needs_kb_search = state.get('needs_kb_search', True)
+    needs_web_search = state.get('needs_web_search', False)
     retrieved_docs = []
-    retrieval_source = "rag"
+    retrieval_source = None
 
+    logger.info(f"检索策略: 知识库={needs_kb_search}, 网络搜索={needs_web_search}")
     if target_kbs:
         logger.info(f"目标知识库: {target_kbs}")
-    if likely_needs_web_search:
-        logger.info("LLM预判可能需要网络搜索（时效性问题）")
 
     try:
-        rag_retriever = get_rag_retriever()
-        retrieved_docs = await rag_retriever.retrieve(
-            query=user_message,
-            top_k=5,
-            target_kbs=target_kbs  # 传递目标知识库列表
-        )
-        logger.info(f"知识库检索完成，获取到 {len(retrieved_docs)} 条结果")
+        # 1. 知识库检索（如果需要）
+        if needs_kb_search:
+            rag_retriever = get_rag_retriever()
+            retrieved_docs = await rag_retriever.retrieve(
+                query=user_message,
+                top_k=5,
+                target_kbs=target_kbs
+            )
+            logger.info(f"知识库检索完成，获取到 {len(retrieved_docs)} 条结果")
+            if retrieved_docs:
+                max_score = max(doc.get('score', 0) for doc in retrieved_docs)
+                logger.info(f"知识库检索最高匹配度: {max_score}")
+                retrieval_source = "rag"
 
-        # 检查检索结果质量：最高分是否达到阈值
-        max_score = 0
-        if retrieved_docs:
-            max_score = max(doc.get('score', 0) for doc in retrieved_docs)
-        logger.info(f"知识库检索最高匹配度: {max_score}")
-
-        # 动态阈值：如果LLM预判需要网络搜索，提高阈值（更容易触发MCP）
-        score_threshold = 0.7 if likely_needs_web_search else 0.6
-        if max_score < score_threshold and is_mcp_websearch_enabled():
-            logger.info(f"知识库匹配度({max_score})低于阈值，尝试网络搜索...")
+        # 2. 网络搜索（如果需要）
+        if needs_web_search and is_mcp_websearch_enabled():
+            logger.info("执行网络搜索...")
             try:
                 web_results = await mcp_web_search(user_message, max_results=5)
                 if web_results:
-                    mcp_docs = [
+                    web_docs = [
                         {
                             'content': r.get('content', r.get('snippet', '')),
                             'metadata': {
@@ -161,14 +159,14 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
                                 'source': r.get('url', r.get('link', '')),
                                 'title': r.get('title', '')
                             },
-                            'score': 0.8  # MCP结果给予较高分数
+                            'score': 0.8
                         }
                         for r in web_results
                     ]
-                    # 合并结果：MCP结果优先
-                    retrieved_docs = mcp_docs + [d for d in retrieved_docs if d.get('score', 0) >= 0.4]
-                    retrieval_source = "mcp_websearch"
-                    logger.info(f"网络搜索完成，获取到 {len(mcp_docs)} 条结果")
+                    logger.info(f"网络搜索完成，获取到 {len(web_docs)} 条结果")
+                    # 合并结果：网络搜索结果在前
+                    retrieved_docs = web_docs + retrieved_docs
+                    retrieval_source = "web_search" if not needs_kb_search else "rag+web_search"
             except Exception as e:
                 logger.error(f"网络搜索异常: {e}")
 

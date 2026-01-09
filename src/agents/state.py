@@ -86,6 +86,8 @@ class AgentState(TypedDict):
     intent: Optional[str]  # 保留原字段兼容
     intent_confidence: Optional[float]
     target_kbs: Optional[List[str]]  # 目标知识库列表（用于knowledge场景）
+    needs_kb_search: Optional[bool]  # 是否需要知识库检索
+    needs_web_search: Optional[bool]  # 是否需要网络搜索
 
     # 快速对话相关
     is_quick_chat: Optional[bool]
@@ -162,6 +164,8 @@ def create_initial_state(
         intent=None,
         intent_confidence=None,
         target_kbs=None,
+        needs_kb_search=None,
+        needs_web_search=None,
 
         # 快速对话相关
         is_quick_chat=None,

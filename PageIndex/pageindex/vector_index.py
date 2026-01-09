@@ -474,8 +474,8 @@ class MultiKBVectorIndex:
                 document = results["documents"][0][i] if results["documents"] else ""
 
                 # L2距离转相似度: 使用指数衰减，对高维向量更合理
-                # 典型L2距离范围约300-500，使用 exp(-d/500) 映射到 (0, 1]
-                score = math.exp(-distance / 500.0)
+                # 调整衰减系数使分数范围更合理（300→0.69, 400→0.61, 500→0.54）
+                score = math.exp(-distance / 800.0)
                 formatted_results.append({
                     "id": id,
                     "kb_id": kb_id,
@@ -851,7 +851,7 @@ class VectorIndex:
                     "line_num": metadata.get("line_num", ""),
                     "summary": metadata.get("summary", ""),
                     "has_children": metadata.get("has_children", "False") == "True",
-                    "score": math.exp(-distance / 500.0),
+                    "score": math.exp(-distance / 800.0),
                     "document": document,
                     "vector_type": metadata.get("vector_type", ""),
                     "key_point": metadata.get("key_point", "")

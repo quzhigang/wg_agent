@@ -94,11 +94,19 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
     "confidence": 0.95,
     "target_kbs": ["知识库id1", "知识库id2"],
     "entities": {{"关键词": "值"}},
-    "likely_needs_web_search": false
+    "needs_kb_search": true,
+    "needs_web_search": false
 }}
 注意：
 - target_kbs从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, hydro_model, catchment_planning, project_designplan
-- likely_needs_web_search：当问题涉及时效性信息（如"最新"、"今天"、"2024年"、"近期"等）或明显超出知识库范围时设为true
+- needs_kb_search和needs_web_search的判断规则：
+  1. 知识库能完全回答（如卫共流域概况、水库基本信息、历史洪水记录、规划内容等静态信息）：needs_kb_search=true, needs_web_search=false
+  2. 知识库完全不能回答的情况，needs_kb_search=false, needs_web_search=true：
+     - 询问具体年份的实际执行情况、完成情况、进展（如"2025年完成了哪些工程"）
+     - 询问最新新闻、动态、政策变化
+     - 询问天气预报、气象信息
+     - 询问其他流域、非水利知识
+  3. 知识库部分能回答，需网络补充（如某水库最新运行状态、流域近期政策解读）：needs_kb_search=true, needs_web_search=true
 
 **如果是 business（业务相关）：**
 {{
@@ -294,7 +302,8 @@ class Planner:
                     "intent_confidence": result.get("confidence", 0.9),
                     "entities": result.get("entities", {}),
                     "target_kbs": result.get("target_kbs", []),  # 目标知识库列表
-                    "likely_needs_web_search": result.get("likely_needs_web_search", False),
+                    "needs_kb_search": result.get("needs_kb_search", True),
+                    "needs_web_search": result.get("needs_web_search", False),
                     "next_action": "knowledge_rag"  # 直接走知识库检索流程
                 }
 
