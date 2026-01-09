@@ -99,8 +99,10 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
     "target_kbs": ["知识库id1", "知识库id2"],
     "entities": {{"关键词": "值"}},
     "needs_kb_search": true,
-    "needs_web_search": false
+    "needs_web_search": false,
+    "rewritten_query": "结合对话历史补全后的完整查询语句"
 }}
+注意：rewritten_query字段非常重要！如果用户消息存在省略（如"小南海呢？"），必须结合对话历史补全为完整查询（如"小南海水库的流域面积"）。如果用户消息已经完整，则直接复制用户消息。
 注意：
 - target_kbs从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, hydro_model, catchment_planning, project_designplan
 - needs_kb_search和needs_web_search的判断规则：
@@ -300,6 +302,8 @@ class Planner:
 
             # 第2类：knowledge - 固有知识查询
             if intent_category == "knowledge":
+                # 获取补全后的查询，如果没有则使用原始消息
+                rewritten_query = result.get("rewritten_query") or state['user_message']
                 return {
                     "intent_category": IntentCategory.KNOWLEDGE.value,
                     "intent": "knowledge_qa",  # 兼容旧字段
@@ -308,6 +312,7 @@ class Planner:
                     "target_kbs": result.get("target_kbs", []),  # 目标知识库列表
                     "needs_kb_search": result.get("needs_kb_search", True),
                     "needs_web_search": result.get("needs_web_search", False),
+                    "rewritten_query": rewritten_query,  # 补全后的查询
                     "next_action": "knowledge_rag"  # 直接走知识库检索流程
                 }
 

@@ -18,6 +18,9 @@ logger = get_logger(__name__)
 # 响应生成提示词
 RESPONSE_GENERATION_PROMPT = """你是卫共流域数字孪生系统的智能助手，负责生成最终响应。
 
+## 最近对话历史
+{chat_history}
+
 ## 用户原始问题
 {user_message}
 
@@ -34,11 +37,12 @@ RESPONSE_GENERATION_PROMPT = """你是卫共流域数字孪生系统的智能助
 {retrieved_documents}
 
 ## 输出要求
-1. 根据执行结果，生成清晰、准确、专业的回答
-2. 如果有数据查询结果，请整理成易于理解的格式
-3. 如果执行过程中有错误，请适当说明并给出建议
-4. 回答应该简洁明了，重点突出
-5. 【重要】如果使用了检索到的知识，必须在回答末尾添加"参考来源"部分。直接复制上面每条知识的"来源引用格式"字段内容作为来源链接，不要修改或简化！
+1. 结合对话历史理解用户问题的完整含义（如用户说"小南海呢？"，需结合历史知道是在问流域面积）
+2. 根据执行结果，生成清晰、准确、专业的回答
+3. 如果有数据查询结果，请整理成易于理解的格式
+4. 如果执行过程中有错误，请适当说明并给出建议
+5. 回答应该简洁明了，重点突出
+6. 【重要】如果使用了检索到的知识，必须在回答末尾添加"参考来源"部分。直接复制上面每条知识的"来源引用格式"字段内容作为来源链接，不要修改或简化！
 
 请生成最终回答:
 """
@@ -94,32 +98,35 @@ class Controller:
     async def synthesize_response(self, state: AgentState) -> Dict[str, Any]:
         """
         合成最终响应
-        
+
         Args:
             state: 当前智能体状态
-            
+
         Returns:
             包含最终响应的状态更新
         """
         logger.info("开始合成最终响应...")
-        
+
         try:
             # 格式化执行结果
             execution_summary = self._format_execution_results(
                 state.get('execution_results', [])
             )
-            
+
             # 格式化计划摘要
             plan_summary = self._format_plan_summary(state.get('plan', []))
-            
+
             # 格式化检索文档
             docs_summary = self._format_documents(
                 state.get('retrieved_documents', [])
             )
-            
+
+            # 格式化聊天历史（限制最近2轮对话）
+            chat_history_str = self._format_chat_history(state.get('chat_history', []))
+
             # 检查是否需要生成Web页面
             output_type = state.get('output_type', 'text')
-            
+
             if output_type == OutputType.WEB_PAGE.value or await self._should_generate_web_page(state):
                 # 需要生成Web页面
                 response = await self._generate_web_page_response(state, execution_summary)
@@ -129,19 +136,20 @@ class Controller:
                     "generated_page_url": response.get('page_url'),
                     "next_action": "end"
                 }
-            
+
             # 准备上下文变量
             context_vars = {
+                "chat_history": chat_history_str or "无",
                 "user_message": state.get('user_message', ''),
                 "intent": state.get('intent', 'unknown'),
                 "plan_summary": plan_summary or "无执行计划",
                 "execution_results": execution_summary or "无执行结果",
                 "retrieved_documents": docs_summary or "无相关知识"
             }
-            
+
             # 生成文本响应
             response = await self.response_chain.ainvoke(context_vars)
-            
+
             # 记录LLM调用日志
             full_prompt = RESPONSE_GENERATION_PROMPT.format(**context_vars)
             log_llm_call(
@@ -152,15 +160,15 @@ class Controller:
                 full_prompt=full_prompt,
                 response=response.content
             )
-            
+
             logger.info("响应合成完成")
-            
+
             return {
                 "output_type": OutputType.TEXT.value,
                 "final_response": response.content,
                 "next_action": "end"
             }
-            
+
         except Exception as e:
             logger.error(f"响应合成失败: {e}")
             return {
@@ -421,15 +429,33 @@ class Controller:
         """格式化计划摘要"""
         if not plan:
             return ""
-        
+
         steps = []
         for step in plan:
             step_id = step.get('step_id', '?')
             description = step.get('description', '')
             status = step.get('status', 'pending')
             steps.append(f"{step_id}. {description} [{status}]")
-        
+
         return "\n".join(steps)
+
+    def _format_chat_history(self, chat_history: List[Dict[str, str]], max_turns: int = 2) -> str:
+        """格式化聊天历史，限制最近N轮对话"""
+        if not chat_history:
+            return ""
+
+        # 最近N轮对话（每轮包含user和assistant各一条）
+        recent = chat_history[-max_turns * 2:]
+        formatted = []
+        for msg in recent:
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            # 限制每条消息长度，避免过长
+            if len(content) > 200:
+                content = content[:200] + "..."
+            formatted.append(f"{role}: {content}")
+
+        return "\n".join(formatted)
     
     def _format_documents(self, documents: List[Dict[str, Any]]) -> str:
         """格式化文档摘要，包含来源信息供LLM引用"""

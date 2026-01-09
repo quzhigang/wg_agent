@@ -1,7 +1,2 @@
-2026-01-09 18:02:53.196 | INFO     | src.agents.graph:run_agent_stream:541 | 流式运行智能体 - 会话: 33adbaba-e775-44f8-93d6-991b3f59d99c
-2026-01-09 18:02:53.197 | INFO     | src.agents.graph:create_agent_graph:346 | 创建智能体状态图...
-2026-01-09 18:02:53.199 | INFO     | src.agents.graph:create_agent_graph:403 | 智能体状态图创建完成
-2026-01-09 18:02:53.208 | INFO     | src.agents.graph:get_agent_graph:430 | 智能体图编译完成
-2026-01-09 18:02:53.424 | INFO     | src.agents.controller:__init__:92 | Controller初始化完成
-2026-01-09 18:02:53.426 | INFO     | src.agents.planner:__init__:213 | Planner初始化完成
-2026-01-09 18:02:53.426 | INFO     | src.agents.planner:analyze_intent:259 | 开始分析用户意图: 盘石头水库流域面积？...
+2026-01-09 18:26:16.206 | INFO     | src.agents.graph:run_agent_stream:544 | 流式运行智能体 - 会话: c200724b-f86c-4304-85bd-283e1b3e83fa
+2026-01-09 18:26:16.207 | INFO     | src.agents.planner:analyze_intent:261 | 开始分析用户意图: 卫共流域修武水文站水位流量关系？...

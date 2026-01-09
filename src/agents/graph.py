@@ -120,6 +120,8 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
     logger.info("执行知识库检索（knowledge场景）...")
 
     user_message = state.get('user_message', '')
+    # 优先使用补全后的查询，如果没有则使用原始消息
+    search_query = state.get('rewritten_query') or user_message
     target_kbs = state.get('target_kbs', [])
     needs_kb_search = state.get('needs_kb_search', True)
     needs_web_search = state.get('needs_web_search', False)
@@ -127,6 +129,7 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
     retrieval_source = None
 
     logger.info(f"检索策略: 知识库={needs_kb_search}, 网络搜索={needs_web_search}")
+    logger.info(f"检索查询: {search_query}")
     if target_kbs:
         logger.info(f"目标知识库: {target_kbs}")
 
@@ -135,7 +138,7 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
         if needs_kb_search:
             rag_retriever = get_rag_retriever()
             retrieved_docs = await rag_retriever.retrieve(
-                query=user_message,
+                query=search_query,
                 top_k=5,
                 target_kbs=target_kbs
             )
@@ -149,7 +152,7 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
         if needs_web_search and is_mcp_websearch_enabled():
             logger.info("执行网络搜索...")
             try:
-                web_results = await mcp_web_search(user_message, max_results=5)
+                web_results = await mcp_web_search(search_query, max_results=5)
                 if web_results:
                     web_docs = [
                         {

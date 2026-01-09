@@ -88,6 +88,7 @@ class AgentState(TypedDict):
     target_kbs: Optional[List[str]]  # 目标知识库列表（用于knowledge场景）
     needs_kb_search: Optional[bool]  # 是否需要知识库检索
     needs_web_search: Optional[bool]  # 是否需要网络搜索
+    rewritten_query: Optional[str]  # 补全后的查询语句（用于RAG检索）
 
     # 快速对话相关
     is_quick_chat: Optional[bool]
@@ -166,6 +167,7 @@ def create_initial_state(
         target_kbs=None,
         needs_kb_search=None,
         needs_web_search=None,
+        rewritten_query=None,
 
         # 快速对话相关
         is_quick_chat=None,
