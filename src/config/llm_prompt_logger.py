@@ -49,10 +49,6 @@ class LLMPromptLogger:
             session_id: 会话ID
             question: 用户问题
         """
-        # 清空之前的日志内容
-        with open(self.log_file, "w", encoding="utf-8") as f:
-            f.write("")
-
         self._current_session_id = session_id
         self._current_question = question
         self._session_started = False

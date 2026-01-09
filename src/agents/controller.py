@@ -38,6 +38,7 @@ RESPONSE_GENERATION_PROMPT = """你是卫共流域数字孪生系统的智能助
 2. 如果有数据查询结果，请整理成易于理解的格式
 3. 如果执行过程中有错误，请适当说明并给出建议
 4. 回答应该简洁明了，重点突出
+5. 【重要】如果使用了检索到的知识，必须在回答末尾添加"参考来源"部分。直接复制上面每条知识的"来源引用格式"字段内容作为来源链接，不要修改或简化！
 
 请生成最终回答:
 """
@@ -431,7 +432,7 @@ class Controller:
         return "\n".join(steps)
     
     def _format_documents(self, documents: List[Dict[str, Any]]) -> str:
-        """格式化文档摘要"""
+        """格式化文档摘要，包含来源信息供LLM引用"""
         if not documents:
             return ""
 
@@ -439,13 +440,30 @@ class Controller:
         for i, doc in enumerate(documents[:5], 1):
             content = doc.get('content', '')[:2000]
             metadata = doc.get('metadata', {})
-            # 优先使用source(网络搜索)，其次doc_name(知识库)
-            source = metadata.get('source') or metadata.get('doc_name') or '未知来源'
+
+            # 获取来源信息
+            source_url = metadata.get('source', '')  # 网络搜索URL
+            doc_name = metadata.get('doc_name', '')  # 知识库文档名
+            category = metadata.get('category', '')  # 知识库类别
             title = metadata.get('title', '')
-            if title:
-                formatted.append(f"[{i}] {source} - {title}\n{content}")
+
+            # 构建来源标识
+            if source_url and source_url.startswith('http'):
+                # 网络搜索结果
+                source_label = f"网络来源: {title or source_url}"
+                source_ref = f"[{title or '网络链接'}]({source_url})"
             else:
-                formatted.append(f"[{i}] {source}\n{content}")
+                # 知识库文档 - 生成完整URL
+                kb_id = category or 'unknown'
+                display_name = doc_name or kb_id
+                source_label = f"知识库: {kb_id}, 文档: {doc_name}"
+                if doc_name:
+                    # 使用完整URL确保链接正确
+                    source_ref = f"[{display_name}](http://localhost:8000/knowledge/kb-doc/{kb_id}/{doc_name})"
+                else:
+                    source_ref = f"知识库-{kb_id}"
+
+            formatted.append(f"[{i}] 来源: {source_label}\n来源引用格式: {source_ref}\n内容: {content}")
 
         return "\n\n".join(formatted)
 

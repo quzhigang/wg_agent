@@ -80,13 +80,25 @@ def setup_logging():
 
 def get_logger(name: str = None):
     """获取日志记录器
-    
+
     Args:
         name: 模块名称，用于日志标识
-        
+
     Returns:
         配置好的logger实例
     """
     if name:
         return logger.bind(name=name)
     return logger
+
+
+def clear_all_logs():
+    """清空所有日志文件（新会话开始时调用）"""
+    log_path = Path(settings.log_file)
+    error_log_path = log_path.parent / "error.log"
+    llm_prompt_path = log_path.parent / "llm_prompt.md"
+
+    for path in [log_path, error_log_path, llm_prompt_path]:
+        if path.exists():
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("")

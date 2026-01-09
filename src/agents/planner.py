@@ -85,8 +85,12 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
 {{
     "intent_category": "chat",
     "confidence": 0.95,
-    "direct_response": "你的友好回复内容（控制在100字以内）"
+    "direct_response": "你的友好回复内容（控制在100字以内）",
+    "is_greeting": true/false
 }}
+注意：is_greeting仅在用户打招呼（你好、您好、hi、hello等）或询问"你是谁"、"介绍一下你自己"等自我介绍场景时为true。
+- 当is_greeting=true时，回复需包含自我介绍："您好！我是卫共流域数字孪生系统的智能助手小卫，..."
+- 当is_greeting=false时（如感谢、告别、闲聊等），直接回复，不要加自我介绍
 
 **如果是 knowledge（固有知识查询）：**
 {{

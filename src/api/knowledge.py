@@ -3,8 +3,10 @@
 提供知识库的增删改查功能
 """
 
+import os
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 
 from ..config.logging_config import get_logger
@@ -15,6 +17,9 @@ from ..models.schemas import APIResponse
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/knowledge", tags=["知识库"])
+
+# PageIndex知识库根目录
+_PAGEINDEX_KB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "PageIndex", "knowledge_bases")
 
 
 class DocumentCreate(BaseModel):
@@ -237,3 +242,40 @@ async def search_documents(request: SearchRequest):
     except Exception as e:
         logger.error(f"搜索失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/kb-doc/{kb_id}/{doc_name:path}")
+async def get_kb_document_file(kb_id: str, doc_name: str):
+    """
+    获取知识库原始文档文件
+
+    Args:
+        kb_id: 知识库ID
+        doc_name: 文档名称
+    """
+    # 构建文档路径
+    doc_path = os.path.join(_PAGEINDEX_KB_DIR, kb_id, "uploads", doc_name)
+
+    # 尝试不同扩展名
+    for ext in ['', '.pdf', '.md', '.markdown']:
+        full_path = doc_path + ext if ext else doc_path
+        if os.path.exists(full_path):
+            # PDF直接在浏览器打开
+            if full_path.lower().endswith('.pdf'):
+                return FileResponse(full_path, media_type="application/pdf")
+            # Markdown渲染成HTML
+            elif full_path.lower().endswith(('.md', '.markdown')):
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                html = f'''<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>{doc_name}</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>body{{max-width:900px;margin:40px auto;padding:0 20px;font-family:sans-serif;line-height:1.6}}
+pre{{background:#f4f4f4;padding:10px;overflow-x:auto}}code{{background:#f4f4f4;padding:2px 5px}}</style>
+</head><body><div id="content"></div>
+<script>document.getElementById("content").innerHTML=marked.parse({repr(content)});</script>
+</body></html>'''
+                return HTMLResponse(content=html)
+            return FileResponse(full_path)
+
+    raise HTTPException(status_code=404, detail="文档不存在")

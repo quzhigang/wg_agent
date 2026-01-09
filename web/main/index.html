@@ -90,7 +90,13 @@
 
             function renderMarkdown(text) {
                 if (window.marked && window.marked.parse) {
-                    return window.marked.parse(text);
+                    const renderer = new marked.Renderer();
+                    renderer.link = function(token) {
+                        var href = token.href || '';
+                        var linkText = token.text || href;
+                        return '<a href="' + href + '" target="_blank" rel="noopener">' + linkText + '</a>';
+                    };
+                    return window.marked.parse(text, { renderer: renderer });
                 }
                 return text.split(String.fromCharCode(10)).join('<br>');
             }

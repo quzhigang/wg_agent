@@ -16,7 +16,7 @@ from ..models.schemas import (
     ConversationCreate, ConversationResponse,
     MessageResponse, OutputType
 )
-from ..config.logging_config import get_logger
+from ..config.logging_config import get_logger, clear_all_logs
 from ..agents.graph import run_agent, run_agent_stream
 
 logger = get_logger(__name__)
@@ -38,6 +38,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db)):
         conversation_id = request.conversation_id
         if not conversation_id:
             conversation_id = str(uuid4())
+            clear_all_logs()  # 新会话开始时清空日志
             conversation = Conversation(
                 id=conversation_id,
                 user_id=request.user_id,
@@ -140,6 +141,7 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
             ).first()
             
             if not existing_conv:
+                clear_all_logs()  # 新会话开始时清空日志
                 new_conv = Conversation(
                     id=conversation_id,
                     user_id=request.user_id,
