@@ -12,9 +12,6 @@ from ..config.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-BOCHA_API_KEY = "sk-eb6f4246548a43fdb4410b7b5e3507de"
-BOCHA_API_URL = "https://api.bochaai.com/v1/web-search"
-
 
 class MCPWebSearchClient:
     """网络搜索客户端 - 使用博查API"""
@@ -31,6 +28,8 @@ class MCPWebSearchClient:
         if self._initialized:
             return
         self._enabled = settings.web_search_enabled
+        self._api_key = settings.web_search_api_key
+        self._api_url = settings.web_search_api_url
         self._initialized = True
         logger.info(f"网络搜索客户端初始化完成, enabled={self._enabled}")
 
@@ -48,7 +47,7 @@ class MCPWebSearchClient:
 
         try:
             headers = {
-                "Authorization": f"Bearer {BOCHA_API_KEY}",
+                "Authorization": f"Bearer {self._api_key}",
                 "Content-Type": "application/json"
             }
             payload = {
@@ -58,7 +57,7 @@ class MCPWebSearchClient:
             }
 
             async with aiohttp.ClientSession() as session:
-                async with session.post(BOCHA_API_URL, json=payload, headers=headers) as resp:
+                async with session.post(self._api_url, json=payload, headers=headers) as resp:
                     if resp.status != 200:
                         logger.error(f"搜索失败: {resp.status}")
                         return []

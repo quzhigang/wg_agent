@@ -29,3 +29,8 @@
 2026-01-09 18:47:22.323 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
 2026-01-09 18:47:22.323 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
 2026-01-09 18:47:22.323 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2026-01-09 18:47:25.591 | INFO     | src.rag.knowledge_base:_init_vector_db:97 | PageIndex向量索引连接成功: 107 个文档, 37459 个节点
+2026-01-09 18:47:25.593 | INFO     | src.rag.knowledge_base:__init__:82 | 知识库初始化完成（对接PageIndex）
+2026-01-09 18:47:27.398 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 107
+2026-01-09 18:47:27.398 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2026-01-09 18:47:27.399 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...

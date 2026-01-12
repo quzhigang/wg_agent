@@ -85,7 +85,7 @@
 ├── 9个知识库: catchment_basin, water_project, monitor_site,
 │              history_flood, flood_preplan, system_function,
 │              hydro_model, catchment_planning, project_designplan
-└── 流程: plan → knowledge_rag → mcp搜索(特定问题或RAG匹配度低时) → respond → END
+└── 流程: plan → knowledge_rag → 网络搜索(特定问题或RAG无结果时) → respond → END
 
 第3类: business (业务相关)
 ├── 子意图: data_query, flood_forecast, flood_simulation,

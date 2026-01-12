@@ -19,13 +19,87 @@ class Settings(BaseSettings):
     )
     
     # ===========================================
-    # LLM Configuration
+    # LLM Configuration - 默认配置
     # ===========================================
     openai_api_key: str = "sk-fYNBIb1rjJveHJpsVxhb27NKyMOIa9SwRrr8U6lxFGCztIC2"
     openai_api_base: str = "https://max.openai365.top/v1"
     openai_model_name: str = "gemini-3-flash"
     openai_temperature: float = 0.7
     openai_max_tokens: int = 4096
+
+    # ===========================================
+    # LLM Configuration - 各节点独立配置
+    # ===========================================
+    # 意图识别节点
+    intent_api_key: Optional[str] = None
+    intent_api_base: Optional[str] = None
+    intent_model_name: Optional[str] = None
+    intent_temperature: float = 0.3
+
+    # 工作流匹配节点
+    workflow_api_key: Optional[str] = None
+    workflow_api_base: Optional[str] = None
+    workflow_model_name: Optional[str] = None
+    workflow_temperature: float = 0.3
+
+    # 计划生成节点
+    plan_api_key: Optional[str] = None
+    plan_api_base: Optional[str] = None
+    plan_model_name: Optional[str] = None
+    plan_temperature: float = 0.3
+
+    # 结果合成节点
+    synthesis_api_key: Optional[str] = None
+    synthesis_api_base: Optional[str] = None
+    synthesis_model_name: Optional[str] = None
+    synthesis_temperature: float = 0.7
+
+    # 页面生成节点
+    page_gen_api_key: Optional[str] = None
+    page_gen_api_base: Optional[str] = None
+    page_gen_model_name: Optional[str] = None
+    page_gen_temperature: float = 0.5
+
+    # 获取各节点配置的辅助方法（未配置时使用默认值）
+    def get_intent_config(self) -> dict:
+        return {
+            "api_key": self.intent_api_key or self.openai_api_key,
+            "api_base": self.intent_api_base or self.openai_api_base,
+            "model": self.intent_model_name or self.openai_model_name,
+            "temperature": self.intent_temperature
+        }
+
+    def get_workflow_config(self) -> dict:
+        return {
+            "api_key": self.workflow_api_key or self.openai_api_key,
+            "api_base": self.workflow_api_base or self.openai_api_base,
+            "model": self.workflow_model_name or self.openai_model_name,
+            "temperature": self.workflow_temperature
+        }
+
+    def get_plan_config(self) -> dict:
+        return {
+            "api_key": self.plan_api_key or self.openai_api_key,
+            "api_base": self.plan_api_base or self.openai_api_base,
+            "model": self.plan_model_name or self.openai_model_name,
+            "temperature": self.plan_temperature
+        }
+
+    def get_synthesis_config(self) -> dict:
+        return {
+            "api_key": self.synthesis_api_key or self.openai_api_key,
+            "api_base": self.synthesis_api_base or self.openai_api_base,
+            "model": self.synthesis_model_name or self.openai_model_name,
+            "temperature": self.synthesis_temperature
+        }
+
+    def get_page_gen_config(self) -> dict:
+        return {
+            "api_key": self.page_gen_api_key or self.openai_api_key,
+            "api_base": self.page_gen_api_base or self.openai_api_base,
+            "model": self.page_gen_model_name or self.openai_model_name,
+            "temperature": self.page_gen_temperature
+        }
     
     # Embedding Model
     embedding_model_name: str = "bge-m3:latest"
@@ -114,9 +188,11 @@ class Settings(BaseSettings):
     # knowledge_dir: str = "./knowledge"  # 已废弃
     
     # ===========================================
-    # 网络搜索配置 (使用Bing搜索，无需API Key)
+    # 网络搜索配置 (博查Web Search API)
     # ===========================================
     web_search_enabled: bool = False
+    web_search_api_key: str = "sk-eb6f4246548a43fdb4410b7b5e3507de"
+    web_search_api_url: str = "https://api.bochaai.com/v1/web-search"
 
 
 @lru_cache()

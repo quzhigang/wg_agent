@@ -79,20 +79,22 @@ WEB_PAGE_DECISION_PROMPT = """根据以下信息，决定是否需要生成Web�
 
 class Controller:
     """结果合成控制器"""
-    
+
     def __init__(self):
         """初始化控制器"""
+        # 结果合成LLM
+        synthesis_cfg = settings.get_synthesis_config()
         self.llm = ChatOpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_api_base,
-            model=settings.openai_model_name,
-            temperature=0.7
+            api_key=synthesis_cfg["api_key"],
+            base_url=synthesis_cfg["api_base"],
+            model=synthesis_cfg["model"],
+            temperature=synthesis_cfg["temperature"]
         )
-        
+
         # 响应生成链
         self.response_prompt = ChatPromptTemplate.from_template(RESPONSE_GENERATION_PROMPT)
         self.response_chain = self.response_prompt | self.llm
-        
+
         logger.info("Controller初始化完成")
     
     async def synthesize_response(self, state: AgentState) -> Dict[str, Any]:
