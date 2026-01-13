@@ -223,16 +223,18 @@ class RAGRetriever:
         self,
         user_message: str,
         intent: Optional[str] = None,
-        max_length: int = 8000
+        max_length: int = 8000,
+        target_kbs: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         获取与用户消息相关的上下文
-        
+
         Args:
             user_message: 用户消息
             intent: 用户意图（可用于优化检索）
             max_length: 上下文最大长度
-            
+            target_kbs: 目标知识库ID列表，如 ["water_project", "monitor_site"]
+
         Returns:
             包含上下文和元信息的字典
         """
@@ -240,11 +242,12 @@ class RAGRetriever:
         top_k = self._default_top_k
         if intent in ['knowledge_qa', 'flood_forecast']:
             top_k = 8
-        
+
         # 检索文档
         results = await self.retrieve(
             query=user_message,
-            top_k=top_k
+            top_k=top_k,
+            target_kbs=target_kbs
         )
         
         # 格式化上下文

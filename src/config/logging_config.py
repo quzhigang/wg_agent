@@ -4,6 +4,8 @@
 """
 
 import sys
+import logging
+import warnings
 from pathlib import Path
 from loguru import logger
 from .settings import settings
@@ -11,10 +13,17 @@ from .settings import settings
 
 def setup_logging():
     """配置日志系统"""
-    
+
+    # 过滤 LangChain 的 model_kwargs 警告
+    warnings.filterwarnings(
+        "ignore",
+        message=".*Parameters.*should be specified explicitly.*model_kwargs.*",
+        category=UserWarning
+    )
+
     # 移除默认处理器
     logger.remove()
-    
+
     # 日志格式
     log_format = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
@@ -22,14 +31,14 @@ def setup_logging():
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
         "<level>{message}</level>"
     )
-    
+
     # 简化格式（用于控制台）
     console_format = (
         "<green>{time:HH:mm:ss}</green> | "
         "<level>{level: <8}</level> | "
         "<level>{message}</level>"
     )
-    
+
     # 添加控制台处理器
     logger.add(
         sys.stdout,
@@ -39,7 +48,7 @@ def setup_logging():
         backtrace=True,
         diagnose=True
     )
-    
+
     # 确保日志目录存在
     log_path = Path(settings.log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -57,7 +66,7 @@ def setup_logging():
         backtrace=True,
         diagnose=True
     )
-    
+
     # 添加错误日志文件处理器
     error_log_path = log_path.parent / "error.log"
     with open(error_log_path, "w", encoding="utf-8") as f:
@@ -70,7 +79,12 @@ def setup_logging():
         backtrace=True,
         diagnose=True
     )
-    
+
+    # 禁用 SQLAlchemy 的 INFO 级别日志（SQL 语句）
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.dialects").setLevel(logging.WARNING)
+
     logger.info("日志系统初始化完成")
     logger.info(f"日志级别: {settings.log_level}")
     logger.info(f"日志文件: {settings.log_file}")

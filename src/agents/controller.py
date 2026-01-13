@@ -261,8 +261,12 @@ class Controller:
             plan_summary = self._format_plan_summary(state.get('plan', []))
             
             try:
+                # 格式化聊天历史
+                chat_history_str = self._format_chat_history(state.get('chat_history', []))
+
                 # 准备上下文变量
                 web_context_vars = {
+                    "chat_history": chat_history_str or "无",
                     "user_message": state.get('user_message', ''),
                     "intent": state.get('intent', 'unknown'),
                     "plan_summary": plan_summary or "无执行计划",

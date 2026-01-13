@@ -191,16 +191,16 @@ class LoginTool(BaseTool):
                         LoginTool._token_expiration = exp
                         logger.info(f"Token过期时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(exp))}")
                     else:
-                        # 默认30分钟过期 (根据配置或保守估计)
-                        LoginTool._token_expiration = int(time.time()) + 1800
+                        # 使用配置的过期时间（分钟转秒）
+                        LoginTool._token_expiration = int(time.time()) + settings.basin_token_expiry_minutes * 60
                     
                     # 只显示token的前20个字符，保护敏感信息
                     token_preview = token[:20] + "..." if len(token) > 20 else token
                     logger.info(f"登录成功，获取到Token: {token_preview}")
                     
-                    # 等待1.5秒让服务器建立会话，避免后续请求因会话未就绪而失败
+                    # 等待0.5秒让服务器建立会话，避免后续请求因会话未就绪而失败
                     logger.info("等待服务器建立会话...")
-                    await asyncio.sleep(1.5)
+                    await asyncio.sleep(0.5)
                     
                     return ToolResult(
                         success=True,

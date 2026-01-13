@@ -172,6 +172,7 @@ class Settings(BaseSettings):
     # ===========================================
     basin_auth_account: str = "admin"
     basin_auth_password: str = "Pwd@6915"
+    basin_token_expiry_minutes: int = 30  # Token默认过期时间（分钟）
     
     # ===========================================
     # Session Configuration

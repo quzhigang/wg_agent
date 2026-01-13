@@ -6,6 +6,7 @@ Planner - 规划调度器
 from typing import Dict, Any, List, Optional
 import json
 import uuid
+import asyncio
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
@@ -232,6 +233,50 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
 6. 参考"相关知识和业务流程参考"中的信息，优化执行计划的步骤和工具选择
 """
 
+# 工作流模板化提示词（将具体执行计划抽象为通用模板）
+WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将具体的执行计划抽象为通用的业务工作流模板。
+
+## 原始用户消息
+{user_message}
+
+## 提取的实体
+{entities}
+
+## 执行计划步骤
+{plan_steps}
+
+## 任务
+请将上述具体的执行计划抽象为一个通用的业务工作流模板，使其可以复用于同类业务场景。
+
+## 输出要求
+返回JSON格式：
+{{
+    "workflow_name": "简短的工作流名称（英文，如 query_reservoir_realtime_water_level）",
+    "description": "工作流的通用描述（中文，不要包含具体的站点名、水库名等，描述业务场景）",
+    "trigger_pattern": "触发模式描述（中文，用于匹配用户意图，如：查询XX水库/河道的当前/实时水位）",
+    "template_steps": [
+        {{
+            "step_id": 1,
+            "description": "步骤的通用描述（用{{实体名}}作为占位符）",
+            "tool_name": "工具名称",
+            "tool_args_template": {{"参数名": "{{实体名}}或固定值"}}
+        }}
+    ],
+    "required_entities": ["需要的实体列表，如：站点名称、时间范围"]
+}}
+
+示例：
+- 原始："查询盘石头水库当前水位"
+- 抽象后的trigger_pattern："查询水库当前水位"、"XX水库实时水位"
+- 抽象后的description："查询指定水库的实时水情数据，包括当前水位、蓄水量等"
+- 步骤中的参数：{{"stcd": "{{站点编码}}"}} 而不是 {{"stcd": "31005650"}}
+
+注意：
+1. 去除所有具体的实体值（水库名、站点编码、具体时间等）
+2. 保留业务流程的通用结构
+3. description 和 trigger_pattern 要足够通用，能匹配同类查询
+"""
+
 
 class Planner:
     """规划调度器"""
@@ -278,6 +323,10 @@ class Planner:
         )
         self.plan_prompt = ChatPromptTemplate.from_template(PLAN_GENERATION_PROMPT)
         self.plan_chain = self.plan_prompt | plan_llm | self.json_parser
+
+        # 工作流模板化LLM（复用workflow配置）
+        self.workflow_template_prompt = ChatPromptTemplate.from_template(WORKFLOW_TEMPLATE_PROMPT)
+        self.workflow_template_chain = self.workflow_template_prompt | workflow_llm | self.json_parser
 
         logger.info("Planner初始化完成")
 
@@ -492,19 +541,22 @@ class Planner:
         
         try:
             # 1. 执行RAG检索，获取相关知识和业务流程参考
+            # 业务场景动态规划只查询：水利工程、监测站点、业务流程 3个知识库
             rag_context = "无相关知识"
             rag_doc_count = 0
+            business_target_kbs = ["water_project", "monitor_site", "business_workflow"]
             try:
                 from ..rag.retriever import get_rag_retriever
                 rag_retriever = get_rag_retriever()
                 rag_result = await rag_retriever.get_relevant_context(
                     user_message=state['user_message'],
                     intent=state.get('intent'),
-                    max_length=3000
+                    max_length=3000,
+                    target_kbs=business_target_kbs
                 )
                 rag_context = rag_result.get('context', '无相关知识')
                 rag_doc_count = rag_result.get('document_count', 0)
-                logger.info(f"计划生成RAG检索完成，获取到 {rag_doc_count} 条相关文档")
+                logger.info(f"计划生成RAG检索完成（知识库: {business_target_kbs}），获取到 {rag_doc_count} 条相关文档")
             except Exception as rag_error:
                 logger.warning(f"计划生成RAG检索失败: {rag_error}")
             
@@ -564,8 +616,8 @@ class Planner:
             logger.info("=" * 60)
             logger.info("")  # 空行
 
-            # 自动保存动态生成的流程
-            self._save_dynamic_plan(state, steps, result.get('output_type', 'text'))
+            # 后台异步保存动态生成的流程（不阻塞主对话）
+            asyncio.create_task(self._save_dynamic_plan(state, steps, result.get('output_type', 'text')))
 
             return {
                 "plan": steps,
@@ -648,20 +700,28 @@ class Planner:
         """获取已保存的动态工作流描述（用于提示词）"""
         try:
             db = SessionLocal()
-            saved_workflows = db.query(SavedWorkflow).filter(
-                SavedWorkflow.is_active == True
-            ).order_by(SavedWorkflow.use_count.desc()).limit(10).all()
-            db.close()
+            try:
+                saved_workflows = db.query(SavedWorkflow).filter(
+                    SavedWorkflow.is_active == True
+                ).order_by(SavedWorkflow.use_count.desc()).limit(10).all()
 
-            if not saved_workflows:
-                return "暂无已保存的动态工作流"
+                if not saved_workflows:
+                    return "暂无已保存的动态工作流"
 
-            descriptions = []
-            for wf in saved_workflows:
-                desc = f"- ID: {wf.id}\n  名称: {wf.name}\n  描述: {wf.description}\n  子意图: {wf.sub_intent}\n  使用次数: {wf.use_count}"
-                descriptions.append(desc)
+                # 在 Session 关闭前提取所有需要的数据，提供更详细的匹配信息
+                descriptions = []
+                for wf in saved_workflows:
+                    desc = f"""- ID: {wf.id}
+  名称: {wf.name}
+  描述: {wf.description}
+  触发模式: {wf.trigger_pattern}
+  子意图: {wf.sub_intent}
+  使用次数: {wf.use_count}"""
+                    descriptions.append(desc)
 
-            return "\n".join(descriptions)
+                return "\n".join(descriptions)
+            finally:
+                db.close()
         except Exception as e:
             logger.warning(f"获取已保存工作流描述失败: {e}")
             return "暂无已保存的动态工作流"
@@ -670,27 +730,36 @@ class Planner:
         """根据ID加载已保存的工作流"""
         try:
             db = SessionLocal()
-            saved = db.query(SavedWorkflow).filter(
-                SavedWorkflow.id == workflow_id,
-                SavedWorkflow.is_active == True
-            ).first()
+            try:
+                saved = db.query(SavedWorkflow).filter(
+                    SavedWorkflow.id == workflow_id,
+                    SavedWorkflow.is_active == True
+                ).first()
 
-            if saved:
-                saved.use_count += 1
-                db.commit()
+                if saved:
+                    # 在 Session 关闭前提取所有需要的数据
+                    workflow_name = saved.name
+                    workflow_id = saved.id
+                    plan_steps = json.loads(saved.plan_steps)
+                    output_type = saved.output_type
+
+                    # 更新使用次数
+                    saved.use_count += 1
+                    db.commit()
+
+                    logger.info(f"加载已保存工作流: {workflow_name}")
+                    return {
+                        "matched_workflow": None,
+                        "workflow_from_template": False,
+                        "saved_workflow_id": workflow_id,
+                        "plan": plan_steps,
+                        "current_step_index": 0,
+                        "output_type": output_type,
+                        "next_action": "execute"
+                    }
+                return None
+            finally:
                 db.close()
-
-                logger.info(f"加载已保存工作流: {saved.name}")
-                return {
-                    "matched_workflow": None,
-                    "workflow_from_template": False,
-                    "saved_workflow_id": saved.id,
-                    "plan": json.loads(saved.plan_steps),
-                    "current_step_index": 0,
-                    "output_type": saved.output_type,
-                    "next_action": "execute"
-                }
-            db.close()
         except Exception as e:
             logger.warning(f"加载已保存工作流失败: {e}")
         return None
@@ -699,60 +768,114 @@ class Planner:
         """匹配自动保存的流程"""
         try:
             db = SessionLocal()
-            sub_intent = state.get('business_sub_intent')
+            try:
+                sub_intent = state.get('business_sub_intent')
 
-            # 查询同类子意图的已保存流程
-            saved = db.query(SavedWorkflow).filter(
-                SavedWorkflow.is_active == True,
-                SavedWorkflow.sub_intent == sub_intent
-            ).order_by(SavedWorkflow.use_count.desc()).first()
+                # 查询同类子意图的已保存流程
+                saved = db.query(SavedWorkflow).filter(
+                    SavedWorkflow.is_active == True,
+                    SavedWorkflow.sub_intent == sub_intent
+                ).order_by(SavedWorkflow.use_count.desc()).first()
 
-            if saved:
-                # 更新使用次数
-                saved.use_count += 1
-                db.commit()
+                if saved:
+                    # 在 Session 关闭前提取所有需要的数据
+                    workflow_name = saved.name
+                    workflow_id = saved.id
+                    plan_steps = json.loads(saved.plan_steps)
+                    output_type = saved.output_type
 
-                logger.info(f"匹配到已保存流程: {saved.name}")
-                return {
-                    "matched_workflow": None,
-                    "workflow_from_template": False,
-                    "saved_workflow_id": saved.id,
-                    "plan": json.loads(saved.plan_steps),
-                    "current_step_index": 0,
-                    "output_type": saved.output_type,
-                    "next_action": "execute"
-                }
-            db.close()
+                    # 更新使用次数
+                    saved.use_count += 1
+                    db.commit()
+
+                    logger.info(f"匹配到已保存流程: {workflow_name}")
+                    return {
+                        "matched_workflow": None,
+                        "workflow_from_template": False,
+                        "saved_workflow_id": workflow_id,
+                        "plan": plan_steps,
+                        "current_step_index": 0,
+                        "output_type": output_type,
+                        "next_action": "execute"
+                    }
+                return None
+            finally:
+                db.close()
         except Exception as e:
             logger.warning(f"匹配已保存流程失败: {e}")
         return None
 
-    def _save_dynamic_plan(self, state: AgentState, steps: List[Dict], output_type: str):
-        """保存动态生成的流程"""
+    async def _save_dynamic_plan(self, state: AgentState, steps: List[Dict], output_type: str):
+        """
+        保存动态生成的流程为通用工作流模板
+
+        使用LLM将具体的执行计划抽象为可复用的通用模板
+        """
         if len(steps) < 2:
             return  # 步骤太少不保存
 
         try:
-            db = SessionLocal()
             sub_intent = state.get('business_sub_intent', 'other')
-            user_msg = state.get('user_message', '')[:100]
+            user_msg = state.get('user_message', '')
+            entities = state.get('entities', {})
 
-            workflow = SavedWorkflow(
-                id=str(uuid.uuid4()),
-                name=f"auto_{sub_intent}_{uuid.uuid4().hex[:6]}",
-                description=f"自动保存: {user_msg}",
-                trigger_pattern=user_msg,
-                intent_category=state.get('intent_category', 'business'),
-                sub_intent=sub_intent,
-                entities_pattern=json.dumps(state.get('entities', {}), ensure_ascii=False),
-                plan_steps=json.dumps(steps, ensure_ascii=False),
-                output_type=output_type,
-                source="auto"
-            )
-            db.add(workflow)
-            db.commit()
-            db.close()
-            logger.info(f"已自动保存流程: {workflow.name}")
+            # 使用LLM生成通用工作流模板
+            template_vars = {
+                "user_message": user_msg,
+                "entities": json.dumps(entities, ensure_ascii=False),
+                "plan_steps": json.dumps(steps, ensure_ascii=False, indent=2)
+            }
+
+            try:
+                template_result = await self.workflow_template_chain.ainvoke(template_vars)
+                logger.info(f"工作流模板化结果: {template_result}")
+
+                workflow_name = template_result.get('workflow_name', f"auto_{sub_intent}_{uuid.uuid4().hex[:6]}")
+                description = template_result.get('description', f"自动保存的{sub_intent}类工作流")
+                trigger_pattern = template_result.get('trigger_pattern', sub_intent)
+                template_steps = template_result.get('template_steps', steps)
+                required_entities = template_result.get('required_entities', [])
+
+            except Exception as llm_error:
+                logger.warning(f"LLM生成工作流模板失败，使用默认值: {llm_error}")
+                workflow_name = f"auto_{sub_intent}_{uuid.uuid4().hex[:6]}"
+                description = f"自动保存的{sub_intent}类工作流"
+                trigger_pattern = sub_intent
+                template_steps = steps
+                required_entities = list(entities.keys()) if entities else []
+
+            # 检查是否已存在相同名称的工作流
+            db = SessionLocal()
+            try:
+                existing = db.query(SavedWorkflow).filter(
+                    SavedWorkflow.name == workflow_name,
+                    SavedWorkflow.is_active == True
+                ).first()
+
+                if existing:
+                    # 更新已有工作流的使用次数
+                    existing.use_count += 1
+                    db.commit()
+                    logger.info(f"已存在相同工作流 {workflow_name}，更新使用次数")
+                    return
+
+                workflow = SavedWorkflow(
+                    id=str(uuid.uuid4()),
+                    name=workflow_name,
+                    description=description,
+                    trigger_pattern=trigger_pattern,
+                    intent_category=state.get('intent_category', 'business'),
+                    sub_intent=sub_intent,
+                    entities_pattern=json.dumps(required_entities, ensure_ascii=False),
+                    plan_steps=json.dumps(template_steps, ensure_ascii=False),
+                    output_type=output_type,
+                    source="auto"
+                )
+                db.add(workflow)
+                db.commit()
+                logger.info(f"已自动保存通用工作流模板: {workflow_name}")
+            finally:
+                db.close()
         except Exception as e:
             logger.warning(f"保存动态流程失败: {e}")
 
@@ -810,9 +933,10 @@ async def planner_node(state: AgentState) -> Dict[str, Any]:
         # 第2阶段：LLM选择工作流
         workflow_result = await planner.check_workflow_match(temp_state)
 
-        # 如果匹配到工作流，直接执行
-        if workflow_result.get('matched_workflow'):
-            logger.info(f"LLM选择工作流: {workflow_result.get('matched_workflow')}")
+        # 如果匹配到工作流（预定义模板或已保存的动态工作流），直接执行
+        if workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_id'):
+            matched_name = workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_id')
+            logger.info(f"匹配到工作流: {matched_name}，直接执行")
             return {**intent_result, **workflow_result}
 
         # 未匹配到工作流，进行动态规划

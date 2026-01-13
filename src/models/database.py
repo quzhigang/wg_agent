@@ -131,7 +131,7 @@ def get_engine():
     """获取同步数据库引擎"""
     return create_engine(
         settings.mysql_url,
-        echo=settings.api_debug,
+        echo=False,  # 关闭SQL语句日志输出
         pool_pre_ping=True,
         pool_recycle=3600
     )
@@ -141,7 +141,7 @@ def get_async_engine():
     """获取异步数据库引擎"""
     return create_async_engine(
         settings.async_mysql_url,
-        echo=settings.api_debug,
+        echo=False,  # 关闭SQL语句日志输出
         pool_pre_ping=True,
         pool_recycle=3600
     )
