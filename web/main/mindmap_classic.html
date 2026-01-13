@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卫共流域数字孪生智能体 - 经典树状思维导图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1em;
+            margin-bottom: 40px;
+        }
+
+        .mindmap {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .root {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .root-node {
+            display: inline-block;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 50px;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tech-tag {
+            background: #f0f9ff;
+            color: #0369a1;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            border: 1px solid #bae6fd;
+        }
+
+        .branches {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .branch {
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .branch-header {
+            padding: 20px 25px;
+            color: white;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .branch-header .icon {
+            font-size: 1.5em;
+        }
+
+        .branch-content {
+            background: #fafafa;
+            padding: 20px 25px;
+        }
+
+        .branch-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            border-left: 4px solid;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .branch-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .branch-item h4 {
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        .branch-item p {
+            color: #6b7280;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .branch-item ul {
+            color: #6b7280;
+            font-size: 0.85em;
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .branch-item li {
+            margin-bottom: 4px;
+        }
+
+        /* 颜色主题 */
+        .branch.agents .branch-header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .branch.agents .branch-item { border-color: #10b981; }
+
+        .branch.intent .branch-header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .branch.intent .branch-item { border-color: #f59e0b; }
+
+        .branch.tools .branch-header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        .branch.tools .branch-item { border-color: #ef4444; }
+
+        .branch.rag .branch-header { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .branch.rag .branch-item { border-color: #3b82f6; }
+
+        .branch.pageindex .branch-header { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+        .branch.pageindex .branch-item { border-color: #8b5cf6; }
+
+        .branch.api .branch-header { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+        .branch.api .branch-item { border-color: #ec4899; }
+
+        .branch.config .branch-header { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+        .branch.config .branch-item { border-color: #06b6d4; }
+
+        .branch.workflow .branch-header { background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%); }
+        .branch.workflow .branch-item { border-color: #84cc16; }
+
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .flow-section {
+            margin-top: 40px;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border-radius: 16px;
+            padding: 30px;
+            color: white;
+        }
+
+        .flow-section h3 {
+            margin-bottom: 25px;
+            font-size: 1.3em;
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .flow-node {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .flow-node.highlight-node {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: #6366f1;
+        }
+
+        .flow-arrow {
+            font-size: 1.5em;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .stats-section {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: #64748b;
+            margin-top: 8px;
+            font-size: 0.95em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>卫共流域数字孪生智能体</h1>
+        <p class="subtitle">Plan-and-Execute 智能体系统架构思维导图</p>
+
+        <div class="mindmap">
+            <!-- 根节点 -->
+            <div class="root">
+                <div class="root-node">WG Agent 系统架构</div>
+                <div class="tech-stack">
+                    <span class="tech-tag">Python 3.11</span>
+                    <span class="tech-tag">FastAPI</span>
+                    <span class="tech-tag">LangGraph</span>
+                    <span class="tech-tag">LangChain</span>
+                    <span class="tech-tag">ChromaDB</span>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="stats-section">
+                <div class="stat-card">
+                    <div class="stat-number">175+</div>
+                    <div class="stat-label">工具数量</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">10</div>
+                    <div class="stat-label">知识库</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">5</div>
+                    <div class="stat-label">预定义工作流</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">6</div>
+                    <div class="stat-label">LLM配置节点</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">3</div>
+                    <div class="stat-label">意图分类</div>
+                </div>
+            </div>
+
+            <!-- 分支 -->
+            <div class="branches">
+                <!-- 智能体核心 -->
+                <div class="branch agents">
+                    <div class="branch-header">
+                        <span class="icon">🧠</span>
+                        智能体核心 (agents/)
+                    </div>
+                    <div class="branch-content">
+                        <div class="branch-item">
+                            <h4>state.py - 状态定义</h4>
+                            <p>AgentState TypedDict 定义系统状态</p>
+                            <ul>
+                                <li>会话信息 (conversation_id, user_id)</li>
+                                <li>意图识别 (intent_category, business_sub_intent)</li>
+                                <li>执行计划 (plan, current_step_index)</li>
+                                <li>RAG检索 (retrieved_documents)</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>planner.py - 规划调度器</h4>
+                            <p>最复杂的模块，包含三大提示词模板</p>
+                            <ul>
+                                <li><span class="code">INTENT_ANALYSIS_PROMPT</span> - 意图识别</li>
+                                <li><span class="code">WORKFLOW_SELECT_PROMPT</span> - 工作流选择</li>
+                                <li><span class="code">PLAN_GENERATION_PROMPT</span> - 计划生成</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>executor.py - 任务执行器</h4>
+                            <p>执行步骤，支持参数变量替换</p>
+                            <ul>
+                                <li>格式: <span class="code">$$step_1.data[0].stcd$$</span></li>
+                                <li>递归处理 dict/list 结构</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>controller.py - 结果合成</h4>
+                            <p>生成最终响应，自动添加参考来源</p>
+                        </div>
+                        <div class="branch-item">
+                            <h4>graph.py - LangGraph状态图</h4>
+                            <p>定义节点和路由逻辑</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 意图分类 -->
+                <div class="branch intent">
+                    <div class="branch-header">
+                        <span class="icon">🎯</span>
+                        意图分类系统
+                    </div>
+                    <div class="branch-content">
+                        <div class="branch-item">
+                            <h4>第一阶段: 三大类分类</h4>
+                            <ul>
+                                <li><span class="highlight">Chat</span> - 一般对话/闲聊</li>
+                                <li><span class="highlight">Knowledge</span> - 固有知识查询</li>
+                                <li><span class="highlight">Business</span> - 业务操作</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>第二阶段: 工作流匹配</h4>
+                            <p>仅Business类触发</p>
+                            <ul>
+                                <li>检查预定义模板 (5个)</li>
+                                <li>检查已保存动态流程</li>
+                                <li>未匹配 → 动态规划</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>Business 子意图 (6类)</h4>
+                            <ul>
+                                <li>data_query - 监测数据查询</li>
+                                <li>flood_forecast - 洪水预报</li>
+                                <li>flood_simulation - 洪水预演</li>
+                                <li>emergency_plan - 预案生成</li>
+                                <li>damage_assessment - 灾损评估</li>
+                                <li>other - 其他业务</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 工具系统 -->
+                <div class="branch tools">
+                    <div class="branch-header">
+                        <span class="icon">🔧</span>
+                        工具系统 (tools/)
+                    </div>
+                    <div class="branch-content">
+                        <div class="branch-item">
+                            <h4>ToolRegistry 单例</h4>
+                            <p>工具注册与管理中心</p>
+                            <ul>
+                                <li><span class="code">register(tool)</span> - 注册工具</li>
+                                <li><span class="code">execute(name, **kwargs)</span> - 执行工具</li>
+                                <li><span class="code">get_tools_description()</span> - 提示词描述</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>工具分布 (175+个)</h4>
+                            <ul>
+                                <li>basin_info (14) - 流域基本信息</li>
+                                <li>hydro_monitor (15) - 水雨情监测</li>
+                                <li>modelplan_control (20) - 方案管理</li>
+                                <li>rain_control (33) - 降雨处理</li>
+                                <li>flood_otherbusiness (29) - 防洪业务</li>
+                                <li>hydromodel_* (61) - 水利模型</li>
+                                <li>damage_assess (3) - 灾损评估</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RAG知识库 -->
+                <div class="branch rag">
+                    <div class="branch-header">
+                        <span class="icon">📚</span>
+                        RAG知识库 (rag/)
+                    </div>
+                    <div class="branch-content">
+                        <div class="branch-item">
+                            <h4>knowledge_base.py</h4>
+                            <p>对接PageIndex向量索引，支持10个知识库统一检索</p>
+                        </div>
+                        <div class="branch-item">
+                            <h4>retriever.py - RAG检索器</h4>
+                            <ul>
+                                <li><span class="code">retrieve(query, top_k, target_kbs)</span></li>
+                                <li>检索来源: rag / web_search / 混合</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>RAG-in-Plan 架构</h4>
+                            <p>计划生成时自动执行RAG检索，增强LLM规划能力</p>
+                        </div>
+                        <div class="branch-item">
+                            <h4>来源引用</h4>
+                            <p>Controller自动在响应末尾添加"参考来源"部分</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PageIndex -->
+                <div class="branch pageindex">
+                    <div class="branch-header">
+                        <span class="icon">🗄️</span>
+                        PageIndex知识库系统
+                    </div>
+                    <div class="branch-content">
+                        <div class="branch-item">
+                            <h4>10个知识库</h4>
+                            <ul>
+                                <li>catchment_basin - 流域概况</li>
+                                <li>water_project - 水利工程</li>
+                                <li>monitor_site - 监测站点</li>
+                                <li>history_flood - 历史洪水</li>
+                                <li>flood_preplan - 防洪预案</li>
+                                <li>system_function - 系统功能</li>
+                                <li>business_workflow - 业务工作流</li>
+                                <li>hydro_model - 专业模型</li>
+                                <li>catchment_planning - 防洪规划</li>
+                                <li>project_designplan - 工程治理</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>核心模块</h4>
+                            <ul>
+                                <li>kb_manager.py - 知识库管理器</li>
+                                <li>vector_index.py - Chroma向量索引</li>
+                                <li>page_index.py - 页面索引</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API接口 -->
+                <div class="branch api">
+                    <div class="branch-header">
+                        <span class="icon">🌐</span>
+                        API接口层 (api/)
+                    </div>
+                    <div class="branch-content">
+                        <div class="branch-item">
+                            <h4>chat.py - 对话接口</h4>
+                            <ul>
+                                <li><span class="code">POST /chat</span> - 同步对话</li>
+                                <li><span class="code">POST /chat/stream</span> - SSE流式响应</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>knowledge.py - 知识库接口</h4>
+                            <ul>
+                                <li><span class="code">POST /knowledge/search</span></li>
+                                <li><span class="code">GET /knowledge/kb-doc/{kb_id}/{doc}</span></li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>saved_workflows.py</h4>
+                            <p>工作流CRUD管理</p>
+                        </div>
+                        <div class="branch-item">
+                            <h4>访问地址</h4>
+                            <ul>
+                                <li>API文档: /docs</li>
+                                <li>主界面: /ui/index.html</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 配置管理 -->
+                <div class="branch config">
+                    <div class="branch-header">
+                        <span class="icon">⚙️</span>
+                        配置管理 (config/)
+                    </div>
+                    <div class="branch-content">
+                        <div class="branch-item">
+                            <h4>三层LLM配置体系</h4>
+                            <ul>
+                                <li>默认配置 (openai_*)</li>
+                                <li>节点独立配置</li>
+                                <li>get_*_config() 方法</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>6个节点独立配置</h4>
+                            <ul>
+                                <li>intent_config - 意图识别</li>
+                                <li>workflow_config - 工作流匹配</li>
+                                <li>plan_config - 计划生成</li>
+                                <li>synthesis_config - 结果合成</li>
+                                <li>page_gen_config - 页面生成</li>
+                                <li>executor_config - 执行器</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 工作流系统 -->
+                <div class="branch workflow">
+                    <div class="branch-header">
+                        <span class="icon">📋</span>
+                        工作流系统 (workflows/)
+                    </div>
+                    <div class="branch-content">
+                        <div class="branch-item">
+                            <h4>5个预定义工作流</h4>
+                            <ul>
+                                <li>get_auto_forecast_result - 查询最新自动预报</li>
+                                <li>get_history_autoforecast_result - 查询历史预报</li>
+                                <li>flood_autoforecast_getresult - 启动自动预报</li>
+                                <li>get_manual_forecast_result - 查询人工预报</li>
+                                <li>flood_manualforecast_getresult - 启动人工预报</li>
+                            </ul>
+                        </div>
+                        <div class="branch-item">
+                            <h4>动态流程自动保存</h4>
+                            <p>系统自动保存验证过的动态流程，下次优先使用</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 流程图 -->
+            <div class="flow-section">
+                <h3>📊 请求处理流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-node">用户请求</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-node highlight-node">Planner<br><small>意图分析</small></div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-node">路由判断</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-node highlight-node">Executor<br><small>工具执行</small></div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-node highlight-node">Controller<br><small>结果合成</small></div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-node">响应输出</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

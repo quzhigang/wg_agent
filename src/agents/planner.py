@@ -240,13 +240,17 @@ class Planner:
         """初始化规划器"""
         self.json_parser = JsonOutputParser()
 
+        # 思考模式配置（用于Qwen3等模型，非流式调用需设置为false）
+        extra_body = {"enable_thinking": settings.llm_enable_thinking}
+
         # 意图识别LLM
         intent_cfg = settings.get_intent_config()
         intent_llm = ChatOpenAI(
             api_key=intent_cfg["api_key"],
             base_url=intent_cfg["api_base"],
             model=intent_cfg["model"],
-            temperature=intent_cfg["temperature"]
+            temperature=intent_cfg["temperature"],
+            model_kwargs={"extra_body": extra_body}
         )
         self.intent_prompt = ChatPromptTemplate.from_template(INTENT_ANALYSIS_PROMPT)
         self.intent_chain = self.intent_prompt | intent_llm | self.json_parser
@@ -257,7 +261,8 @@ class Planner:
             api_key=workflow_cfg["api_key"],
             base_url=workflow_cfg["api_base"],
             model=workflow_cfg["model"],
-            temperature=workflow_cfg["temperature"]
+            temperature=workflow_cfg["temperature"],
+            model_kwargs={"extra_body": extra_body}
         )
         self.workflow_select_prompt = ChatPromptTemplate.from_template(WORKFLOW_SELECT_PROMPT)
         self.workflow_select_chain = self.workflow_select_prompt | workflow_llm | self.json_parser
@@ -268,7 +273,8 @@ class Planner:
             api_key=plan_cfg["api_key"],
             base_url=plan_cfg["api_base"],
             model=plan_cfg["model"],
-            temperature=plan_cfg["temperature"]
+            temperature=plan_cfg["temperature"],
+            model_kwargs={"extra_body": extra_body}
         )
         self.plan_prompt = ChatPromptTemplate.from_template(PLAN_GENERATION_PROMPT)
         self.plan_chain = self.plan_prompt | plan_llm | self.json_parser

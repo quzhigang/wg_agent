@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     openai_temperature: float = 0.7
     openai_max_tokens: int = 4096
 
+    # 思考模式配置（用于Qwen3等支持思考模式的模型）
+    # 注意：非流式调用时必须设置为false，否则Qwen3会报错
+    llm_enable_thinking: bool = False
+
     # ===========================================
     # LLM Configuration - 各节点独立配置
     # ===========================================
@@ -59,6 +63,12 @@ class Settings(BaseSettings):
     page_gen_api_base: Optional[str] = None
     page_gen_model_name: Optional[str] = None
     page_gen_temperature: float = 0.5
+
+    # 执行器节点
+    executor_api_key: Optional[str] = None
+    executor_api_base: Optional[str] = None
+    executor_model_name: Optional[str] = None
+    executor_temperature: float = 0.7
 
     # 获取各节点配置的辅助方法（未配置时使用默认值）
     def get_intent_config(self) -> dict:
@@ -99,6 +109,14 @@ class Settings(BaseSettings):
             "api_base": self.page_gen_api_base or self.openai_api_base,
             "model": self.page_gen_model_name or self.openai_model_name,
             "temperature": self.page_gen_temperature
+        }
+
+    def get_executor_config(self) -> dict:
+        return {
+            "api_key": self.executor_api_key or self.openai_api_key,
+            "api_base": self.executor_api_base or self.openai_api_base,
+            "model": self.executor_model_name or self.openai_model_name,
+            "temperature": self.executor_temperature
         }
     
     # Embedding Model

@@ -82,13 +82,17 @@ class Controller:
 
     def __init__(self):
         """初始化控制器"""
+        # 思考模式配置（用于Qwen3等模型，非流式调用需设置为false）
+        extra_body = {"enable_thinking": settings.llm_enable_thinking}
+
         # 结果合成LLM
         synthesis_cfg = settings.get_synthesis_config()
         self.llm = ChatOpenAI(
             api_key=synthesis_cfg["api_key"],
             base_url=synthesis_cfg["api_base"],
             model=synthesis_cfg["model"],
-            temperature=synthesis_cfg["temperature"]
+            temperature=synthesis_cfg["temperature"],
+            model_kwargs={"extra_body": extra_body}
         )
 
         # 响应生成链

@@ -22,14 +22,20 @@ logger = get_logger(__name__)
 
 class Executor:
     """任务执行器"""
-    
+
     def __init__(self):
         """初始化执行器"""
+        # 思考模式配置（用于Qwen3等模型，非流式调用需设置为false）
+        extra_body = {"enable_thinking": settings.llm_enable_thinking}
+
+        # 执行器LLM
+        executor_cfg = settings.get_executor_config()
         self.llm = ChatOpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_api_base,
-            model=settings.openai_model_name,
-            temperature=0.7
+            api_key=executor_cfg["api_key"],
+            base_url=executor_cfg["api_base"],
+            model=executor_cfg["model"],
+            temperature=executor_cfg["temperature"],
+            model_kwargs={"extra_body": extra_body}
         )
         
         # 工具注册表 - 将在tools模块实现后动态加载

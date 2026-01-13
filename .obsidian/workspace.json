@@ -1,0 +1,200 @@
+{
+  "main": {
+    "id": "dc1ddb8b6f3e4409",
+    "type": "split",
+    "children": [
+      {
+        "id": "f38acb6ec2b31e04",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ff06eb03d61cf9b6",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "wg_agent_architecture.canvas",
+                "viewState": {
+                  "x": 2800,
+                  "y": 1100,
+                  "zoom": -1.9046310884263935
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "wg_agent_architecture"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "c64219525119b26f",
+    "type": "split",
+    "children": [
+      {
+        "id": "70e307505a094c6c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d2ab39f3c01a737b",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "281092c85a15e013",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "f023a49e7a0a0f4a",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "df55217538fad7d3",
+    "type": "split",
+    "children": [
+      {
+        "id": "0f9730c56efac604",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "88ebd096c0ae39ef",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "wg_agent_architecture.canvas",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "wg_agent_architecture 的反向链接列表"
+            }
+          },
+          {
+            "id": "19d95a0aa458746b",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "wg_agent_architecture.canvas",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "wg_agent_architecture 的出链列表"
+            }
+          },
+          {
+            "id": "a985ffdd1fd64432",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "0f0e3e89cfab8ad4",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "5b66f993fa53afd9",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "wg_agent_architecture.canvas",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "wg_agent_architecture 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "ff06eb03d61cf9b6",
+  "lastOpenFiles": [
+    "web/main/mindmap_classic.html",
+    "mindmap_interactive.html",
+    "mindmap_dark_tech.html",
+    "开发资料/系统架构思维导图.png",
+    "开发资料/wg_agent_architecture.png",
+    "mindmap_modern_cards.html",
+    "mindmap_classic.html",
+    "wg_agent_architecture.png"
+  ]
+}
