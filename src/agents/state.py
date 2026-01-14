@@ -114,6 +114,8 @@ class AgentState(TypedDict):
     output_type: str  # OutputType
     final_response: Optional[str]
     generated_page_url: Optional[str]
+    page_task_id: Optional[str]  # 异步页面生成任务ID
+    page_generating: Optional[bool]  # 页面是否正在生成中
 
     # 异步任务
     async_task_ids: List[str]
@@ -193,6 +195,8 @@ def create_initial_state(
         output_type=OutputType.TEXT.value,
         final_response=None,
         generated_page_url=None,
+        page_task_id=None,
+        page_generating=False,
 
         # 异步任务
         async_task_ids=[],

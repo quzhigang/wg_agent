@@ -228,8 +228,11 @@ class Executor:
             "retrieved_documents": docs_str or "无"
         }
         
+        import time
+        _start = time.time()
         response = await chain.ainvoke(context_vars)
-        
+        _elapsed = time.time() - _start
+
         # 记录LLM调用日志
         full_prompt = prompt_template.format(**context_vars)
         log_llm_call(
@@ -238,7 +241,8 @@ class Executor:
             prompt_template_name="EXECUTOR_LLM_PROMPT",
             context_variables=context_vars,
             full_prompt=full_prompt,
-            response=response.content
+            response=response.content,
+            elapsed_time=_elapsed
         )
         
         return response.content
@@ -382,62 +386,86 @@ class Executor:
     def _get_value_by_path(self, path: str, state: AgentState) -> Any:
         """根据路径从状态中获取值"""
         # 使用正则提取步骤ID和后续路径
-        # 支持多种格式：step_2[0].stcd, STEP_2[0].stcd, 2.data[0].stcd（LLM有时会省略step_前缀或使用大写）
+        # 支持多种格式：
+        # - step_2[0].stcd, STEP_2[0].stcd, 2.data[0].stcd（LLM有时会省略step_前缀或使用大写）
+        # - PREV[1].data[0].stcd（PREV[n]表示前n步的结果，PREV[1]表示上一步）
+
+        execution_results = state.get('execution_results', [])
+        current_step_index = state.get('current_step_index', 0)
+
+        # 处理 PREV[n] 格式
+        prev_match = re.match(r"[Pp][Rr][Ee][Vv]\[(\d+)\]((?:[\.\[].*)?$)", path)
+        if prev_match:
+            prev_offset = int(prev_match.group(1))
+            remaining_path = prev_match.group(2)
+            # PREV[1] 表示上一步，即 current_step_index - 1 对应的步骤
+            # 但 execution_results 是按执行顺序存储的，所以取倒数第 prev_offset 个
+            if len(execution_results) >= prev_offset:
+                target_result = execution_results[-prev_offset]
+                return self._extract_value_from_result(target_result, remaining_path)
+            else:
+                logger.warning(f"PREV[{prev_offset}] 超出已执行步骤范围")
+                return None
+
+        # 处理 step_X 格式
         match = re.match(r"(?:[Ss][Tt][Ee][Pp]_)?(\d+)((?:[\.\[].*)?$)", path)
         if not match:
             return None
-            
+
         step_id_str = match.group(1)
         remaining_path = match.group(2)
-        
+
         try:
             target_step_id = int(step_id_str)
-            execution_results = state.get('execution_results', [])
-            
+
             # 查找对应步骤的结果
             target_result = next((r for r in execution_results if r.get('step_id') == target_step_id), None)
-            
+
             if not target_result:
                 logger.warning(f"未找到步骤 {target_step_id} 的执行结果")
                 return None
-            
-            # 获取 output (这是一个 ToolResult 字典，包含 success, data, error 等)
-            current_val = target_result.get('output')
-            
-            if not remaining_path:
-                return current_val
-                
-            # 兼容性处理：如果 output 是 ToolResult 结构且包含 data 字段
-            # 如果路径不是明确请求 data 或以 .data 开头，我们默认进入 data
-            if isinstance(current_val, dict) and 'data' in current_val:
-                if not (remaining_path.startswith('.data.') or remaining_path == '.data' or remaining_path.startswith('.data[')):
-                    current_val = current_val.get('data')
 
-            # 处理剩余路径（属性访问 .xxx 和索引访问 [idx]）
-            ops = re.findall(r"\.([^.\[\]]+)|\[(\d+)\]", remaining_path)
-            
-            for attr, index in ops:
-                if current_val is None:
-                    return None
-                
-                if attr: # 普通属性
-                    if isinstance(current_val, dict):
-                        current_val = current_val.get(attr)
-                    elif hasattr(current_val, attr):
-                        current_val = getattr(current_val, attr)
-                    else:
-                        return None
-                elif index: # 索引
-                    idx = int(index)
-                    if isinstance(current_val, (list, tuple)) and len(current_val) > idx:
-                        current_val = current_val[idx]
-                    else:
-                        return None
-            
-            return current_val
+            return self._extract_value_from_result(target_result, remaining_path)
         except Exception as e:
             logger.error(f"解析路径 {path} 出错: {e}")
             return None
+
+    def _extract_value_from_result(self, target_result: Dict, remaining_path: str) -> Any:
+        """从执行结果中提取值"""
+        # 获取 output (这是一个 ToolResult 字典，包含 success, data, error 等)
+        current_val = target_result.get('output')
+
+        if not remaining_path:
+            return current_val
+
+        # 兼容性处理：如果 output 是 ToolResult 结构且包含 data 字段
+        # 如果路径不是明确请求 data 或以 .data 开头，我们默认进入 data
+        if isinstance(current_val, dict) and 'data' in current_val:
+            if not (remaining_path.startswith('.data.') or remaining_path == '.data' or remaining_path.startswith('.data[')):
+                current_val = current_val.get('data')
+
+        # 处理剩余路径（属性访问 .xxx 和索引访问 [idx]）
+        ops = re.findall(r"\.([^.\[\]]+)|\[(\d+)\]", remaining_path)
+
+        for attr, index in ops:
+            if current_val is None:
+                return None
+
+            if attr: # 普通属性
+                if isinstance(current_val, dict):
+                    current_val = current_val.get(attr)
+                elif hasattr(current_val, attr):
+                    current_val = getattr(current_val, attr)
+                else:
+                    return None
+            elif index: # 索引
+                idx = int(index)
+                if isinstance(current_val, (list, tuple)) and len(current_val) > idx:
+                    current_val = current_val[idx]
+                else:
+                    return None
+
+        return current_val
 
 
 # 创建全局Executor实例

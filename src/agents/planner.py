@@ -429,7 +429,10 @@ class Planner:
             }
 
             # 调用意图分析链
+            import time
+            _start = time.time()
             result = await self.intent_chain.ainvoke(context_vars)
+            _elapsed = time.time() - _start
 
             # 记录LLM调用日志
             full_prompt = INTENT_ANALYSIS_PROMPT.format(**context_vars)
@@ -439,7 +442,8 @@ class Planner:
                 prompt_template_name="INTENT_ANALYSIS_PROMPT",
                 context_variables=context_vars,
                 full_prompt=full_prompt,
-                response=str(result)
+                response=str(result),
+                elapsed_time=_elapsed
             )
 
             logger.info(f"意图分析结果: {result}")
@@ -533,7 +537,10 @@ class Planner:
                 "saved_workflows": saved_workflows_desc
             }
 
+            import time
+            _start = time.time()
             result = await self.workflow_select_chain.ainvoke(context_vars)
+            _elapsed = time.time() - _start
 
             # 记录LLM调用日志
             full_prompt = WORKFLOW_SELECT_PROMPT.format(**context_vars)
@@ -543,7 +550,8 @@ class Planner:
                 prompt_template_name="WORKFLOW_SELECT_PROMPT",
                 context_variables=context_vars,
                 full_prompt=full_prompt,
-                response=str(result)
+                response=str(result),
+                elapsed_time=_elapsed
             )
 
             logger.info(f"工作流选择结果: {result}")
@@ -668,8 +676,11 @@ class Planner:
             }
             
             # 调用计划生成链（包含RAG上下文）
+            import time
+            _start = time.time()
             result = await self.plan_chain.ainvoke(plan_context_vars)
-            
+            _elapsed = time.time() - _start
+
             # 记录LLM调用日志
             full_prompt = PLAN_GENERATION_PROMPT.format(**plan_context_vars)
             log_llm_call(
@@ -678,7 +689,8 @@ class Planner:
                 prompt_template_name="PLAN_GENERATION_PROMPT",
                 context_variables=plan_context_vars,
                 full_prompt=full_prompt,
-                response=str(result)
+                response=str(result),
+                elapsed_time=_elapsed
             )
             
             # 解析步骤
@@ -868,23 +880,29 @@ class Planner:
         """
         填充工作流模板中的占位符参数
 
-        支持的占位符格式：{{实体名}}、{{站点名称}}、{{query}}等
+        支持的占位符格式：{{实体名}}、{实体名}（单双花括号均支持）
         """
         import re
 
-        # 构建替换映射
+        # 构建替换映射（同时支持单花括号和双花括号）
         replacements = {}
         for key, value in entities.items():
-            replacements[f"{{{{{key}}}}}"] = str(value)
+            replacements[f"{{{{{key}}}}}"] = str(value)  # {{key}}
+            replacements[f"{{{key}}}"] = str(value)      # {key}
             # 常见别名映射
             if key in ["站点", "水库", "站点名称"]:
                 replacements["{{站点名称}}"] = str(value)
+                replacements["{站点名称}"] = str(value)
                 replacements["{{水库名称}}"] = str(value)
+                replacements["{水库名称}"] = str(value)
                 replacements["{{站点}}"] = str(value)
+                replacements["{站点}"] = str(value)
 
         # 用户消息作为默认query
         replacements["{{query}}"] = user_message
+        replacements["{query}"] = user_message
         replacements["{{用户消息}}"] = user_message
+        replacements["{用户消息}"] = user_message
 
         filled_steps = []
         for step in plan_steps:
@@ -900,7 +918,7 @@ class Planner:
                         for placeholder, replacement in replacements.items():
                             new_value = new_value.replace(placeholder, replacement)
                         # 如果仍然是占位符格式且未被替换，尝试用用户消息填充
-                        if re.match(r"^\{\{.*\}\}$", new_value):
+                        if re.match(r"^\{\{.*\}\}$", new_value) or re.match(r"^\{[^{}]+\}$", new_value):
                             new_value = user_message
                         new_args[arg_key] = new_value
                     else:

@@ -491,6 +491,8 @@ async def run_agent(
             "response": final_state.get('final_response', ''),
             "output_type": final_state.get('output_type', 'text'),
             "page_url": final_state.get('generated_page_url'),
+            "page_task_id": final_state.get('page_task_id'),
+            "page_generating": final_state.get('page_generating', False),
             "execution_steps": [
                 {
                     "step_id": r.get('step_id'),
@@ -703,9 +705,11 @@ async def run_agent_stream(
                             "node": "final",
                             "response": node_output.get('final_response'),
                             "output_type": node_output.get('output_type', 'text'),
-                            "page_url": node_output.get('generated_page_url')
+                            "page_url": node_output.get('generated_page_url'),
+                            "page_task_id": node_output.get('page_task_id'),
+                            "page_generating": node_output.get('page_generating', False)
                         }
-                
+
                 elif node_name == "respond":
                     # 响应节点 - 发送最终响应
                     if node_output.get('final_response'):
@@ -715,7 +719,9 @@ async def run_agent_stream(
                             "node": "final",
                             "response": node_output.get('final_response'),
                             "output_type": node_output.get('output_type', 'text'),
-                            "page_url": node_output.get('generated_page_url')
+                            "page_url": node_output.get('generated_page_url'),
+                            "page_task_id": node_output.get('page_task_id'),
+                            "page_generating": node_output.get('page_generating', False)
                         }
                 
                 else:
@@ -738,7 +744,9 @@ async def run_agent_stream(
                         "node": "final",
                         "response": node_output.get('final_response'),
                         "output_type": node_output.get('output_type', 'text'),
-                        "page_url": node_output.get('generated_page_url')
+                        "page_url": node_output.get('generated_page_url'),
+                        "page_task_id": node_output.get('page_task_id'),
+                        "page_generating": node_output.get('page_generating', False)
                     }
                     
     except Exception as e:

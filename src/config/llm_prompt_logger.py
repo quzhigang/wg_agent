@@ -70,11 +70,12 @@ class LLMPromptLogger:
         prompt_template_name: str,
         context_variables: Dict[str, Any],
         full_prompt: str,
-        response: Optional[str] = None
+        response: Optional[str] = None,
+        elapsed_time: Optional[float] = None
     ):
         """
         记录LLM调用
-        
+
         Args:
             step_name: 步骤名称（如"意图分析"、"计划生成"等）
             module_name: 模块名称（如"Planner.analyze_intent"）
@@ -82,17 +83,19 @@ class LLMPromptLogger:
             context_variables: 上下文变量字典
             full_prompt: 完整的提示词（已填充变量）
             response: LLM响应（可选）
+            elapsed_time: 耗时（秒，可选）
         """
         if not self._current_session_id:
             return
-        
+
         # 确保会话头部已写入
         self._write_session_header()
-        
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         with open(self.log_file, "a", encoding="utf-8") as f:
-            f.write(f"## {step_name} ({module_name})\n")
+            time_str = f" [{elapsed_time:.2f}s]" if elapsed_time is not None else ""
+            f.write(f"## {step_name}{time_str} ({module_name})\n")
             f.write(f"**时间**: {timestamp}\n")
             f.write(f"**提示词模板**: {prompt_template_name}\n\n")
             
@@ -153,11 +156,12 @@ def log_llm_call(
     prompt_template_name: str,
     context_variables: Dict[str, Any],
     full_prompt: str,
-    response: Optional[str] = None
+    response: Optional[str] = None,
+    elapsed_time: Optional[float] = None
 ):
     """
     便捷函数：记录LLM调用
-    
+
     Args:
         step_name: 步骤名称
         module_name: 模块名称
@@ -165,6 +169,7 @@ def log_llm_call(
         context_variables: 上下文变量
         full_prompt: 完整提示词
         response: LLM响应
+        elapsed_time: 耗时（秒）
     """
     logger = get_llm_prompt_logger()
     logger.log_llm_call(
@@ -173,7 +178,8 @@ def log_llm_call(
         prompt_template_name=prompt_template_name,
         context_variables=context_variables,
         full_prompt=full_prompt,
-        response=response
+        response=response,
+        elapsed_time=elapsed_time
     )
 
 

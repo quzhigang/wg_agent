@@ -356,6 +356,7 @@ def init_default_tools():
         from . import hydromodel_baseinfo   # 水利专业模型-获取与专业模型相关的基础信息        
         from . import hydromodel_parget     # 水利专业模型-获取专业模型参数及边界条件信息        
         from . import hydromodel_resultget  # 水利专业模型-获取专业模型方案及结果信息接口
+        from . import station_lookup        # 站点编码查询工具
         logger.info("默认工具加载完成")
     except ImportError as e:
         logger.warning(f"部分工具模块加载失败: {e}")

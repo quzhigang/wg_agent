@@ -134,12 +134,14 @@ class Controller:
             output_type = state.get('output_type', 'text')
 
             if output_type == OutputType.WEB_PAGE.value or await self._should_generate_web_page(state):
-                # 需要生成Web页面
+                # 需要生成Web页面（异步模式）
                 response = await self._generate_web_page_response(state, execution_summary)
                 return {
                     "output_type": OutputType.WEB_PAGE.value,
                     "final_response": response['text_response'],
                     "generated_page_url": response.get('page_url'),
+                    "page_task_id": response.get('page_task_id'),
+                    "page_generating": response.get('page_generating', False),
                     "next_action": "end"
                 }
 
@@ -154,7 +156,10 @@ class Controller:
             }
 
             # 生成文本响应
+            import time
+            _start = time.time()
             response = await self.response_chain.ainvoke(context_vars)
+            _elapsed = time.time() - _start
 
             # 记录LLM调用日志
             full_prompt = RESPONSE_GENERATION_PROMPT.format(**context_vars)
@@ -164,7 +169,8 @@ class Controller:
                 prompt_template_name="RESPONSE_GENERATION_PROMPT",
                 context_variables=context_vars,
                 full_prompt=full_prompt,
-                response=response.content
+                response=response.content,
+                elapsed_time=_elapsed
             )
 
             logger.info("响应合成完成")
@@ -211,60 +217,44 @@ class Controller:
         return False
     
     async def _generate_web_page_response(
-        self, 
+        self,
         state: AgentState,
         execution_summary: str
     ) -> Dict[str, Any]:
         """
-        生成Web页面响应
-        
+        生成Web页面响应（异步模式）
+
+        页面生成由独立的异步智能体执行，不阻塞主对话流程。
+        返回任务ID，前端通过轮询或WebSocket获取页面URL。
+
         Args:
             state: 当前状态
             execution_summary: 执行结果摘要
-            
-        Returns:
-            包含文本响应和页面URL的字典
-        """
-        logger.info("准备生成Web页面...")
-        
-        try:
-            from ..output.page_generator import generate_report_page
-            
-            # 整合所有执行结果数据
-            combined_data = {}
-            results = state.get('execution_results', [])
-            for result in results:
-                if result.get('success'):
-                    output = result.get('output')
-                    if isinstance(output, dict):
-                        combined_data.update(output)
-            
-            # 确定报告类型 (简单逻辑，可扩展)
-            report_type = "generic"
-            intent = state.get('intent', '')
-            if '洪水' in intent or '预报' in intent:
-                report_type = 'flood_forecast'
-            elif '预案' in intent:
-                report_type = 'emergency_plan'
-            
-            # 生成页面
-            page_url = await generate_report_page(
-                report_type=report_type,
-                data=combined_data,
-                title=f"{intent}报告"
-            )
-            
-            # 使用LLM生成针对用户问题的智能文字回复
-            docs_summary = self._format_documents(
-                state.get('retrieved_documents', [])
-            )
-            plan_summary = self._format_plan_summary(state.get('plan', []))
-            
-            try:
-                # 格式化聊天历史
-                chat_history_str = self._format_chat_history(state.get('chat_history', []))
 
-                # 准备上下文变量
+        Returns:
+            包含文本响应和页面任务ID的字典
+        """
+        logger.info("准备异步生成Web页面...")
+
+        # 先生成文字回复（不阻塞）
+        text_response = None
+        results = state.get('execution_results', [])
+
+        # 检查最后一步是否已经是LLM生成的文字总结
+        if results:
+            last_result = results[-1]
+            last_output = last_result.get('output')
+            if last_result.get('success') and isinstance(last_output, str) and len(last_output) > 20:
+                text_response = last_output
+                logger.info("复用执行步骤中的LLM总结，跳过重复生成")
+
+        if not text_response:
+            # 需要LLM生成文字回复
+            docs_summary = self._format_documents(state.get('retrieved_documents', []))
+            plan_summary = self._format_plan_summary(state.get('plan', []))
+
+            try:
+                chat_history_str = self._format_chat_history(state.get('chat_history', []))
                 web_context_vars = {
                     "chat_history": chat_history_str or "无",
                     "user_message": state.get('user_message', ''),
@@ -273,11 +263,13 @@ class Controller:
                     "execution_results": execution_summary or "无执行结果",
                     "retrieved_documents": docs_summary or "无相关知识"
                 }
-                
+
+                import time
+                _start = time.time()
                 llm_response = await self.response_chain.ainvoke(web_context_vars)
+                _elapsed = time.time() - _start
                 text_response = llm_response.content
-                
-                # 记录LLM调用日志
+
                 full_prompt = RESPONSE_GENERATION_PROMPT.format(**web_context_vars)
                 log_llm_call(
                     step_name="Web页面响应合成",
@@ -285,28 +277,65 @@ class Controller:
                     prompt_template_name="RESPONSE_GENERATION_PROMPT",
                     context_variables=web_context_vars,
                     full_prompt=full_prompt,
-                    response=text_response
+                    response=text_response,
+                    elapsed_time=_elapsed
                 )
-                
                 logger.info("LLM生成文字回复成功")
             except Exception as llm_error:
                 logger.warning(f"LLM生成文字回复失败，使用默认模板: {llm_error}")
-                text_response = f"""根据您的查询，我已为您生成了详细报告。
+                text_response = f"""根据您的查询，系统正在为您生成详细报告。
 
 {execution_summary}
 
-您可以点击右侧查看完整报告。"""
-            
+报告生成中，请稍候..."""
+
+        # 异步提交页面生成任务
+        try:
+            from ..output.async_page_agent import get_async_page_agent
+
+            # 整合所有执行结果数据
+            combined_data = {}
+            for result in results:
+                if result.get('success'):
+                    output = result.get('output')
+                    if isinstance(output, dict):
+                        combined_data.update(output)
+
+            # 确定报告类型
+            report_type = "generic"
+            intent = state.get('intent', '')
+            if '洪水' in intent or '预报' in intent:
+                report_type = 'flood_forecast'
+            elif '预案' in intent:
+                report_type = 'emergency_plan'
+
+            # 提交异步任务
+            async_agent = get_async_page_agent()
+            task_id = async_agent.submit_task(
+                conversation_id=state.get('conversation_id', ''),
+                report_type=report_type,
+                data=combined_data,
+                title=f"{intent}报告",
+                execution_summary=execution_summary
+            )
+
+            logger.info(f"页面生成任务已提交: {task_id}")
+
             return {
                 "text_response": text_response,
-                "page_url": page_url
+                "page_url": None,  # 页面URL稍后通过任务状态获取
+                "page_task_id": task_id,
+                "page_generating": True
             }
-            
+
         except Exception as e:
-            logger.error(f"生成Web页面失败: {e}")
+            logger.error(f"提交页面生成任务失败: {e}")
             return {
-                "text_response": f"{execution_summary}\n\n(Web页面生成失败: {e})",
-                "page_url": None
+                "text_response": text_response,
+                "page_url": None,
+                "page_task_id": None,
+                "page_generating": False,
+                "page_error": str(e)
             }
     
     async def handle_error_response(self, state: AgentState) -> Dict[str, Any]:
