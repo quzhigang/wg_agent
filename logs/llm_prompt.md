@@ -1,14 +1,14 @@
 
-*****会话ID: ecc28797-1b9a-4a91-bab7-42c16b964bc2 | 问题: 盘石头水库当前水位多少？*****
+*****会话ID: 0f20a6b1-002a-48c0-8a56-9fb43fd226f1 | 问题: 21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？*****
 
 ## 意图分析 (Planner.analyze_intent)
-**时间**: 2026-01-13 11:50:09
+**时间**: 2026-01-13 17:11:05
 **提示词模板**: INTENT_ANALYSIS_PROMPT
 
 **上下文变量**:
 - context_summary: 无
 - chat_history: 无
-- user_message: 盘石头水库当前水位多少？
+- user_message: 21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？
 
 **完整提示词**:
 ```
@@ -45,6 +45,11 @@
 - "XX水库设计库容多少" → knowledge（固有属性）
 - "XX水库当前水位和库容" → business（实时数据）
 - "未来洪水预报" → business（预报结果）
+- "历史洪水最高水位与当前水位对比" → business（包含实时数据，优先归为business）
+- "21.7洪水水位是否超过防洪高水位" → knowledge（纯历史数据与固有参数对比）
+- "21.7洪水水位和当前水位哪个大" → business（涉及当前实时数据）
+
+**核心原则**：1、只要问题中涉及"当前"、"实时"、"最新"等动态数据需求，整体归类为business；2、即包含固有知识查询，又包含业务的混合问题，归类为business
 
 ## 上下文信息
 对话历史摘要: 无
@@ -53,7 +58,7 @@
 无
 
 ## 用户当前消息
-盘石头水库当前水位多少？
+21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？
 
 ## 输出要求
 请分析用户意图，返回JSON格式:
@@ -94,32 +99,47 @@
 {
     "intent_category": "business",
     "confidence": 0.95,
-    "entities": {"站点": "xxx", "时间": "xxx"}
+    "entities": {"站点": "xxx", "时间": "xxx"},
+    "target_kbs": ["需要参考的知识库id列表"]
 }
-注意：business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定。
+注意：
+- business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定
+- target_kbs用于辅助计划生成阶段的知识库检索，从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, business_workflow, hydro_model, catchment_planning, project_designplan
+- 根据问题涉及的内容选择相关知识库，如涉及历史洪水则包含history_flood，涉及水库信息则包含water_project
 
 ```
 
 **LLM响应**:
 ```
-{'intent_category': 'business', 'confidence': 0.95, 'entities': {'站点': '盘石头水库', '时间': '当前'}}
+{'intent_category': 'business', 'confidence': 0.95, 'entities': {'站点': '盘石头水库', '时间': '当前'}, 'target_kbs': ['history_flood', 'water_project']}
 ```
 
 ## 工作流选择 (Planner.check_workflow_match)
-**时间**: 2026-01-13 11:50:10
+**时间**: 2026-01-13 17:11:09
 **提示词模板**: WORKFLOW_SELECT_PROMPT
 
 **上下文变量**:
-- user_message: 盘石头水库当前水位多少？
+- user_message: 21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？
 - entities: {"站点": "盘石头水库", "时间": "当前"}
-- saved_workflows: 暂无已保存的动态工作流
+- saved_workflows: - ID: 739e220b-30ef-4fa7-9a6e-949542854990
+  名称: query_reservoir_realtime_water_level
+  描述: 查询指定水库的实时水情数据，包括当前水位、蓄水量等信息。
+  触发模式: 查询水库当前水位、查询水库实时水位、获取水库最新水情数据
+  子意图: data_query
+  使用次数: 3
+- ID: 85196cfa-8179-471d-9779-983ec8d1520b
+  名称: query_reservoir_water_level_comparison
+  描述: 查询指定水库在特定时间段内的最高水位与当前水位，并对比防洪高水位情况
+  触发模式: 查询{站点}在{时间}的最高水位和当前水位，以及是否超过防洪高水位
+  子意图: data_query
+  使用次数: 0
 
 **完整提示词**:
 ```
 你是卫共流域数字孪生系统的业务流程选择器。
 
 ## 用户消息
-盘石头水库当前水位多少？
+21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？
 
 ## 提取的实体
 {"站点": "盘石头水库", "时间": "当前"}
@@ -149,7 +169,18 @@
 
 ## 已保存的动态工作流
 以下是之前对话中动态规划生成并保存的工作流，优先匹配这些已验证的流程：
-暂无已保存的动态工作流
+- ID: 739e220b-30ef-4fa7-9a6e-949542854990
+  名称: query_reservoir_realtime_water_level
+  描述: 查询指定水库的实时水情数据，包括当前水位、蓄水量等信息。
+  触发模式: 查询水库当前水位、查询水库实时水位、获取水库最新水情数据
+  子意图: data_query
+  使用次数: 3
+- ID: 85196cfa-8179-471d-9779-983ec8d1520b
+  名称: query_reservoir_water_level_comparison
+  描述: 查询指定水库在特定时间段内的最高水位与当前水位，并对比防洪高水位情况
+  触发模式: 查询{站点}在{时间}的最高水位和当前水位，以及是否超过防洪高水位
+  子意图: data_query
+  使用次数: 0
 
 ## 业务子意图分类
 - data_query: 监测数据查询（当前水位、实时雨情、流量数据等）
@@ -159,1501 +190,102 @@
 - damage_assessment: 灾损评估、避险转移
 - other: 其他业务操作
 
+## 【核心】工作流匹配决策流程（必须严格按顺序执行）
+
+**第一步：拆解用户问题的所有子需求**
+将用户问题拆解为独立的子需求列表，每个子需求对应一个具体的数据获取或操作。
+
+**第二步：逐一检查每个子需求的数据来源**
+对每个子需求标注其数据来源类型：
+- [知识库]：历史洪水数据、水库特征参数、防洪标准等静态信息
+- [API调用]：当前/实时水位、流量等动态监测数据
+- [模型计算]：预报、预演等需要启动计算的操作
+
+**第三步：评估工作流覆盖度**
+检查候选工作流能覆盖哪些子需求：
+- 完全覆盖（100%）：工作流能满足所有子需求 → 可以匹配
+- 部分覆盖（<100%）：工作流只能满足部分子需求 → **禁止匹配**
+- 无覆盖（0%）：工作流与需求无关 → 不匹配
+
+**第四步：做出最终决策**
+- 只有"完全覆盖"才能返回工作流ID
+- "部分覆盖"必须返回null，交给动态规划处理
+
 ## 输出要求
-返回JSON格式：
+返回JSON格式（注意字段顺序，先分析后决策）：
 {
+    "sub_requirements": ["子需求1描述", "子需求2描述", ...],
+    "coverage_analysis": "分析每个子需求的覆盖情况",
+    "is_fully_covered": true/false,
     "business_sub_intent": "子意图类别",
-    "matched_workflow": "工作流名称（如果匹配到预定义工作流）或 null",
-    "saved_workflow_id": "已保存工作流ID（如果匹配到已保存工作流）或 null",
+    "matched_workflow": null或"工作流名称",
+    "saved_workflow_id": null或"工作流ID",
     "output_type": "text 或 web_page",
-    "reason": "简要说明选择理由"
+    "reason": "最终决策理由"
 }
 
-注意：
-- 优先匹配"已保存的动态工作流"，因为这些是经过验证的流程
-- 如果匹配到已保存工作流，设置saved_workflow_id，matched_workflow设为null
-- 如果匹配到预定义工作流模板，设置matched_workflow，saved_workflow_id设为null
-- 如果都没有匹配，两者都返回null，系统将进行动态规划
-- 涉及图表、结果展示的场景，output_type应为"web_page"
+**关键规则：**
+- is_fully_covered=false时，matched_workflow和saved_workflow_id必须都为null
+- 部分匹配=不匹配，宁可动态规划也不能返回只能满足部分需求的工作流
 
-```
+## 示例
 
-**LLM响应**:
-```
-{'business_sub_intent': 'data_query', 'matched_workflow': None, 'saved_workflow_id': None, 'output_type': 'text', 'reason': '用户询问的是盘石头水库当前水位，属于监测数据查询范畴，未涉及预报、预演或预案等操作，因此匹配到子意图类别为data_query。'}
-```
+**示例1（部分覆盖→不匹配）：**
+用户问："21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？"
 
-## 计划生成 (Planner.generate_plan)
-**时间**: 2026-01-13 11:50:25
-**提示词模板**: PLAN_GENERATION_PROMPT
-
-**上下文变量**:
-- available_tools: 1. 工具名称: login_basin_system
-描述: 登录卫共流域数字孪生系统，获取访问令牌(Token)。通常在需要鉴权的接口调用前执行。
-类别: basin_info
-参数:
-  - account [string] (可选): 登录账号，可选，默认使用系统配置
-  - password [string] (可选): 登录密码，可选，默认使用系统配置
-  - force_refresh [boolean] (可选): 是否强制刷新Token
-
-2. 工具名称: get_map_data
-描述: 查询各类地理要素的地图数据（包含空间坐标），支持测站、水库、蓄滞洪区、分洪闸堰等类型
-类别: basin_info
-参数:
-  - ref_table [string] (必需): 数据表名: geo_st_base(测站), geo_res_base(水库), geo_fld_stor(蓄滞洪区), geo_flo_dam(分洪闸堰)
-  - filter_field [string] (可选): 查询字段名。水库使用stcd(编码)和res_name(名称)；测站、蓄滞洪区、分...(已截断)
-- available_workflows: 
-1. flood_forecast_workflow - 洪水预报工作流
-   触发条件: 用户询问洪水预报相关问题
-
-2. flood_simulation_workflow - 洪水预演工作流
-   触发条件: 用户要求进行洪水模拟
-
-3. emergency_plan_workflow - 应急预案工作流
-   触发条件: 用户需要生成防洪预案
-
-4. latest_flood_forecast_query - 最新洪水预报结果查询
-   触发条件: 用户询问最新预报结果
-
-- rag_context: 以下是相关的知识库内容：
-
-[1] 文档: 水库水文站, 章节: 盘石头水库 (1)
-### 盘石头水库 (1)
-
-- **county:** 淇滨区
-- **dead_cap:** 2250
-- **res_name:** 盘石头水库
-- **che_flo_sta:** 0.05
-- **che_flo_lev:** 275
-- **main_dam_wav_wal_elev:** 276.9
-- **main_dam_top_len:** 606
-- **wat_shed_area:** 1915.0
-- **id:** 298ab3d2-b828-4f6c-8bf3-9198b57a4baa
-- **norm_pool_stag_cap:** 30275
-- **longitude:** 114.053761
-- **tot_cap:** 60800
-- **ben_res_cap:** 28750
-- **daad_mul_aver_ruof:** 36000
-- **che_flo_flow:** 15400
-- **town:** 大河涧乡
-- **shape:** PO...(已截断)
-- intent: data_query
-- entities: {'站点': '盘石头水库', '时间': '当前'}
-- user_message: 盘石头水库当前水位多少？
-
-**完整提示词**:
-```
-你是卫共流域数字孪生系统的任务规划器，负责制定执行计划。
-
-## 可用工具
-1. 工具名称: login_basin_system
-描述: 登录卫共流域数字孪生系统，获取访问令牌(Token)。通常在需要鉴权的接口调用前执行。
-类别: basin_info
-参数:
-  - account [string] (可选): 登录账号，可选，默认使用系统配置
-  - password [string] (可选): 登录密码，可选，默认使用系统配置
-  - force_refresh [boolean] (可选): 是否强制刷新Token
-
-2. 工具名称: get_map_data
-描述: 查询各类地理要素的地图数据（包含空间坐标），支持测站、水库、蓄滞洪区、分洪闸堰等类型
-类别: basin_info
-参数:
-  - ref_table [string] (必需): 数据表名: geo_st_base(测站), geo_res_base(水库), geo_fld_stor(蓄滞洪区), geo_flo_dam(分洪闸堰)
-  - filter_field [string] (可选): 查询字段名。水库使用stcd(编码)和res_name(名称)；测站、蓄滞洪区、分洪闸堰使用code(编码)和name(名称)
-  - filter_operator [string] (可选): 关系运算符: =, in, like, >, <
-  - filter_value [string] (可选): 查询值，只能有一个
-
-3. 工具名称: get_list_data
-描述: 查询各类要素的列表数据（不含空间坐标），如水库防洪责任人扩展信息
-类别: basin_info
-参数:
-  - ref_table [string] (必需): 数据表名，如geo_res_flood_ext(水库防洪责任人扩展信息)
-  - filter_field [string] (可选): 查询字段名
-  - filter_operator [string] (可选): 关系运算符: =, in, like
-  - filter_value [string] (可选): 查询值
-
-4. 工具名称: get_reservoir_info
-描述: 查询水库的基础属性信息，包括位置、工程等级、流域面积、库容、校核洪水位等
-类别: basin_info
-参数:
-  - stcd [string] (可选): 测站编码，可选，不传则查询所有水库
-
-5. 工具名称: get_reservoir_flood_detail
-描述: 查询单个水库的防洪特征值详情，包括校核洪水位、设计洪水位、正常蓄水位、死水位、库容等
-类别: basin_info
-参数:
-  - stcd [string] (必需): 测站编码（必填）
-
-6. 工具名称: get_reservoir_flood_list
-描述: 获取所有水库的防洪特征值信息列表，包含各水库的校核洪水位、设计洪水位、正常蓄水位、库容等
-类别: basin_info
-参数:
-  无参数
-
-7. 工具名称: get_sluice_info
-描述: 查询水闸的基础属性信息，包括位置、河流名称、工程规模、设计流量等
-类别: basin_info
-参数:
-  - stcd [string] (可选): 测站编码，可选，不传则查询所有水闸
-
-8. 工具名称: get_flood_dam_info
-描述: 查询分洪闸堰的基础信息，包括位置、设计分洪流量等
-类别: basin_info
-参数:
-  - name [string] (可选): 分洪闸堰名称，可选，支持模糊查询
-
-9. 工具名称: get_flood_storage_area
-描述: 查询蓄滞洪区的基础信息，包括面积、进洪设施、设计蓄洪库容、设计蓄洪水位等
-类别: basin_info
-参数:
-  - name [string] (可选): 蓄滞洪区名称，可选，支持模糊查询
-
-10. 工具名称: get_river_flood_list
-描述: 获取所有河道测站的防洪特征值信息列表，包括警戒水位、保证水位、左右堤高程、实测最高水位等
-类别: basin_info
-参数:
-  无参数
-
-11. 工具名称: get_station_list
-描述: 按测站类型查询测站的基础信息列表，包括测站编码、名称、位置、河流名称等
-类别: basin_info
-参数:
-  - sttp [string] (必需): 测站类型: ZQ(水文站), ZZ(水位站), PP(雨量站), RR(水库站), DD(闸坝站), ZB(水位遥测站), AI(智能监测站)
-
-12. 工具名称: get_camera_list
-描述: 获取视频监控摄像头列表，包括摄像头编码、名称、关联测站、视频流地址等
-类别: basin_info
-参数:
-  - stcd [string] (可选): 测站编码，可选，不传则查询所有摄像头
-
-13. 工具名称: get_drone_project_list
-描述: 查询无人机项目列表，获取项目ID和项目名称
-类别: basin_info
-参数:
-  无参数
-
-14. 工具名称: get_drone_device_list
-描述: 查询无人机设备列表，获取设备序列号、名称、类型、状态等信息
-类别: basin_info
-参数:
-  无参数
-
-15. 工具名称: get_remote_sensing_task_list
-描述: 查询遥感监测任务列表，支持洪涝水淹、洪涝监测、水利工程变形、小流域监测等任务类型
-类别: basin_info
-参数:
-  - task_type [string] (必需): 任务类型: HHSL(洪涝水淹), HLJC(洪涝监测), SLGCBX(水利工程变形), XDMJC(小流域监测)
-  - task_name [string] (可选): 任务名称，支持模糊查询
-  - page [integer] (必需): 页码，从1开始
-  - limit [integer] (必需): 每页条数
-  - user_id [string] (必需): 用户ID
-
-16. 工具名称: query_rain_process
-描述: 根据测站编码和时间范围查询雨量历史过程数据，返回时段降水量、日降水量、累计降水量等信息
-类别: hydro_monitor
-参数:
-  - stcd [string] (必需): 测站编码
-  - search_begin_time [string] (必需): 查询开始时间，格式：yyyy-MM-dd HH:mm:ss
-  - search_end_time [string] (必需): 查询结束时间，格式：yyyy-MM-dd HH:mm:ss
-
-17. 工具名称: query_rain_statistics
-描述: 根据测站编码查询雨量统计数据，返回1小时、3小时、6小时、12小时、24小时等多时段的雨量统计信息
-类别: hydro_monitor
-参数:
-  - stcd [string] (必需): 测站编码
-
-18. 工具名称: query_rain_sum
-描述: 根据时间范围查询所有测站的雨量累计数据，返回测站编码、名称、累计降水量、测站位置等信息
-类别: hydro_monitor
-参数:
-  - search_begin_time [string] (必需): 查询开始时间，格式：yyyy-MM-dd HH:mm:ss
-  - search_end_time [string] (必需): 查询结束时间，格式：yyyy-MM-dd HH:mm:ss
-
-19. 工具名称: query_reservoir_last
-描述: 获取水库的最新实时水情数据，可以指定水库测站编码，包括库水位、蓄水量、入库流量、出库流量等信息
-类别: hydro_monitor
-参数:
-  - stcd [string] (可选): 测站编码（可选，不传则查询所有水库）
-
-20. 工具名称: query_reservoir_process
-描述: 根据测站编码和时间范围查询水库的历史水情过程数据，返回库水位、蓄水量、入库流量、出库流量等时序数据
-类别: hydro_monitor
-参数:
-  - stcd [string] (必需): 测站编码
-  - search_begin_time [string] (必需): 查询开始时间，格式：yyyy-MM-dd HH:mm:ss
-  - search_end_time [string] (必需): 查询结束时间，格式：yyyy-MM-dd HH:mm:ss
-
-21. 工具名称: query_river_last
-描述: 获取河道测站的最新实时水情数据，可以指定河道测站编码，包括水位、流量、水势、告警级别等信息
-类别: hydro_monitor
-参数:
-  - stcd [string] (可选): 测站编码（可选，不传则查询所有河道）
-
-22. 工具名称: query_river_process
-描述: 根据测站编码和时间范围查询河道水情历史过程数据，返回水位、流量、水势等时序数据
-类别: hydro_monitor
-参数:
-  - stcd [string] (必需): 测站编码
-  - search_begin_time [string] (必需): 查询开始时间，格式：yyyy-MM-dd HH:mm:ss
-  - search_end_time [string] (必需): 查询结束时间，格式：yyyy-MM-dd HH:mm:ss
-
-23. 工具名称: query_ai_water_last
-描述: 获取AI智能监测设备的最新水情数据，返回测站编码、名称、水位、数据时间等信息
-类别: hydro_monitor
-参数:
-  无参数
-
-24. 工具名称: query_ai_water_process
-描述: 根据测站编码和时间范围查询AI智能监测设备的水情历史过程数据
-类别: hydro_monitor
-参数:
-  - stcd [string] (必需): 测站编码
-  - st [string] (必需): 开始时间，格式：yyyy-MM-dd HH:mm:ss
-  - ed [string] (必需): 结束时间，格式：yyyy-MM-dd HH:mm:ss
-
-25. 工具名称: query_ai_rain_last
-描述: 获取AI智能监测设备的最新雨量数据，返回测站编码、名称、时段降水量、数据时间等信息
-类别: hydro_monitor
-参数:
-  无参数
-
-26. 工具名称: query_ai_rain_process
-描述: 根据测站编码和时间范围查询AI智能监测设备的雨量历史过程数据
-类别: hydro_monitor
-参数:
-  - stcd [string] (必需): 测站编码
-  - st [string] (必需): 开始时间，格式：yyyy-MM-dd HH:mm:ss
-  - ed [string] (必需): 结束时间，格式：yyyy-MM-dd HH:mm:ss
-
-27. 工具名称: query_camera_preview
-描述: 根据摄像头编码获取实时视频预览流地址
-类别: hydro_monitor
-参数:
-  - code [string] (必需): 摄像头编码
-
-28. 工具名称: query_sensor_data_process
-描述: 根据传感器ID和时间范围查询传感器的历史监测数据
-类别: hydro_monitor
-参数:
-  - sensor_id [string] (必需): 传感器ID
-  - st [string] (必需): 开始时间，格式：yyyy-MM-dd HH:mm:ss
-  - ed [string] (必需): 结束时间，格式：yyyy-MM-dd HH:mm:ss
-
-29. 工具名称: query_drone_status
-描述: 查询大疆无人机设备的实时状态，包括设备序列号、状态、电量、位置等信息
-类别: hydro_monitor
-参数:
-  - device_sn [string] (必需): 无人机设备序列号
-
-30. 工具名称: send_sms
-描述: 发送告警短信通知，需要提供接收手机号码和短信内容
-类别: hydro_monitor
-参数:
-  - phone [string] (必需): 接收短信的手机号码
-  - content [string] (必需): 短信内容
-
-31. 工具名称: model_plan_add
-描述: 新增洪水预报模拟方案，设置方案名称、时间范围、业务模型等参数
-类别: flood_control
-参数:
-  - plan_name [string] (必需): 方案名称
-  - business_code [string] (必需): 业务模型编码
-  - start_time [string] (必需): 开始时间，格式: yyyy-MM-dd HH:mm:ss
-  - end_time [string] (必需): 结束时间，格式: yyyy-MM-dd HH:mm:ss
-  - plan_desc [string] (可选): 方案描述
-  - business_name [string] (可选): 业务模型名称
-  - step_save_minutes [integer] (可选): 模型结果保存时间步长(分钟)
-  - inherit_plan_code [string] (可选): 继承方案的编码
-  - view_point [string] (可选): 相机位置
-  - model_object [string] (可选): 模型参数JSON字符串
-
-32. 工具名称: model_plan_edit
-描述: 编辑已存在的洪水预报模拟方案
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-  - plan_name [string] (可选): 方案名称
-  - business_code [string] (可选): 业务模型编码
-  - start_time [string] (可选): 开始时间，格式: yyyy-MM-dd HH:mm:ss
-  - end_time [string] (可选): 结束时间，格式: yyyy-MM-dd HH:mm:ss
-  - plan_desc [string] (可选): 方案描述
-  - business_name [string] (可选): 业务模型名称
-  - step_save_minutes [integer] (可选): 模型结果保存时间步长(分钟)
-  - inherit_plan_code [string] (可选): 继承方案的编码
-  - view_point [string] (可选): 相机位置
-  - model_object [string] (可选): 模型参数JSON字符串
-
-33. 工具名称: model_plan_delete
-描述: 删除指定的洪水预报模拟方案
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-34. 工具名称: model_plan_detail
-描述: 根据方案编码查看模拟方案的详细信息
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-35. 工具名称: model_plan_state
-描述: 查看模拟方案的当前计算状态
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-36. 工具名称: model_plan_list_all
-描述: 查询全部洪水预报模拟方案列表(不分页)，支持按方案名称、编码、状态等条件筛选
-类别: flood_control
-参数:
-  - plan_code [string] (可选): 方案编码（精确匹配）
-  - plan_name [string] (可选): 方案名称（模糊查询）
-  - business_code [string] (可选): 业务模型编码
-  - state [string] (可选): 计算状态：待计算/计算中/计算完成/计算失败
-
-37. 工具名称: model_plan_calc
-描述: 启动指定方案的洪水预报模型计算
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-38. 工具名称: model_plan_stop
-描述: 终止正在进行的模拟方案计算
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-39. 工具名称: model_plan_progress
-描述: 获取模拟方案的计算进度信息
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-40. 工具名称: model_plan_count_state
-描述: 获取不同计算状态的方案数量统计
-类别: flood_control
-参数:
-  无参数
-
-41. 工具名称: model_plan_count_plan
-描述: 获取各业务模型的模拟方案数量统计
-类别: flood_control
-参数:
-  无参数
-
-42. 工具名称: model_plan_auto_forecast
-描述: 手动触发一次自动洪水预报计算（无需登录）
-类别: flood_control
-参数:
-  无参数
-
-43. 工具名称: model_basic_list_all
-描述: 查询全部基础模型列表(不分页)，支持按模型名称、编码、类型等条件筛选
-类别: flood_control
-参数:
-  - name [string] (可选): 模型名称
-  - code [string] (可选): 模型编码
-  - type_id [integer] (可选): 模型类型ID
-
-44. 工具名称: model_basic_detail
-描述: 根据模型ID查看基础模型的详细信息，包括模型介绍、原理、参数等
-类别: flood_control
-参数:
-  - id [integer] (必需): 模型ID
-
-45. 工具名称: model_basic_count
-描述: 获取基础模型、模型实例、业务模型、模拟方案的数量统计
-类别: flood_control
-参数:
-  无参数
-
-46. 工具名称: model_instance_list_all
-描述: 查询全部模型实例列表(不分页)，支持按实例名称、编码、基础模型、流域等条件筛选
-类别: flood_control
-参数:
-  - name [string] (可选): 实例名称
-  - code [string] (可选): 实例编码
-  - basic_code [string] (可选): 基础模型编码
-  - basin_code [string] (可选): 流域编码
-
-47. 工具名称: model_instance_detail
-描述: 根据实例ID查看模型实例的详细信息
-类别: flood_control
-参数:
-  - id [integer] (必需): 实例ID
-
-48. 工具名称: model_business_list_all
-描述: 查询全部业务模型列表(不分页)，支持按业务模型名称、编码、类型等条件筛选
-类别: flood_control
-参数:
-  - name [string] (可选): 业务模型名称
-  - code [string] (可选): 业务模型编码
-  - type_id [integer] (可选): 业务模型类型ID
-
-49. 工具名称: model_business_add
-描述: 新增业务模型，设置业务模型名称、编码、类型等参数
-类别: flood_control
-参数:
-  - name [string] (必需): 业务模型名称
-  - code [string] (必需): 业务模型编码（唯一）
-  - type_id [integer] (可选): 业务模型类型ID
-  - type_name [string] (可选): 业务模型类型名称
-  - instance_codes [string] (可选): 模型实例编码(多个用逗号分隔)
-  - view_point [string] (可选): 相机位置
-  - url [string] (可选): 模型地址
-  - remark [string] (可选): 备注
-
-50. 工具名称: model_business_detail
-描述: 根据业务模型编码查看业务模型的详细信息
-类别: flood_control
-参数:
-  - code [string] (必需): 业务模型编码
-
-51. 工具名称: forecast_rain_ecmwf_avg
-描述: 获取流域平均的格网预报降雨过程(无需登录)，返回时序降雨数据
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间，格式: yyyy-MM-dd HH:mm:ss
-  - ed [string] (必需): 结束时间，格式: yyyy-MM-dd HH:mm:ss
-  - business_code [string] (可选): 业务模型编码
-
-52. 工具名称: forecast_rain_ecmwf_each
-描述: 获取各子流域的格网预报降雨过程，返回按子流域编码分组的降雨时序数据
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间，格式: yyyy-MM-dd HH:mm:ss
-  - ed [string] (必需): 结束时间，格式: yyyy-MM-dd HH:mm:ss
-  - business_code [string] (可选): 业务模型编码
-
-53. 工具名称: forecast_rain_ecmwf_rect
-描述: 获取矩形区域内的格网预报降雨过程，通过经纬度范围指定区域
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间
-  - ed [string] (必需): 结束时间
-  - xmin [float] (必需): 矩形左边界经度
-  - xmax [float] (必需): 矩形右边界经度
-  - ymin [float] (必需): 矩形下边界纬度
-  - ymax [float] (必需): 矩形上边界纬度
-
-54. 工具名称: forecast_rain_ecmwf_stc
-描述: 获取指定时段的ECMWF降雨分区统计信息，包括各子流域累计、平均、最大降雨量
-类别: flood_control
-参数:
-  - st [string] (可选): 开始时间，默认当前时间
-  - ed [string] (可选): 结束时间，默认开始时间后24小时
-
-55. 工具名称: forecast_rain_ecmwf_acc
-描述: 获取所有格网点指定时段的ECMWF累计降雨，返回经纬度和累计降雨值
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间
-  - ed [string] (必需): 结束时间
-
-56. 工具名称: contour_rain_today
-描述: 获取8点以后降雨等值面，返回GeoJSON格式的等值面数据
-类别: flood_control
-参数:
-  - t [string] (可选): 时间，默认当前时间，格式: yyyy-MM-dd HH:mm:ss
-
-57. 工具名称: contour_rain_any
-描述: 生成/获取任意时段累计降雨等值面
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间
-  - ed [string] (必需): 结束时间
-
-58. 工具名称: contour_rain_plan
-描述: 生成/获取方案累计降雨等值面
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-59. 工具名称: contour_rain_proc
-描述: 获取逐小时降雨等值面过程
-类别: flood_control
-参数:
-  - t [string] (可选): 时间，默认当前时间
-
-60. 工具名称: contour_rain_acc
-描述: 获取不同时段累计降雨等值面，interval负数表示历史，正数表示未来
-类别: flood_control
-参数:
-  - t [string] (可选): 时间，默认当前时间
-  - interval [integer] (必需): 时段间隔(小时)，可选值: -1/-12/-24/-48/-72/1/12/24/48/72
-
-61. 工具名称: contour_rain_future_img
-描述: 获取未来24/48/72小时降雨等值面图片(Base64格式)
-类别: flood_control
-参数:
-  - ind [integer] (必需): 时段索引: 0=24小时, 1=48小时, 2=72小时
-  - time [string] (可选): 时间，默认当前时间
-
-62. 工具名称: contour_rain_update
-描述: 更新等值面(无需登录)
-类别: flood_control
-参数:
-  无参数
-
-63. 工具名称: monitor_rain_area_proc_whole
-描述: 获取指定时段的流域整体面雨量过程
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间
-  - ed [string] (必需): 结束时间
-
-64. 工具名称: monitor_rain_manual
-描述: 手动更新降水监测数据(无需登录)
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间
-  - ed [string] (必需): 结束时间
-
-65. 工具名称: model_rain_pattern_list
-描述: 查询设计雨型列表
-类别: flood_control
-参数:
-  无参数
-
-66. 工具名称: model_rain_pattern_add
-描述: 新增设计雨型
-类别: flood_control
-参数:
-  - name [string] (必需): 雨型名称
-  - type [string] (可选): 雨型类型: 0=自定义雨型, 1=设计雨型
-  - json [string] (必需): 雨型过程JSON
-
-67. 工具名称: model_rain_pattern_detail
-描述: 查看设计雨型详情
-类别: flood_control
-参数:
-  - id [integer] (必需): 雨型ID
-
-68. 工具名称: model_typical_rain_list
-描述: 分页查询典型暴雨列表
-类别: flood_control
-参数:
-  - id [integer] (可选): 暴雨ID
-  - name [string] (可选): 暴雨名称
-  - page [integer] (可选): 页码，默认1
-  - limit [integer] (可选): 每页条数，默认10
-
-69. 工具名称: model_typical_rain_add
-描述: 新增典型暴雨
-类别: flood_control
-参数:
-  - name [string] (必需): 暴雨名称
-  - process [array] (必需): 降雨过程数据
-
-70. 工具名称: model_typical_rain_detail
-描述: 查看典型暴雨详情
-类别: flood_control
-参数:
-  - id [integer] (必需): 暴雨ID
-
-71. 工具名称: model_typical_rain_add_from_history
-描述: 从历史数据新增典型暴雨
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间
-  - ed [string] (必需): 结束时间
-  - name [string] (必需): 暴雨名称
-
-72. 工具名称: model_rain_area_get_by_plan
-描述: 获取指定方案的各子流域降雨过程(无需登录)，返回按子流域编码分组的降雨时序数据
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-73. 工具名称: model_rain_area_get_basin_area_rain_stc
-描述: 获取指定方案的全流域平均面雨量过程及统计值(无需登录)，包括累计、最大降雨量和平均值
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-74. 工具名称: model_rain_area_get_basin_area_rain_acc
-描述: 获取指定方案的全流域平均面雨量过程及实时累计降雨
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-75. 工具名称: model_rain_area_get_basin_list
-描述: 获取指定方案有降雨预报的流域清单
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-76. 工具名称: model_rain_area_detail
-描述: 获取指定方案、指定流域的降雨过程及统计，包括累计、最大降雨量和时间
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-  - bsn_code [string] (必需): 流域编码
-
-77. 工具名称: model_rain_area_get_by_rsvr
-描述: 获取指定方案、指定水文站的上游流域降雨过程
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-  - stcd [string] (必需): 水文站编码
-
-78. 工具名称: model_rain_area_forecast_rain_stc
-描述: 获取自动预报方案的降雨态势，包括平均、最大降雨量和降雨等级
-类别: flood_control
-参数:
-  - interval [integer] (必需): 时段间隔(小时)
-
-79. 工具名称: model_rain_area_add_ecmwf
-描述: 根据格网预报(ECMWF)设置方案降雨过程
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-80. 工具名称: model_rain_area_add_ecmwf_translate
-描述: 根据格网预报设置方案降雨过程(可放大平移)，支持设置放大倍数和经纬度偏移量
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-  - factor [float] (可选): 放大倍数，默认1.0
-  - dlgtd [float] (可选): 经度偏移量，默认0
-  - dlttd [float] (可选): 纬度偏移量，默认0
-
-81. 工具名称: model_rain_area_add_manual
-描述: 手动设置方案降雨过程，通过JSON格式指定降水量时序数据
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-  - bsn_code [string] (可选): 子流域编码(avg表示全流域平均)
-  - drp_json [string] (必需): 降水量JSON字符串，格式如：{"2025-12-16 08:00:00":3.68,"2025-12-16 09:00:00":6.2}
-  - source [string] (可选): 数据来源: 0=实测, 1=预报, 2=指定, 3=无降雨
-
-82. 工具名称: model_rain_area_add_manual_center
-描述: 手动设置方案降雨过程(可设降雨中心)，支持设置多个降雨中心区域
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-  - centers [array] (必需): 降雨中心列表，每个中心需包含drpJson(降雨过程JSON)和polyWkt(面要素WKT格式)
-
-83. 工具名称: model_rain_area_add_bnd
-描述: 从数据库导入方案降雨过程
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-84. 工具名称: flood_damage_loss_calc
-描述: 根据模型编码和业务类型计算洪涝灾害造成的损失，包括受灾面积、受灾人口、受灾GDP、受灾企业数等，并返回受灾村庄和区县的GeoJSON数据
-类别: damage_assess
-参数:
-  - code [string] (必需): 模型编码，如 model_20240829111000
-  - businessType [string] (必需): 业务类型：flood_dispatch_route_wg-分洪调度路线、flood_dispatch_wg-分洪调度
-
-85. 工具名称: hedge_placement_list
-描述: 根据预案编码查询避险安置点列表，包括安置点名称、位置、联系人、容纳人数等信息
-类别: damage_assess
-参数:
-  - planCode [string] (必需): 预案编码，如 model_20250524100026
-
-86. 工具名称: hedge_transfer_route_list
-描述: 根据预案编码查询转移路线列表，包括转移村庄、目标安置点、转移时间、联系人等信息
-类别: damage_assess
-参数:
-  - planCode [string] (必需): 预案编码，如 model_20250524100026
-
-87. 工具名称: model_result_outflow_delete
-描述: 删除产流结果，根据方案编码和可选的流域编码删除子流域洪水计算结果
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-  - bsn_code [string] (可选): 流域编码（可选）
-
-88. 工具名称: model_result_outflow_get_basin_list
-描述: 获取指定方案的子流域基础信息清单，返回子流域编码和名称列表
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-89. 工具名称: model_result_outflow_detail
-描述: 获取指定方案、指定子流域的降雨及洪水过程结果及统计结果，包括降雨过程、洪水过程、峰值时间、累计降雨、洪峰流量等
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-  - bsn_code [string] (必需): 流域编码
-
-90. 工具名称: model_result_outflow_source
-描述: 获取洪水来源类型：0=降雨计算、1=直接导入、2=无洪水
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-91. 工具名称: loss_plan_list
-描述: 分页查询淹没分析方案列表，支持按编码、名称、状态、蓄滞洪区编码、类型等条件过滤
-类别: flood_control
-参数:
-  - code [string] (可选): 方案编码（可选）
-  - name [string] (可选): 方案名称（可选）
-  - status [string] (可选): 计算状态：待计算/计算中/计算成功/计算失败（可选）
-  - fsda_code [string] (可选): 蓄滞洪区编码（可选）
-  - model_type [string] (可选): 类型：0=蓄滞洪区, 1=滩地（可选）
-  - page [integer] (可选): 页码，默认1
-  - limit [integer] (可选): 每页条数，默认10
-
-92. 工具名称: loss_plan_add
-描述: 新增淹没分析方案，用于创建新的洪水淹没分析计算方案
-类别: flood_control
-参数:
-  - code [string] (必需): 方案编码
-  - name [string] (必需): 方案名称
-  - descrip [string] (可选): 方案描述（可选）
-  - param_json [string] (可选): 参数JSON（可选）
-  - fsda_code [string] (可选): 蓄滞洪区编码，可多个（可选）
-  - fsda_name [string] (可选): 蓄滞洪区名称，可多个（可选）
-  - model_type [string] (可选): 类型：0=蓄滞洪区, 1=滩地（可选）
-  - save [string] (可选): 是否保存方案（可选）
-
-93. 工具名称: loss_plan_delete
-描述: 删除指定的淹没分析方案
-类别: flood_control
-参数:
-  - code [string] (必需): 方案编码
-
-94. 工具名称: loss_plan_calc
-描述: 执行淹没分析方案计算，返回预计计算所需时间（秒）
-类别: flood_control
-参数:
-  - code [string] (必需): 方案编码
-
-95. 工具名称: loss_plan_detail
-描述: 获取淹没分析方案详情及计算结果数据
-类别: flood_control
-参数:
-  - code [string] (必需): 方案编码
-
-96. 工具名称: loss_plan_gis
-描述: 获取淹没分布GIS数据，返回GeoJSON格式的淹没范围和深度信息
-类别: flood_control
-参数:
-  - path [string] (必需): 结果文件路径
-
-97. 工具名称: loss_plan_auto
-描述: 自动计算淹没分析（无需登录）
-类别: flood_control
-参数:
-  无参数
-
-98. 工具名称: flood_plan_list_all
-描述: 查询全部防汛预案列表（不分页），支持按预案名称、文号、年度、分类等条件过滤
-类别: flood_control
-参数:
-  - title [string] (可选): 预案名称（可选）
-  - code [string] (可选): 预案文号（可选）
-  - year [string] (可选): 年度（可选）
-  - type1 [string] (可选): 一级分类（可选）
-  - type2 [string] (可选): 二级分类（可选）
-
-99. 工具名称: flood_plan_add
-描述: 新增防汛预案（支持文件上传），用于创建新的防汛预案记录
-类别: flood_control
-参数:
-  - title [string] (必需): 预案名称
-  - code [string] (可选): 预案文号（可选）
-  - year [string] (可选): 年度（可选）
-  - type1 [string] (可选): 一级分类（可选）
-  - type2 [string] (可选): 二级分类（可选）
-  - remark [string] (可选): 备注（可选）
-  - rela [string] (可选): 关联信息（可选）
-  - file_id [string] (可选): 已有文件ID（可选，如不上传新文件可直接指定）
-
-100. 工具名称: flood_plan_delete
-描述: 删除指定的防汛预案
-类别: flood_control
-参数:
-  - id [integer] (必需): 预案ID
-
-101. 工具名称: flood_plan_detail
-描述: 查看防汛预案详情，包括预案名称、文号、年度、分类、文件信息等
-类别: flood_control
-参数:
-  - id [integer] (必需): 预案ID
-
-102. 工具名称: flood_plan_catalog
-描述: 获取防汛预案类型目录，返回一级分类及其下属二级分类的树形结构
-类别: flood_control
-参数:
-  无参数
-
-103. 工具名称: monitor_rsvr_now
-描述: 获取水库河道实时水情（无需登录），返回水位、库容、入库流量、出库流量等实时数据
-类别: flood_control
-参数:
-  无参数
-
-104. 工具名称: monitor_rsvr_stc
-描述: 获取水库当前形势统计，返回总数、正常数、预警数、危险数等统计信息
-类别: flood_control
-参数:
-  无参数
-
-105. 工具名称: monitor_rsvr_track
-描述: 水雨情态势过程回溯，获取指定时段内水库水情变化过程
-类别: flood_control
-参数:
-  - st [string] (必需): 开始时间，格式: yyyy-MM-dd HH:mm:ss
-  - ed [string] (必需): 结束时间，格式: yyyy-MM-dd HH:mm:ss
-
-106. 工具名称: monitor_rsvr_storage
-描述: 水库纳蓄能力分析，返回总库容、当前蓄量、可用库容、蓄水率等信息
-类别: flood_control
-参数:
-  - goal [integer] (必需): 目标水位或库容指标
-
-107. 工具名称: mike_gate_all
-描述: 获取闸门工情（无需登录），返回闸门状态（全开/半开/全关）、开度、开启孔数等信息
-类别: flood_control
-参数:
-  无参数
-
-108. 工具名称: mike_runoff
-描述: 获取子流域NAM模型产流结果（无需登录），返回各子流域的产流时间序列
-类别: flood_control
-参数:
-  - plan_code [string] (必需): 方案编码
-
-109. 工具名称: mike_rsvr_info
-描述: 获取水库基本信息（无需登录），包括水库编码、名称、汛限水位、正常水位、死水位、总库容等
-类别: flood_control
-参数:
-  - model_instance [string] (可选): 模型实例编码（可选）
-
-110. 工具名称: mike_control
-描述: 获取水库的可控建筑物，返回泄洪洞、溢洪道等可控设施信息及最大过流能力
-类别: flood_control
-参数:
-  - stcd [string] (必需): 水库编码
-
-111. 工具名称: mike_hvrela
-描述: 获取蓄滞洪区的库容曲线，返回水位-库容关系数据
-类别: flood_control
-参数:
-  - code [string] (必需): 蓄滞洪区编码
-
-112. 工具名称: mike_spec_time
-描述: 获取指定时刻的水情，返回各水库测站的水位、入库流量、出库流量等数据
-类别: flood_control
-参数:
-  - time [string] (可选): 指定时间，格式: yyyy-MM-dd HH:mm:ss（可选，默认当前时间）
-
-113. 工具名称: mike_cal_pa
-描述: 计算指定时间各子流域的前期影响雨量(Pa值)，用于洪水预报模型参数计算
-类别: flood_control
-参数:
-  - time [string] (可选): 指定时间，格式: yyyy-MM-dd HH:mm:ss（可选，默认当前时间）
-
-114. 工具名称: mike_fsda_struct
-描述: 获取指定业务模型对应蓄滞洪区的建筑物信息，如分洪堰等
-类别: flood_control
-参数:
-  - business_code [string] (必需): 业务模型编码
-
-115. 工具名称: mike_fsda_set_boundary
-描述: 设置蓄滞洪区进洪预演模型的边界条件，用于配置模型计算参数
-类别: flood_control
-参数:
-  - boundary_config [object] (必需): 边界条件配置JSON对象，根据具体蓄滞洪区模型定义
-
-116. 工具名称: auto_forcast
-描述: 创建洪水自动预报模型方案并进行计算
-类别: hydro_model
-参数:
-  无参数
-
-117. 工具名称: create_model
-描述: 手工创建模型方案，仅创建方案不设置边界条件，也不计算
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID，如'model_20230513101926'
-  - fangan_name [string] (必需): 方案名称
-  - start_timestr [string] (必需): 开始时间，格式如'2021/07/20 00:00:00'
-  - end_timestr [string] (必需): 结束时间，格式如'2021/07/21 00:00:00'
-  - fangan_desc [string] (必需): 方案描述，如'1日模拟'
-  - step_saveminutes [integer] (必需): 结果保存步长(分钟)
-  - base_plan_code [string] (可选): 基础方案ID，默认采用空字符串
-
-118. 工具名称: change_model_baseinfo
-描述: 修改模型方案名称、描述和保存时间步长
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - fangan_name [string] (必需): 新的模型名称
-  - model_desc [string] (必需): 新的模型描述
-  - step_save_minutes [integer] (必需): 保存时间步长(分钟)
-
-119. 工具名称: del_model
-描述: 删除模型方案，返回剩下的模型方案基础信息集合
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 要删除的方案ID
-
-120. 工具名称: run_model
-描述: 计算模型，返回所需的计算时间(秒)
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-
-121. 工具名称: run_model_quick
-描述: 一维快速计算模型(不进行GIS结果后处理)，返回所需的计算时间(秒)
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-
-122. 工具名称: stop_model
-描述: 停止模型计算，返回成功信息
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-
-123. 工具名称: modify_initial
-描述: 修改方案的水库河道初始水位条件
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - initial_level [string] (必需): 初始水位设置。可输入'monitor'(采用监测水位)，或水位字典JSON格式如'{"站点ID1": 水位值1, "站点ID2": 水位值2}'
-
-124. 工具名称: change_rfmodel
-描述: 修改方案的各个子流域产汇流模型类型
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - rf_model [string] (可选): 产汇流模型参数JSON，格式为'{"子流域编码1": "模型编码1", "子流域编码2": "模型编码2"}'。模型编码共3种: 'nam'、'swmm5'、'xaj'。可为空对象或空字符串
-
-125. 工具名称: change_boundry
-描述: 修改方案的洪水入流边界条件，可指定为利用降雨计算洪水、直接指定子流域洪水过程、指定河道洪水过程或无洪水入流
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - bnd_type [string] (必需): 边界类型: 'rf_model'(降雨计算洪水), 'reach_inflow'(指定河道洪水), 'no_inflow'(无洪水入流), 'catchment_inflow'(指定子流域洪水)
-  - bnd_value [string] (可选): 边界值JSON。当bnd_type为'reach_inflow'时，格式为'{"边界条件编码1": {"时间1": 流量1, "时间2": 流量2}}'；当bnd_type为'catchment_inflow'时，格式为'{"子流域编码1": {"时间1": 流量1}}'。其他类型不需要此参数
-
-126. 工具名称: modify_gatestate
-描述: 修改方案闸站调度设置
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - gate_dispatch [string] (必需): 调度方式。可为'monitor'(采用当前监测的闸站状态工情)、'gaterule'(采用各闸站设计调度规则)、或调度指令数组JSON格式'[["建筑物编码1",["时间1","操作类型1","闸孔数","值"]],...]'
-
-127. 工具名称: change_reach_break
-描述: 修改方案河堤溃口设置
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - break_name [string] (必需): 溃口名称
-  - location [array] (必需): 溃口位置坐标 [经度, 纬度]
-  - fh_width [float] (必需): 溃口宽度(米)
-  - fh_minutes [integer] (必需): 溃堤时长(分钟)
-  - break_condition [string] (必需): 溃决时机描述: 'max_level'(河道水位达到最高水位) 或 'set_level'(指定河道水位)
-  - break_level [float] (必需): 溃决水位。当break_condition为'max_level'时可填任意值(如0)，否则填指定值
-
-128. 工具名称: set_dispatch_target
-描述: 设置方案的优化调度目标参数
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - dd_target [object] (必需): 调度目标对象，格式为'{"name": "元村", "stcd": "31004300", "max_discharge": 2500}'，包含水文站名称、水文站ID、最大允许洪峰流量
-  - res_level_constraint [array] (必需): 水库调洪水位约束数组，格式为'[{"name": "双泉水库", "stcd": "31006950", "level_name": "防洪高水位", "level_value": 142.3}]'
-  - other_constraint [object] (必需): 其他约束对象，格式为'{"gate": true, "reach": true, "xzhq_level": true}'，分别为闸门过流能力约束、河道过流能力约束、滞洪区滞洪水位约束
-
-129. 工具名称: iter_cal
-描述: 开始方案的优化迭代计算
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-
-130. 工具名称: backcal_resdd
-描述: 反向推演水库的调度方案和该调度方案下的调蓄结果。需要设置水库允许达到的最高水位，并且只针对已经完成的预报预演方案
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - res_name [string] (必需): 水库名称
-  - max_level [float] (必需): 允许最高水位
-
-131. 工具名称: set_fault_gate
-描述: 设置方案的故障闸门
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - sluice_code [string] (必需): 故障水闸编码，如'QHNZ_XHKJZZ'
-  - fault_desc [string] (必需): 故障信息描述，如'部分闸门无法完全关闭'
-  - fault_gate_codes [array] (必需): 故障闸门编码数组，如['XHK_JZZ2', 'XHK_JZZ4']
-  - gate_openings [array] (必需): 水闸各闸门开度数组，如[0, 0.5, 0, 0.2, 0]
-
-132. 工具名称: get_sampleline
-描述: 获取GIS样板线，为geojson格式的河道分段线要素，用于在地图区分色动态渲染过程结果，如流量、流速等
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-133. 工具名称: get_reachinfo
-描述: 获取河道基本信息，包括河道名称、编码、起止桩号及长度等信息
-类别: hydro_model
-参数:
-  - model_instance [string] (必需): 模型实例名称字符串
-
-134. 工具名称: get_gatestate
-描述: 获取全流域里各闸站建筑最新状态监测信息，包括闸门状态、开孔数、开度、更新时间
-类别: hydro_model
-参数:
-  - business_code [string] (必需): 业务编码字符串
-
-135. 工具名称: get_sectiondata
-描述: 根据断面STCD和桩号，获取河道断面原始测量数据。当断面为水文站点或闸站时，第1个参数为该站点STCD，第2个为空字符串；否则第1个参数为河道编码，第2个为桩号
-类别: hydro_model
-参数:
-  - stcd_or_reach_code [string] (必需): 站点STCD(如'31004300')或河道编码(如'GQ')
-  - chainage [string] (必需): 桩号。当第1个参数为站点STCD时，填空字符串''；否则填具体桩号值(如'155000')
-
-136. 工具名称: get_sectiondata_frompoint
-描述: 根据坐标点，获取河道断面原始测量数据
-类别: hydro_model
-参数:
-  - longitude [string] (必需): 经度，如'114.15169'
-  - latitude [string] (必需): 纬度，如'35.483368'
-
-137. 工具名称: get_reachsection_location
-描述: 根据河道断面桩号，获取该河道断面中心点的经纬度坐标位置信息
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - section_location [array] (必需): 断面位置信息数组，格式如[["GQ",53263],["GQ",43263],["WH",13263]]，包含河道编码和桩号
-
-138. 工具名称: get_station_info
-描述: 获取河道上各大中型水库、河道水文站点、河道控制闸站的基本信息和监测水情信息，包括站点stcd、所在河道和桩号、控制流域面积、水位流量等监测水情信息等
-类别: hydro_model
-参数:
-  无参数
-
-139. 工具名称: get_strddrule_info
-描述: 获取水库、河道闸站等所有洪水控制建筑的规则调度信息
-类别: hydro_model
-参数:
-  - business_code [string] (必需): 业务编码字符串
-
-140. 工具名称: get_control_strs
-描述: 根据业务编码和站点STCD获取关联的洪水控制建筑物，如水库的各个溢流堰和泄洪洞，蓄滞洪区的各个进洪分洪闸堰
-类别: hydro_model
-参数:
-  - business_code [string] (必需): 业务编码
-  - obj_stcd [string] (必需): 对象站点编码
-
-141. 工具名称: get_now_waterinfo
-描述: 获取所有水库、河道闸站、水文站点当前最新水情信息。如果业务编码字符串为空字符串，则获取所有水库闸站和水文站点的当前水情，否则是业务模型相关的
-类别: hydro_model
-参数:
-  - business_code [string] (可选): 业务编码字符串，可为空字符串
-
-142. 工具名称: get_design_flood
-描述: 获取和业务模型相关的各河道不同量级设计洪水过程，如50年一遇设计洪水过程
-类别: hydro_model
-参数:
-  - business_code [string] (必需): 业务编码字符串
-
-143. 工具名称: get_nsbd_sectioninfo
-描述: 获取流域范围内，各河道与南水北调交叉断面的基本信息，包括交叉断面位置、设计水位、设计流量、校核流量、堤顶高程等
-类别: hydro_model
-参数:
-  无参数
-
-144. 工具名称: get_business_view
-描述: 获取业务模型的默认初始三维场景相机姿态信息，包括相机位置坐标、朝向和俯仰角
-类别: hydro_model
-参数:
-  - business_model [string] (必需): 业务模型字符串
-
-145. 工具名称: get_rfmodel
-描述: 获取方案的产汇流模型类型，返回各子流域采用的产汇流模型编码（共3种：nam、swmm5、xaj）
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-146. 工具名称: get_reach_break
-描述: 获取方案河堤溃口设置信息，包括溃口编码、名称、位置、溃口宽度、溃堤时长、溃决水位、溃口底高程、开始溃口时间等
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-147. 工具名称: get_faultgate_baseinfo
-描述: 获取故障水闸的闸门基本信息，根据业务编码获取，一个业务编码对应一个故障水闸。返回建筑物编码、名称及各闸门的编码、名称、闸底高程、闸门高度、经纬度坐标等信息
-类别: hydro_model
-参数:
-  - business_code [string] (必需): 业务编码字符串
-
-148. 工具名称: get_fault_gate
-描述: 获取方案的故障闸门信息，包括故障水闸名称、故障描述、各闸门最大开度和当前开度、故障闸门名称及经纬度
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-149. 工具名称: get_ddinfo
-描述: 获取模型方案所有可控建筑物的调度信息，包括建筑物编码、序号、名称、类型、所在河道及闸门调度过程
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-150. 工具名称: get_initial_waterlevel
-描述: 获取模型方案的初始水情信息，包括各水库和河道站点的序号、名称、初始水位、水位来源、stcd编码等
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-151. 工具名称: get_bndinfo
-描述: 获取模型方案的边界条件信息，包括边界条件类型描述（如'降雨计算洪水'）和边界条件值（各子流域的流量过程）
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-152. 工具名称: get_dispatch_target
-描述: 获取方案的优化调度目标设置信息，包括方案ID、调度目标（站点名称、stcd、最大流量）、各水库约束水位及其他约束条件
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-153. 工具名称: get_models
-描述: 获取已有所有模型方案信息，包括方案名称、描述、业务模型编码、起止时间、状态、进度等12个属性
-类别: hydro_model
-参数:
-  - model_instance [string] (可选): 模型实例名称字符串，默认为'wg_mike11'
-
-154. 工具名称: get_dispatch_plan
-描述: 获取方案主要控制闸站的简短调度指令，包含水库、河道闸站、蓄滞洪区3种类型的各控制闸站的调度信息
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-155. 工具名称: get_tjdata_result
-描述: 获取方案的结果数据，包含水库、河道断面、蓄滞洪区的洪水计算结果以及结果概述、河道风险，此外还可能包含调度方案结果
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-156. 工具名称: get_gisgc_polygon_result
-描述: 获取方案某时刻河道水面GIS面要素结果，为geojson格式的带Z值的三维水面要素，用于在三维场景中绘制三维水面
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - now_time [string] (必需): 时间字符串，如'2021/07/20 08:00:00'
-
-157. 工具名称: get_sampleline_data_result
-描述: 获取方案的GIS过程线的全过程属性结果，用于在地图区分色动态渲染过程结果，如流量、流速等
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - gis_restype [string] (必需): 结果数据类型: 'Waterlevel'(水位), 'Speed'(流速), 'Waterh'(水深), 'Discharge'(流量)
-
-158. 工具名称: get_gistj_result
-描述: 获取方案的GIS统计线结果，为geojson格式的河道分段线要素，用于在地图区分色渲染全过程最大流量、流速等分布结果
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-159. 工具名称: get_gistj_polygon_result
-描述: 获取方案的GIS统计面结果(淹没面)，为geojson格式的二维面要素，用于在地图中分水渲染淹没区水深分布
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-160. 工具名称: get_point_result
-描述: 查询方案河道上某点的水位流量等结果，用于在地图中点击查询某位置结果信息。如果时间为空字符串，则返回时间序列
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - now_time [string] (必需): 时间字符串，如'2021/07/20 08:00:00'。如果为空字符串''，则返回时间序列
-  - jd [string] (必需): 经度
-  - wd [string] (必需): 纬度
-
-161. 工具名称: get_zp_result
-描述: 获取方案某类结果的顺河道纵剖面数据，用于前端页面纵剖图绘制
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - res_type [string] (必需): 结果数据类型: 'swzd_result'(水位纵断), 'qzd_result'(流量纵断), 'vzd_result'(流速纵断)
-
-162. 工具名称: get_reachsections
-描述: 获取方案有水位结果的河道断面桩号清单，包括各河道基本信息和各河道有水位结果的断面桩号
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-163. 工具名称: get_sectionres
-描述: 获取方案单一河道断面的水位流量过程
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - reach_name [string] (必需): 河道名称(编码)
-  - chainage [number] (必需): 断面桩号
-
-164. 工具名称: get_sectionlist_res
-描述: 获取方案多个河道断面的水位流量过程
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - sections [array] (必需): 断面数组，格式为[{'reach':'河道编码1','chainages':[桩号1,桩号2]},{'reach':'河道编码2','chainages':[桩号1]}]
-
-165. 工具名称: get_catchment_discharges
-描述: 获取方案多个子流域的产汇流模型流量过程
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - sub_catchment_q [object] (必需): 子流域属性对象，属性和值均为子流域编码，如{'jyh_czyx':'jyh_czyx','jlh_jgsk':'jlh_jgsk'}
-
-166. 工具名称: get_gateres
-描述: 获取方案某闸门的水力要素结果，包括过闸流量、上下游水位过程、流速过程、水头差等
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID
-  - gate_name [string] (必需): 闸门编码
-
-167. 工具名称: get_atreach
-描述: 根据方案ID获取该方案的特殊河道断面信息，包括河道ID和桩号
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-168. 工具名称: get_risk_warning
-描述: 获取方案的风险预警信息，包含水库风险预警、河道风险预警、蓄滞洪区进洪风险预警、降雨预警、南水北调交叉断面风险预警、山洪风险预警
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-169. 工具名称: get_history_autoforcast_list
-描述: 获取历史洪水自动预报方案信息清单，包含方案ID、预报起止时间和本场次降雨总降雨量
-类别: hydro_model
-参数:
-  无参数
-
-170. 工具名称: del_history_autoforcast
-描述: 删除某场历史自动预报方案
-类别: hydro_model
-参数:
-  - history_plan_id [string] (必需): 历史预报方案ID字符串
-
-171. 工具名称: get_rain_flood_list
-描述: 获取预演场次洪水信息列表，所有预演方案均关联有一场场次洪水，一场场次洪水可能对应多个预演方案，但只有一个推荐方案
-类别: hydro_model
-参数:
-  无参数
-
-172. 工具名称: get_rainflood_plan_list
-描述: 获取某场次洪水的预演方案清单，包含方案名称、描述、业务模型、起止时间、状态等信息
-类别: hydro_model
-参数:
-  - flood_id [string] (必需): 场次洪水ID字符串
-
-173. 工具名称: change_rainflood_recomplan
-描述: 修改某场次洪水的推荐预演方案
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-174. 工具名称: important_inspect
-描述: 获取预演方案的工程重点巡查区域信息，即通过方案预演后得到的工程风险区域作为重点巡查区域，包含水库、河道、蓄滞洪区的巡查信息
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-175. 工具名称: get_history_autoforcast_res
-描述: 获取历史洪水自动预报结果，结果与get_tjdata_result接口返回结果相同
-类别: hydro_model
-参数:
-  - history_plan_id [string] (必需): 历史预报ID字符串
-
-176. 工具名称: get_mountain_forecast_flood
-描述: 获取山区预报信息，包括山洪区域名称、村庄名称、经纬度、被淹时间、风险等级等
-类别: hydro_model
-参数:
-  - plan_code [string] (必需): 方案ID字符串
-
-
-## 可用工作流
-
-1. flood_forecast_workflow - 洪水预报工作流
-   触发条件: 用户询问洪水预报相关问题
-
-2. flood_simulation_workflow - 洪水预演工作流
-   触发条件: 用户要求进行洪水模拟
-
-3. emergency_plan_workflow - 应急预案工作流
-   触发条件: 用户需要生成防洪预案
-
-4. latest_flood_forecast_query - 最新洪水预报结果查询
-   触发条件: 用户询问最新预报结果
-
-
-## 相关知识和业务流程参考
-以下是相关的知识库内容：
-
-[1] 文档: 水库水文站, 章节: 盘石头水库 (1)
-### 盘石头水库 (1)
-
-- **county:** 淇滨区
-- **dead_cap:** 2250
-- **res_name:** 盘石头水库
-- **che_flo_sta:** 0.05
-- **che_flo_lev:** 275
-- **main_dam_wav_wal_elev:** 276.9
-- **main_dam_top_len:** 606
-- **wat_shed_area:** 1915.0
-- **id:** 298ab3d2-b828-4f6c-8bf3-9198b57a4baa
-- **norm_pool_stag_cap:** 30275
-- **longitude:** 114.053761
-- **tot_cap:** 60800
-- **ben_res_cap:** 28750
-- **daad_mul_aver_ruof:** 36000
-- **che_flo_flow:** 15400
-- **town:** 大河涧乡
-- **shape:** POINT (114.053761714 35.8415127740001)
-- **res_type:** 1
-- **sw_che_fl_flow:** 2374
-- **fl_low_lim_lev:** 248
-- **stcd:** 31005650
-- **des_flo_cri:** 1
-- **dead_lev:** 207
-- **upp_lev_flco:** 270
-- **res_loc:** 河南省鹤壁市淇滨区大河涧乡
-- **sw_patt:** 正槽式溢洪道
-- **code:** HP0014106110000076
-- **norm_wat_lev:** 254
-- **city:** 鹤壁市
-- **latitude:** 35.841512
-- **sw_weir_top_wid:** 48
-- **main_dam_top_elev:** 275.7
-- **eng_scal:** 2
-- **coll_date:** 2
-- **main_dam_top_wid:** 8
-- **flco_cap:** 27560
-- **loc_rv_cd:** FFFAB1A0000L
-- **start_date:** 1998-10-01
-- **stor_fl_cap:** 36300
-- **norm_pool_stag_area:** 13
-- **sw_hs_mode:** 无控制
-- **main_dam_max_heig:** 102.2
-- **eng_stat:** 1
-- **sw_weir_top_elev:** 254
-- **fl_low_lim_lev_cap:** 24500
-- **sw_nm:** 正常溢洪道
-- **des_flo_lev:** 270.7
-- **comp_date:** 2007-01-01
-- **adm_dep:** 9
-- **sw_des_fl_flow:** 1
-- **eng_grad:** 2
-- **des_flo_flow:** 6900
-- **loc_rv_nm:** 淇河
-
----
-
-[2] 文档: 大中型水库和蓄滞洪区水位库容关系曲线, 章节: 盘石头水库
-## 盘石头水库
-
-stcd编码: 31005650
-
-名称: 盘石头水库
-
-水位-库容关系: [[183,0],[185,85],[190,170],[200,940],[206,1800],[208,2250],[210,2730],[215,4175],[216,4500],[217,4850],[218,5200],[219,5550],[220,5900],[221,6350],[222,6800],[223,7250],[224,7700],[225,8100],[226,8500],[227,9050],[228,9600],[229,10190],[230,10780],[231,11390],[232,12000],[233,12625],[234,13250],[235,13925],[236,14600],[237,15375],[238,16150],[239,16900],[240,17650],[241,18440],[242,19230],[243,20015],[244,20800],[245,21700],[246,22600],[247,23550],[248,24500],[249,25475],[250,26450],[251,27400],[252,28350],[253,29425],[254,30500],[255,31625],[256,32750],[257,33975],[258,35200],[259,36465],[260,37730],[261,38965],[262,40200],[263,41475],[264,42750],[265,44250],[266,45750],[267,47275],[268,48800],[269,50430],[270,52060],[271,53680],[272,55300],[273,56950],[274,58600],[275,60800],[276,63000],[277,65000],[278,67000],[279,69320],[280,71640]]
-
-[3] 文档: 主要建筑物泄流曲线, 章节: 盘石头水库溢洪道
-## 盘石头水库溢洪道
-- **序号**: 10.0
-- **建筑物编码**: PSTSK_YHD
-- **闸门类型**: 平板闸
-- **河道ID**: PSTSK_YHD
-- **河道名称**: 淇河
-- **所在桩号**: 600.0
-- **建筑物上游水位和流量的关系**: [[0,254],[23.14,254.5],[65.45,255],[120.24,255.5],[185.12,256],[258.72,256.5],[340.1,257],[428.57,257.5],[523.61,258],[624.8,258.5],[731.77,259],[844.24,259.5],[961.94,260],[1084.65,260.5],[1212.18,261],[1344.35,261.5],[1481,262],[1621.99,262.5],[1767.19,263],[1916.48,263.5],[2069.76,264],[2226.92,264.5],[2387.86,265],[2552.51,265.5],[2720.77,266],[2892.58,266.5],[3067.86,267],[3246.54,267.5],[3428.56,268],[3613.87,268.5],[3802.39,269],[3994.09,269.5],[4188.9,270],[4466.78,
-...(更多内容已省略)
-
-## 用户意图
-意图类别: data_query
-提取实体: {'站点': '盘石头水库', '时间': '当前'}
-
-## 用户消息
-盘石头水库当前水位多少？
-
-## 输出要求
-请生成执行计划，返回JSON格式:
+正确输出：
 {
-    "steps": [
-        {
-            "step_id": 1,
-            "description": "步骤描述",
-            "tool_name": "工具名称（如果需要）",
-            "tool_args": {"参数": "值"},
-            "dependencies": [],
-            "is_async": false
-        }
+    "sub_requirements": [
+        "查询21.7洪水历史最高水位[知识库]",
+        "查询当前实时水位[API调用]",
+        "查询防洪高水位参数[知识库]",
+        "对比三个水位值[计算]"
     ],
-    "estimated_time_seconds": 30,
-    "output_type": "text 或 web_page"
+    "coverage_analysis": "存在query_reservoir_realtime_water_level工作流，但它只能满足'查询当前实时水位'这1个子需求，无法满足其他3个子需求，覆盖率仅25%",
+    "is_fully_covered": false,
+    "business_sub_intent": "data_query",
+    "matched_workflow": null,
+    "saved_workflow_id": null,
+    "output_type": "web_page",
+    "reason": "用户问题包含4个子需求，现有工作流只能覆盖1个，属于部分覆盖，必须返回null进行动态规划"
 }
 
-规划原则:
-1. 步骤应该清晰、可执行
-2. 正确设置步骤间的依赖关系
-3. 耗时操作（如模型调用）应标记为异步
-4. 最后一步不需要指定工具，系统会自动生成响应
-5. 只使用可用工具列表中存在的工具名称，不要使用不存在的工具如"generate_response"
-6. 参考"相关知识和业务流程参考"中的信息，优化执行计划的步骤和工具选择
+**示例2（完全覆盖→匹配）：**
+用户问："盘石头水库当前水位是多少？"
+
+正确输出：
+{
+    "sub_requirements": ["查询当前实时水位[API调用]"],
+    "coverage_analysis": "query_reservoir_realtime_water_level工作流完全满足这唯一的子需求，覆盖率100%",
+    "is_fully_covered": true,
+    "business_sub_intent": "data_query",
+    "matched_workflow": null,
+    "saved_workflow_id": "xxx-xxx-xxx",
+    "output_type": "web_page",
+    "reason": "用户问题仅包含1个子需求，工作流完全覆盖，可以匹配"
+}
 
 ```
 
 **LLM响应**:
 ```
-{'steps': [{'step_id': 1, 'description': '登录卫共流域数字孪生系统，获取访问令牌以进行后续操作。', 'tool_name': 'login_basin_system', 'tool_args': {}, 'dependencies': [], 'is_async': False}, {'step_id': 2, 'description': '查询盘石头水库（测站编码：31005650）的最新的实时水情数据，以获取当前水位。', 'tool_name': 'query_reservoir_last', 'tool_args': {'stcd': '31005650'}, 'dependencies': [1], 'is_async': False}, {'step_id': 3, 'description': '从实时水情数据中提取库水位字段，并向用户反馈盘石头水库当前的具体水位信息。', 'dependencies': [2], 'is_async': False}], 'estimated_time_seconds': 5, 'output_type': 'text'}
-```
-
-## 任务执行(LLM) (Executor._execute_with_llm)
-**时间**: 2026-01-13 11:50:27
-**提示词模板**: EXECUTOR_LLM_PROMPT
-
-**上下文变量**:
-- task_description: 从实时水情数据中提取库水位字段，并向用户反馈盘石头水库当前的具体水位信息。
-- user_message: 盘石头水库当前水位多少？
-- execution_results: 步骤1 (成功): {'success': True, 'data': {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI3ZWUyNTg1Ny1lMGQyLTQ5MjktOTZmYy1iZDIzNjY5YjNlNjUiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njg4ODEwNDcwNTEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODI3NjI0NywiZXhwIjoxNzY4ODgxMDQ3fQ.vXGqNpxXOLd8DDKwo2nFJab64ggRo_YKP5H8DhbNLKoznwb96Amm3CnFfYdQLY0k7kV6U9vbIkQ_ohg_RJC69A', 'userId': '13395504679396392...(已截断)
-- retrieved_documents: 无
-
-**完整提示词**:
-```
-你是卫共流域数字孪生系统的智能助手。
-
-## 任务
-从实时水情数据中提取库水位字段，并向用户反馈盘石头水库当前的具体水位信息。
-
-## 用户原始消息
-盘石头水库当前水位多少？
-
-## 已有执行结果
-步骤1 (成功): {'success': True, 'data': {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI3ZWUyNTg1Ny1lMGQyLTQ5MjktOTZmYy1iZDIzNjY5YjNlNjUiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njg4ODEwNDcwNTEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODI3NjI0NywiZXhwIjoxNzY4ODgxMDQ3fQ.vXGqNpxXOLd8DDKwo2nFJab64ggRo_YKP5H8DhbNLKoznwb96Amm3CnFfYdQLY0k7kV6U9vbIkQ_ohg_RJC69A', 'userId': '1339550467939639299', 'mess步骤2 (成功): {'success': True, 'data': [{'sort': None, 'lgtd': 114.1281, 'lttd': 35.83131, 'stnm': '盘石头', 'warn': None, 'rvnm': '淇河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '豫-淇县', 'addvcd': '410622', 'sttp': 'RR', 'stazt': None, 'stcd': '31005650', 'tm': '2026-01-13 08:00:00', 'rz': 245.35, 'w': 215.13, 'otq': 2.56, 'rwptn': '5', 'inq': 6.61, 'rwchrcd': None, 'inqdr': 24.0, 'msqmt': None, 'blrz': None}], 'error': None, 'execution_time_ms': 65, 'metadata': {'query_type': 'reservoir_last', 'record_count': 1}}
-
-## 检索到的知识
-无
-
-请根据以上信息完成任务，给出清晰、准确的回答。
-
-```
-
-**LLM响应**:
-```
-盘石头水库当前的水位为 **245.35 米**。
+{'sub_requirements': ['查询21.7洪水期间盘石头水库最高水位[知识库]', '查询当前实时水位[API调用]', '查询防洪高水位参数[知识库]', '对比最高水位与当前水位并判断是否超过防洪高水位[计算]'], 'coverage_analysis': "存在query_reservoir_water_level_comparison工作流，它能覆盖'查询指定水库在特定时间段内的最高水位与当前水位，并对比防洪高水位情况'这一完整需求，包括最高水位、当前水位和防洪高水位的对比分析，覆盖率100%", 'is_fully_covered': True, 'business_sub_intent': 'data_query', 'matched_workflow': 'query_reservoir_water_level_comparison', 'saved_workflow_id': '85196cfa-8179-471d-9779-983ec8d1520b', 'output_type': 'web_page', 'reason': '用户问题包含4个子需求，且query_reservoir_water_level_comparison工作流完全覆盖所有需求，可以匹配'}
 ```
 
 ## Web页面响应合成 (Controller._generate_web_page_response)
-**时间**: 2026-01-13 11:50:32
+**时间**: 2026-01-13 17:11:20
 **提示词模板**: RESPONSE_GENERATION_PROMPT
 
 **上下文变量**:
 - chat_history: 无
-- user_message: 盘石头水库当前水位多少？
+- user_message: 21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？
 - intent: data_query
-- plan_summary: 1. 登录卫共流域数字孪生系统，获取访问令牌以进行后续操作。 [completed]
-2. 查询盘石头水库（测站编码：31005650）的最新的实时水情数据，以获取当前水位。 [completed]
-3. 从实时水情数据中提取库水位字段，并向用户反馈盘石头水库当前的具体水位信息。 [completed]
-- execution_results: 步骤1:   - success: True
-  - data: {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI3ZWUyNTg1Ny1lMGQyLTQ5MjktOTZmYy1iZDIzNjY5YjNlNjUiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njg4ODEwNDcwNTEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODI3NjI0NywiZXhwIjoxNzY4ODgxMDQ3fQ.vXGqNpxXOLd8DDKwo2nFJab64ggRo_YKP5H8DhbNLKoznwb96Amm3CnFfYdQLY0k7kV6U9vbIkQ_ohg_RJC69A', 'userId': '1339550467939639299'...(已截断)
+- plan_summary: 1. 从知识库中检索21.7洪水期间盘石头水库的最高水位信息 [completed]
+2. 查询盘石头水库的测站编码(stcd) [completed]
+3. 根据测站编码查询盘石头水库的最新实时水情数据（获取当前水位） [completed]
+4. 查询盘石头水库的防洪特征值详情（获取防洪高水位等） [completed]
+5. 综合历史水位、当前水位以及防洪高水位数据，进行对比分析并回答用户问题 [completed]
+- execution_results: 步骤1:   1. {'content': '# 3.2.13 盘石头水库  \n\n盘石头水库位于淇河上,控制流域面积 $1915\\mathrm{km}^{2}$ ,汛限水位 $245\\mathrm{m}$ ,对淇河的防洪起着十分重要的作用。7月 19日8时起入库流量从 $19.4\\mathrm{m}^{3}/\\mathrm{s}$ 开始快速上升,21 日 21 时入库流量升至 $1845\\mathrm{m}^{3}/\\mathrm{s}$ ,随后有所下降,22 日 5 时入库流量达峰值$2712\\mathrm{m}^{3}/\\mathrm{s}$ ,对应水位 248.11m,蓄水量 2.46 亿 $\\mathrm{m^{3}}$ 。盘石头水库于 22 日 14 时开始泄洪,出库流量为 $52.8\\mathrm{m}^{3}/\\mathrm{s}$ ,23 日 10 时起出库流量维持在 $300\\mathrm{m^{3}/s}$ ,24 日 16时 ${\\sim}21$ 时水库水位达最高为 $257.91\\mathrm{m}$ ,相应蓄水量为 3.51 亿...(已截断)
 - retrieved_documents: 无相关知识
 
 **完整提示词**:
@@ -1664,30 +296,67 @@ stcd编码: 31005650
 无
 
 ## 用户原始问题
-盘石头水库当前水位多少？
+21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？
 
 ## 用户意图
 data_query
 
 ## 执行计划
-1. 登录卫共流域数字孪生系统，获取访问令牌以进行后续操作。 [completed]
-2. 查询盘石头水库（测站编码：31005650）的最新的实时水情数据，以获取当前水位。 [completed]
-3. 从实时水情数据中提取库水位字段，并向用户反馈盘石头水库当前的具体水位信息。 [completed]
+1. 从知识库中检索21.7洪水期间盘石头水库的最高水位信息 [completed]
+2. 查询盘石头水库的测站编码(stcd) [completed]
+3. 根据测站编码查询盘石头水库的最新实时水情数据（获取当前水位） [completed]
+4. 查询盘石头水库的防洪特征值详情（获取防洪高水位等） [completed]
+5. 综合历史水位、当前水位以及防洪高水位数据，进行对比分析并回答用户问题 [completed]
 
 ## 执行结果
-步骤1:   - success: True
-  - data: {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI3ZWUyNTg1Ny1lMGQyLTQ5MjktOTZmYy1iZDIzNjY5YjNlNjUiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njg4ODEwNDcwNTEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODI3NjI0NywiZXhwIjoxNzY4ODgxMDQ3fQ.vXGqNpxXOLd8DDKwo2nFJab64ggRo_YKP5H8DhbNLKoznwb96Amm3CnFfYdQLY0k7kV6U9vbIkQ_ohg_RJC69A', 'userId': '1339550467939639299', 'message': '登录成功'}
-  - error: None
-  - execution_time_ms: 1775
-  - metadata: {'code': '00000', 'message': '请求成功'}
+步骤1:   1. {'content': '# 3.2.13 盘石头水库  \n\n盘石头水库位于淇河上,控制流域面积 $1915\\mathrm{km}^{2}$ ,汛限水位 $245\\mathrm{m}$ ,对淇河的防洪起着十分重要的作用。7月 19日8时起入库流量从 $19.4\\mathrm{m}^{3}/\\mathrm{s}$ 开始快速上升,21 日 21 时入库流量升至 $1845\\mathrm{m}^{3}/\\mathrm{s}$ ,随后有所下降,22 日 5 时入库流量达峰值$2712\\mathrm{m}^{3}/\\mathrm{s}$ ,对应水位 248.11m,蓄水量 2.46 亿 $\\mathrm{m^{3}}$ 。盘石头水库于 22 日 14 时开始泄洪,出库流量为 $52.8\\mathrm{m}^{3}/\\mathrm{s}$ ,23 日 10 时起出库流量维持在 $300\\mathrm{m^{3}/s}$ ,24 日 16时 ${\\sim}21$ 时水库水位达最高为 $257.91\\mathrm{m}$ ,相应蓄水量为 3.51 亿 $\\mathfrak{m}_{\\circ}^{3}\\mathrm{~19~}$ 日 8 时至 24日 8 时,盘石头水库共入库 30339 万 $\\mathrm{m^{3}}$ ,出库仅为 3571 万 $\\mathrm{m^{3}}$ 。', 'metadata': {'doc_name': '21.7洪水调查报告_1766975805.2124398', 'node_id': '0052', 'title': '3.2.13 盘石头水库', 'category': 'history_flood', 'source': 'pageindex'}, 'id': '21.7洪水调查报告_1766975805.2124398_0052', 'score': 0.7231587217444058}
+  2. {'content': '## "21.7"洪水 --盘石头水库洪水过程\n| 站号 | 时间 | 库上水位(m) | 蓄水量(10⁶m³) | 库水水势 | 入库流量(m³/s) | 出库流量(m³/s) | 累积出库(万m³) | 泄洪流量(m³/s) | 供水流量(m³/s) | 调度过程 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| 31005650 | 2021-07-19 08:00:00 | 225.41 | 82.64 | 涨 | 19.4 | 2.66 | 0.0000 | 0.0 | 2.66 | NaN |\n| 31005650 | 2021-07-19 20:00:00 | 227.10 | 91.05 | 涨 | 430.0 | 2.58 | 11.3184 | 0.0 | 2.58 | NaN |\n| 31005650 | 2021-07-20 06:00:00 | 228.97 | 101.72 | 涨 | 230.0 | 2.60 | 20.6424 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-20 08:00:00 | 229.34 | 103.91 | 涨 | 330.0 | 2.60 | 22.5144 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-20 16:00:00 | 231.03 | 114.08 | 涨 | 341.0 | 2.60 | 30.0024 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-20 18:00:00 | 231.46 | 116.71 | 涨 | 375.0 | 2.60 | 31.8744 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-20 20:00:00 | 231.87 | 119.21 | 涨 | 341.0 | 2.60 | 33.7464 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-20 22:00:00 | 232.36 | 122.25 | 涨 | 453.0 | 2.60 | 35.6184 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 00:00:00 | 233.03 | 126.44 | 涨 | 528.0 | 2.60 | 37.4904 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 02:00:00 | 233.72 | 130.75 | 涨 | 625.0 | 2.60 | 39.3624 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 04:00:00 | 234.42 | 135.34 | 涨 | 642.0 | 2.60 | 41.2344 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 06:00:00 | 235.07 | 139.72 | 涨 | 603.0 | 2.60 | 43.1064 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 08:00:00 | 235.72 | 144.10 | 涨 | 603.0 | 2.60 | 44.9784 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 10:00:00 | 236.43 | 149.33 | 涨 | 819.0 | 2.60 | 46.8504 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 12:00:00 | 237.28 | 155.92 | 涨 | 908.0 | 2.60 | 48.7224 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 14:00:00 | 238.17 | 162.78 | 涨 | 886.0 | 2.60 | 50.5944 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 16:00:00 | 239.17 | 170.28 | 涨 | 1090.0 | 2.60 | 52.4664 | 0.0 | 2.60 | NaN |\n| 31005650 | 2021-07-21 18:00:00 | 240.31 | 178.95 | 涨 | 1320.0 | 7.00 | 55.9224 | 4.8 | 2.20 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-21 19:00:00 | 240.88 | 183.45 | 涨 | 1190.0 | 7.00 | 58.4424 | 4.8 | 2.20 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-21 20:00:00 | 241.47 | 188.11 | 涨 | 1280.0 | 7.00 | 60.9624 | 4.8 | 2.20 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-21 21:00:00 | 242.23 | 194.11 | 涨 | 1840.0 | 7.00 | 63.4824 | 4.8 | 2.20 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-21 22:00:00 | 243.04 | 200.46 | 涨 | 1570.0 | 7.20 | 66.0384 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-21 23:00:00 | 243.81 | 206.48 | 涨 | 1660.0 | 7.20 | 68.6304 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 00:00:00 | 244.56 | 212.48 | 涨 | 1600.0 | 7.20 | 71.2224 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 00:40:00 | 245.00 | 217.00 | 涨 | 1570.0 | 7.20 | 72.9504 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 01:00:00 | 245.21 | 217.89 | 涨 | 1550.0 | 7.20 | 73.8144 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 02:00:00 | 245.81 | 224.29 | 涨 | 1510.0 | 7.20 | 76.4064 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 03:00:00 | 246.46 | 230.37 | 涨 | 1700.0 | 7.20 | 78.9984 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 04:00:00 | 247.18 | 237.21 | 涨 | 1960.0 | 7.20 | 81.5904 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 05:00:00 | 248.11 | 246.07 | 涨 | 2710.0 | 7.20 | 84.1824 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 06:00:00 | 249.00 | 254.75 | 涨 | 2280.0 | 7.20 | 86.7744 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 07:00:00 | 249.72 | 261.77 | 涨 | 1960.0 | 7.20 | 89.3664 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 08:00:00 | 250.35 | 267.83 | 涨 | 1590.0 | 7.20 | 91.9584 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 09:00:00 | 250.89 | 272.95 | 涨 | 1430.0 | 7.20 | 94.5504 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 10:00:00 | 251.38 | 277.60 | 涨 | 1220.0 | 7.20 | 97.1424 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 11:00:00 | 251.88 | 282.35 | 涨 | 1230.0 | 7.20 | 99.7344 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 12:00:00 | 252.35 | 287.26 | 涨 | 1440.0 | 7.20 | 102.3264 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 13:00:00 | 252.78 | 291.88 | 涨 | 1260.0 | 7.20 | 104.9184 | 4.8 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 14:00:00 | 253.17 | 296.08 | 涨 | 1190.0 | 52.80 | 115.7184 | 50.4 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 15:00:00 | 253.53 | 299.95 | 涨 | 1070.0 | 52.80 | 134.7264 | 50.4 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 16:00:00 | 253.87 | 303.60 | 涨 | 1070.0 | 52.80 | 153.7344 | 50.4 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 17:00:00 | 254.18 | 307.03 | 涨 | 1050.0 | 53.60 | 172.8864 | 51.2 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 18:00:00 | 254.45 | 310.06 | 涨 | 982.0 | 110.00 | 202.3344 | 107.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 19:00:00 | 254.72 | 313.10 | 涨 | 921.0 | 110.00 | 241.9344 | 107.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 20:00:00 | 254.96 | 315.80 | 涨 | 861.0 | 111.00 | 281.7144 | 108.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 21:00:00 | 255.18 | 318.28 | 涨 | 801.0 | 112.00 | 321.8544 | 109.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 22:00:00 | 255.39 | 320.64 | 涨 | 740.0 | 112.00 | 362.1744 | 109.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-22 23:00:00 | 255.59 | 322.89 | 涨 | 740.0 | 112.00 | 402.4944 | 109.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 00:00:00 | 255.78 | 325.02 | 涨 | 673.0 | 112.00 | 442.8144 | 109.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 01:00:00 | 255.95 | 326.94 | 涨 | 613.0 | 113.00 | 483.3144 | 110.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 02:00:00 | 256.11 | 328.85 | 涨 | 657.0 | 113.00 | 523.9944 | 110.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 03:00:00 | 256.27 | 330.81 | 涨 | 657.0 | 113.00 | 564.6744 | 110.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 04:00:00 | 256.41 | 332.52 | 涨 | 585.0 | 113.00 | 605.3544 | 110.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 05:00:00 | 256.55 | 334.24 | 涨 | 591.0 | 113.00 | 646.0344 | 110.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 06:00:00 | 256.66 | 335.58 | 涨 | 601.0 | 165.00 | 696.0744 | 162.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 07:00:00 | 256.76 | 336.81 | 涨 | 609.0 | 170.00 | 756.3744 | 167.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 08:00:00 | 256.84 | 337.79 | 涨 | 542.0 | 171.00 | 817.7544 | 168.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 09:00:00 | 256.93 | 338.89 | 涨 | 609.0 | 172.00 | 879.4944 | 169.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 10:00:00 | 257.02 | 340.00 | 涨 | 578.0 | 173.00 | 941.5944 | 170.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 11:00:00 | 257.08 | 340.73 | 涨 | 506.0 | 174.00 | 1004.0544 | 171.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 12:00:00 | 257.16 | 341.71 | 涨 | 572.0 | 175.00 | 1066.8744 | 172.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 13:00:00 | 257.22 | 342.45 | 涨 | 506.0 | 176.00 | 1130.0544 | 173.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 14:00:00 | 257.28 | 343.18 | 涨 | 507.0 | 177.00 | 1193.5944 | 174.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 15:00:00 | 257.35 | 344.04 | 涨 | 506.0 | 178.00 | 1257.4944 | 175.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 16:00:00 | 257.40 | 344.65 | 涨 | 434.0 | 179.00 | 1321.7544 | 176.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 17:00:00 | 257.46 | 345.39 | 涨 | 506.0 | 180.00 | 1386.3744 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 18:00:00 | 257.50 | 345.88 | 涨 | 441.0 | 181.00 | 1451.3544 | 178.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 19:00:00 | 257.54 | 346.37 | 涨 | 441.0 | 182.00 | 1516.6944 | 179.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 20:00:00 | 257.58 | 346.85 | 涨 | 435.0 | 183.00 | 1582.3944 | 180.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 21:00:00 | 257.61 | 347.22 | 涨 | 435.0 | 184.00 | 1648.4544 | 181.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 22:00:00 | 257.65 | 347.71 | 涨 | 435.0 | 185.00 | 1714.8744 | 182.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-23 23:00:00 | 257.68 | 348.08 | 涨 | 441.0 | 186.00 | 1781.6544 | 183.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 00:00:00 | 257.71 | 348.45 | 涨 | 441.0 | 187.00 | 1848.7944 | 184.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 01:00:00 | 257.74 | 348.81 | 涨 | 435.0 | 188.00 | 1916.2944 | 185.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 02:00:00 | 257.76 | 349.06 | 涨 | 369.0 | 189.00 | 1984.1544 | 186.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 03:00:00 | 257.78 | 349.30 | 涨 | 369.0 | 190.00 | 2052.3744 | 187.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 04:00:00 | 257.80 | 349.55 | 涨 | 369.0 | 191.00 | 2120.9544 | 188.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 05:00:00 | 257.82 | 349.79 | 涨 | 370.0 | 192.00 | 2189.8944 | 189.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 06:00:00 | 257.84 | 350.04 | 涨 | 370.0 | 193.00 | 2259.1944 | 190.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 07:00:00 | 257.86 | 350.28 | 涨 | 370.0 | 195.00 | 2329.0344 | 192.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 08:00:00 | 257.86 | 350.28 | 平 | 303.0 | 194.00 | 2399.0544 | 191.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 09:00:00 | 257.87 | 350.41 | 平 | 303.0 | 193.00 | 2468.7144 | 190.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 10:00:00 | 257.88 | 350.53 | 平 | 303.0 | 192.00 | 2538.0144 | 189.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 11:00:00 | 257.89 | 350.65 | 平 | 303.0 | 191.00 | 2606.9544 | 188.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 12:00:00 | 257.90 | 350.77 | 涨 | 370.0 | 190.00 | 2675.5344 | 187.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 13:00:00 | 257.90 | 350.77 | 平 | 303.0 | 189.00 | 2743.7544 | 186.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 14:00:00 | 257.90 | 350.77 | 平 | 303.0 | 188.00 | 2811.6144 | 185.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 15:00:00 | 257.90 | 350.77 | 平 | 303.0 | 187.00 | 2879.1144 | 184.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 16:00:00 | 257.91 | 350.90 | 平 | 303.0 | 186.00 | 2946.2544 | 183.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 17:00:00 | 257.91 | 350.90 | 平 | 303.0 | 185.00 | 3013.0344 | 182.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 18:00:00 | 257.91 | 350.90 | 平 | 303.0 | 184.00 | 3079.4544 | 181.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 19:00:00 | 257.91 | 350.90 | 平 | 303.0 | 183.00 | 3145.5144 | 180.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 20:00:00 | 257.91 | 350.90 | 平 | 303.0 | 182.00 | 3211.2144 | 179.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 21:00:00 | 257.91 | 350.90 | 平 | 303.0 | 181.00 | 3276.5544 | 178.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 22:00:00 | 257.90 | 350.77 | 平 | 303.0 | 180.00 | 3341.5344 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-24 23:00:00 | 257.89 | 350.65 | 平 | 303.0 | 179.00 | 3406.1544 | 176.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 00:00:00 | 257.88 | 350.53 | 平 | 303.0 | 178.00 | 3470.4144 | 175.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 01:00:00 | 257.87 | 350.41 | 落 | 270.0 | 177.00 | 3534.3144 | 174.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 02:00:00 | 257.87 | 350.41 | 平 | 303.0 | 176.00 | 3597.8544 | 173.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 03:00:00 | 257.87 | 350.41 | 平 | 303.0 | 175.00 | 3661.0344 | 172.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 04:00:00 | 257.86 | 350.28 | 落 | 267.0 | 174.00 | 3723.8544 | 171.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 05:00:00 | 257.86 | 350.28 | 平 | 303.0 | 173.00 | 3786.3144 | 170.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 06:00:00 | 257.85 | 350.16 | 落 | 270.0 | 172.00 | 3848.4144 | 169.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 07:00:00 | 257.84 | 350.04 | 落 | 270.0 | 171.00 | 3910.1544 | 168.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 08:00:00 | 257.82 | 349.79 | 落 | 234.0 | 170.00 | 3971.5344 | 167.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 09:00:00 | 257.80 | 349.55 | 落 | 235.0 | 169.00 | 4032.5544 | 166.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 10:00:00 | 257.78 | 349.30 | 落 | 233.0 | 168.00 | 4093.2144 | 165.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 11:00:00 | 257.76 | 349.06 | 落 | 235.0 | 167.00 | 4153.5144 | 164.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 12:00:00 | 257.74 | 348.81 | 落 | 233.0 | 167.00 | 4213.6344 | 164.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 13:00:00 | 257.73 | 348.69 | 落 | 269.0 | 165.00 | 4273.3944 | 162.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 14:00:00 | 257.71 | 348.45 | 落 | 235.0 | 163.00 | 4332.4344 | 160.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 15:00:00 | 257.70 | 348.32 | 落 | 266.0 | 161.00 | 4390.7544 | 158.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 16:00:00 | 257.69 | 348.20 | 落 | 197.0 | 159.00 | 4448.3544 | 157.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 17:00:00 | 257.69 | 348.20 | 平 | 198.0 | 157.00 | 4505.2344 | 155.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 18:00:00 | 257.69 | 348.20 | 平 | 198.0 | 155.00 | 4561.3944 | 153.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 19:00:00 | 257.69 | 348.20 | 平 | 198.0 | 153.00 | 4616.8344 | 151.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 20:00:00 | 257.69 | 348.20 | 平 | 198.0 | 151.00 | 4671.5544 | 149.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 21:00:00 | 257.68 | 348.08 | 落 | 165.0 | 149.00 | 4725.5544 | 147.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 22:00:00 | 257.68 | 348.08 | 平 | 198.0 | 147.00 | 4778.8344 | 145.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-25 23:00:00 | 257.67 | 347.96 | 落 | 165.0 | 145.00 | 4831.3944 | 143.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 00:00:00 | 257.67 | 347.96 | 平 | 198.0 | 143.00 | 4883.2344 | 141.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 01:00:00 | 257.66 | 347.83 | 落 | 162.0 | 141.00 | 4934.3544 | 139.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 02:00:00 | 257.66 | 347.83 | 平 | 198.0 | 139.00 | 4984.7544 | 137.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 03:00:00 | 257.66 | 347.83 | 平 | 198.0 | 137.00 | 5034.4344 | 135.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 04:00:00 | 257.65 | 347.71 | 落 | 165.0 | 135.00 | 5083.3944 | 133.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 05:00:00 | 257.64 | 347.59 | 落 | 165.0 | 133.00 | 5131.6344 | 131.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 06:00:00 | 257.63 | 347.47 | 落 | 165.0 | 131.00 | 5179.1544 | 129.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 07:00:00 | 257.63 | 347.47 | 平 | 198.0 | 129.00 | 5225.9544 | 127.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 08:00:00 | 257.62 | 347.34 | 落 | 162.0 | 127.00 | 5272.0344 | 125.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 09:00:00 | 257.61 | 347.22 | 落 | 165.0 | 140.00 | 5320.0944 | 138.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 10:00:00 | 257.60 | 347.10 | 落 | 165.0 | 160.00 | 5374.0944 | 158.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 11:00:00 | 257.58 | 346.85 | 落 | 230.0 | 180.00 | 5435.2944 | 178.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 12:00:00 | 257.55 | 346.49 | 落 | 200.0 | 180.00 | 5500.0944 | 178.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 13:00:00 | 257.53 | 346.24 | 落 | 231.0 | 180.00 | 5564.8944 | 178.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 14:00:00 | 257.50 | 345.88 | 落 | 200.0 | 180.00 | 5629.6944 | 178.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 15:00:00 | 257.47 | 345.51 | 落 | 196.0 | 180.00 | 5694.4944 | 178.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 16:00:00 | 257.44 | 345.14 | 落 | 196.0 | 180.00 | 5759.2944 | 178.0 | 2.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 17:00:00 | 257.41 | 344.77 | 落 | 196.0 | 180.00 | 5824.0944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 18:00:00 | 257.38 | 344.41 | 落 | 199.0 | 180.00 | 5888.8944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 21:00:00 | 257.29 | 343.30 | 落 | 196.0 | 180.00 | 6083.2944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 22:00:00 | 257.26 | 342.94 | 落 | 199.0 | 180.00 | 6148.0944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-26 23:00:00 | 257.23 | 342.57 | 落 | 196.0 | 180.00 | 6212.8944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 00:00:00 | 257.19 | 342.08 | 落 | 162.0 | 180.00 | 6277.6944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 01:00:00 | 257.15 | 341.59 | 落 | 162.0 | 180.00 | 6342.4944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 02:00:00 | 257.11 | 341.10 | 落 | 162.0 | 180.00 | 6407.2944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 03:00:00 | 257.07 | 340.61 | 落 | 162.0 | 180.00 | 6472.0944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 04:00:00 | 257.03 | 340.12 | 落 | 162.0 | 180.00 | 6536.8944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 05:00:00 | 257.00 | 339.75 | 落 | 195.0 | 180.00 | 6601.6944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 06:00:00 | 256.97 | 339.38 | 落 | 195.0 | 180.00 | 6666.4944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 07:00:00 | 256.94 | 339.01 | 落 | 195.0 | 180.00 | 6731.2944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 08:00:00 | 256.91 | 338.65 | 落 | 195.0 | 180.00 | 6796.0944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 09:00:00 | 256.88 | 338.28 | 落 | 194.0 | 180.00 | 6860.8944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 10:00:00 | 256.85 | 337.91 | 落 | 194.0 | 180.00 | 6925.6944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 11:00:00 | 256.82 | 337.54 | 落 | 194.0 | 180.00 | 6990.4944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 12:00:00 | 256.78 | 337.05 | 落 | 161.0 | 180.00 | 7055.2944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 13:00:00 | 256.74 | 336.56 | 落 | 161.0 | 180.00 | 7120.0944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 14:00:00 | 256.70 | 336.07 | 落 | 161.0 | 180.00 | 7184.8944 | 177.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 15:00:00 | 256.66 | 335.58 | 落 | 161.0 | 160.00 | 7246.0944 | 157.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 16:00:00 | 256.62 | 335.09 | 落 | 160.0 | 140.00 | 7300.0944 | 137.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 17:00:00 | 256.59 | 334.73 | 落 | 100.0 | 120.00 | 7346.8944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 18:00:00 | 256.58 | 334.60 | 落 | 164.0 | 120.00 | 7390.0944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 19:00:00 | 256.56 | 334.36 | 落 | 133.0 | 120.00 | 7433.2944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 20:00:00 | 256.54 | 334.12 | 落 | 133.0 | 120.00 | 7476.4944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 21:00:00 | 256.52 | 333.87 | 落 | 131.0 | 120.00 | 7519.6944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 22:00:00 | 256.50 | 333.63 | 落 | 133.0 | 120.00 | 7562.8944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-27 23:00:00 | 256.48 | 333.38 | 落 | 131.0 | 120.00 | 7606.0944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 00:00:00 | 256.46 | 333.14 | 落 | 133.0 | 120.00 | 7649.2944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 01:00:00 | 256.44 | 332.89 | 落 | 131.0 | 120.00 | 7692.4944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 02:00:00 | 256.42 | 332.65 | 落 | 133.0 | 120.00 | 7735.6944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 03:00:00 | 256.40 | 332.40 | 落 | 131.0 | 120.00 | 7778.8944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 04:00:00 | 256.44 | 332.89 | 涨 | 336.0 | 120.00 | 7822.0944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 05:00:00 | 256.44 | 332.89 | 平 | 200.0 | 120.00 | 7865.2944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 06:00:00 | 256.45 | 333.01 | 涨 | 233.0 | 120.00 | 7908.4944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 07:00:00 | 256.45 | 333.01 | 平 | 200.0 | 120.00 | 7951.6944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 08:00:00 | 256.45 | 333.01 | 平 | 200.0 | 120.00 | 7994.8944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 09:00:00 | 256.43 | 332.77 | 落 | 133.0 | 120.00 | 8038.0944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 10:00:00 | 256.43 | 332.77 | 平 | 200.0 | 120.00 | 8081.2944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 11:00:00 | 256.42 | 332.65 | 落 | 167.0 | 120.00 | 8124.4944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 12:00:00 | 256.41 | 332.52 | 落 | 164.0 | 120.00 | 8167.6944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 13:00:00 | 256.40 | 332.40 | 落 | 167.0 | 120.00 | 8210.8944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 14:00:00 | 256.39 | 332.28 | 落 | 167.0 | 120.00 | 8254.0944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 15:00:00 | 256.37 | 332.03 | 落 | 131.0 | 120.00 | 8297.2944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 16:00:00 | 256.35 | 331.79 | 落 | 133.0 | 120.00 | 8340.4944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 17:00:00 | 256.33 | 331.54 | 落 | 131.0 | 120.00 | 8383.6944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 18:00:00 | 256.33 | 331.54 | 平 | 200.0 | 120.00 | 8426.8944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 19:00:00 | 256.32 | 331.42 | 落 | 167.0 | 120.00 | 8470.0944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 20:00:00 | 256.31 | 331.30 | 落 | 167.0 | 120.00 | 8513.2944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 21:00:00 | 256.29 | 331.05 | 落 | 131.0 | 120.00 | 8556.4944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 22:00:00 | 256.27 | 330.81 | 落 | 133.0 | 120.00 | 8599.6944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-28 23:00:00 | 256.25 | 330.56 | 落 | 131.0 | 120.00 | 8642.8944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 00:00:00 | 256.23 | 330.32 | 落 | 133.0 | 120.00 | 8686.0944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 01:00:00 | 256.21 | 330.07 | 落 | 131.0 | 120.00 | 8729.2944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 02:00:00 | 256.19 | 329.83 | 落 | 132.0 | 120.00 | 8772.4944 | 117.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 03:00:00 | 256.19 | 329.83 | 平 | 199.0 | 110.00 | 8813.8944 | 107.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 04:00:00 | 256.18 | 329.71 | 落 | 166.0 | 90.00 | 8849.8944 | 87.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 05:00:00 | 256.16 | 329.46 | 落 | 130.0 | 70.00 | 8878.6944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 06:00:00 | 256.15 | 329.34 | 落 | 97.0 | 70.00 | 8903.8944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 07:00:00 | 256.14 | 329.22 | 落 | 97.0 | 70.00 | 8929.0944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 08:00:00 | 256.13 | 329.09 | 落 | 94.0 | 70.00 | 8954.2944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 09:00:00 | 256.13 | 329.09 | 平 | 130.0 | 70.00 | 8979.4944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 10:00:00 | 256.13 | 329.09 | 平 | 130.0 | 70.00 | 9004.6944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 11:00:00 | 256.13 | 329.09 | 平 | 130.0 | 70.00 | 9029.8944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 12:00:00 | 256.12 | 328.97 | 落 | 97.0 | 70.00 | 9055.0944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 13:00:00 | 256.12 | 328.97 | 平 | 130.0 | 70.00 | 9080.2944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 14:00:00 | 256.11 | 328.85 | 落 | 97.0 | 70.00 | 9105.4944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 15:00:00 | 256.10 | 328.73 | 落 | 97.0 | 70.00 | 9130.6944 | 67.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 16:00:00 | 256.10 | 328.73 | 平 | 130.0 | 50.00 | 9152.2944 | 47.0 | 3.00 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 17:00:00 | 256.11 | 328.85 | 涨 | 42.7 | 40.00 | 9168.4944 | 37.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 18:00:00 | 256.13 | 329.09 | 涨 | 76.1 | 30.00 | 9181.0944 | 27.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 19:00:00 | 256.15 | 329.34 | 涨 | 78.8 | 20.00 | 9190.0944 | 17.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 20:00:00 | 256.16 | 329.46 | 涨 | 42.7 | 10.00 | 9195.4944 | 7.6 | 2.40 | 开启1#泄洪洞 |\n| 31005650 | 2021-07-29 21:00:00 | 256.17 | 329.58 | 涨 | 33.0 | 5.00 | 9198.1944 | 5.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-29 22:00:00 | 256.19 | 329.83 | 涨 | 69.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-29 23:00:00 | 256.21 | 330.07 | 涨 | 67.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 00:00:00 | 256.22 | 330.20 | 涨 | 36.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 01:00:00 | 256.23 | 330.32 | 涨 | 33.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 02:00:00 | 256.24 | 330.44 | 涨 | 33.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 03:00:00 | 256.26 | 330.69 | 涨 | 69.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 04:00:00 | 256.28 | 330.93 | 涨 | 67.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 05:00:00 | 256.30 | 331.18 | 涨 | 69.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 06:00:00 | 256.31 | 331.30 | 涨 | 33.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 07:00:00 | 256.31 | 331.30 | 平 | 34.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |\n| 31005650 | 2021-07-30 08:00:00 | 256.33 | 331.54 | 涨 | 33.0 | 0.00 | 9199.0944 | 0.0 | 0.00 | 关闭 |', 'metadata': {'doc_name': '217洪水水库实测洪水过程', 'node_id': '0001', 'title': '"21.7"洪水 --盘石头水库洪水过程', 'category': 'history_flood', 'source': 'pageindex'}, 'id': '217洪水水库实测洪水过程_0001', 'score': 0.7182169061624766}
+  3. {'content': '## "23.7"洪水 --盘石头水库洪水过程\n\n  站号     时间                     库上水位(m)   蓄水量(10⁶m³)   库水水势   入库流量(m³/s)   出库流量(m³/s)   泄洪流量 (m³/s)           供水流量 (m³/s)   调度过程         1# 泄洪洞 + 发电流量\n  ------------ ------------------------ ----------------- --------------- ---------- ---------------- ---------------- ------------------------- ----------------- ---------------- ----------------------\n  3.100565e7   45135.333333333336   247.35            238.83      平     3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.375            247.35            238.83                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.416666666664   247.35            238.83                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.458333333336   247.35            238.83                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.5              247.35            238.83                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.541666666664   247.35            238.83                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.583333333336   247.35            238.83                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.625            247.35            238.83                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.666666666664   247.36            238.92                 15.9         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.708333333336   247.36            238.92                 15.9         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.75             247.36            238.92                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.791666666664   247.36            238.92                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.833333333336   247.35            238.83      平     3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.875            247.36            238.92                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.916666666664   247.38            239.11                 42.3         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.958333333336   247.37            239.02                 17.3         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45135.979166666664   247.38            239.11                 24.5         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.0              247.37            239.02                 18.2         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.041666666664   247.38            239.11                 15.9         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.0625           247.38            239.11                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.083333333336   247.37            239.02                 3.43         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.125            247.39            239.21                 17.3         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.145833333336   247.39            239.21                 17.3         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.166666666664   247.4             239.3                  42.3         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.1875           247.43            239.59                 66.8         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.208333333336   247.44            239.68                 68.7         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.25             247.47            239.97      涨     35.1         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.333333333336   247.49            240.16      涨     29.8         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.375            247.52            240.44                 46.9         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.416666666664   247.51            240.35                 29.8         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.458333333336   247.53            240.54                 17.3         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.5              247.55            240.72                 54.8         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.541666666664   247.59            241.1                  81.2         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.583333333336   247.62            241.39      涨     96.5         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.625            247.65            241.67                 82.6         3.43         0.30000000000000027   3.13                           0.30000000000000027\n  3.100565e7   45136.645833333336   247.68            241.96      涨     114.0        8.03         4.8999999999999995    3.13          开启 1# 泄洪洞   4.8999999999999995\n  3.100565e7   45136.666666666664   247.7             242.15      涨     114.0        8.03         4.8999999999999995    3.13          开启 1# 泄洪洞   4.8999999999999995\n  3.100565e7   45136.708333333336   247.74            242.53                 123.0        8.03         4.8999999999999995    3.13          开启 1# 泄洪洞   4.8999999999999995\n  3.100565e7   45136.75             247.8             243.1       涨     140.0        8.03         4.8999999999999995    3.13          开启 1# 泄洪洞   4.8999999999999995\n  3.100565e7   45136.770833333336   247.83            243.38                 145.0        8.03         4.8999999999999995    3.13          开启 1# 泄洪洞   4.8999999999999995\n  3.100565e7   45136.791666666664   247.86            243.67      涨     166.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45136.8125           247.86            243.67                 135.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45136.833333333336   247.88            243.86      涨     153.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45136.833333333336   247.88            243.86      涨     153.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45136.875            247.9             244.05      涨     153.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45136.916666666664   247.92            244.24      涨     153.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45136.958333333336   247.94            244.43      涨     153.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45137.0              247.96            244.62      涨     153.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45137.041666666664   247.98            244.81      涨     153.0        100.0        96.87                 3.13          开启 1# 泄洪洞   96.87\n  3.100565e7   45137.083333333336   247.99            244.9       涨     127.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.125            248.0             245.0       涨     130.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.166666666664   248.02            245.2       涨     158.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.208333333336   248.04            245.39      涨     155.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.25             248.06            245.59      涨     158.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.291666666664   248.07            245.68      涨     127.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.333333333336   248.1             245.98      涨     185.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.354166666664   248.13            246.27                 178.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.375            248.17            246.66      涨     291.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.416666666664   248.22            247.15      涨     238.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.4375           248.25            247.44                 264.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.458333333336   248.27            247.63      涨     235.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.5              248.34            248.32      涨     294.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.520833333336   248.37            248.61                 265.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.541666666664   248.39            248.8       涨     235.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.5625           248.44            249.29                 286.0        102.0        98.87                 3.13          开启 1# 泄洪洞   98.87\n  3.100565e7   45137.583333333336   248.49            249.78      涨     375.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.604166666664   248.56            250.46                 359.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.625            248.61            250.95      涨     428.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.645833333336   248.68            251.63                 427.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.666666666664   248.74            252.21      涨     453.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.6875           248.79            252.7                  414.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.708333333336   248.85            253.29      涨     403.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.729166666664   248.91            253.87                 414.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.75             248.96            254.36      涨     400.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.770833333336   249.01            254.85                 402.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.791666666664   249.06            255.34      涨     375.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.8125           249.1             255.73                 361.0        103.0        99.87                 3.13          开启 1# 泄洪洞   99.87\n  3.100565e7   45137.833333333336   249.15            256.21      涨     375.0        129.0        125.87                3.13          开启 1# 泄洪洞   125.87\n  3.100565e7   45137.854166666664   249.19            256.6                  346.0        129.0        125.87                3.13          开启 1# 泄洪洞   125.87\n  3.100565e7   45137.875            249.23            256.99      涨     334.0        130.0        126.87                3.13          开启 1# 泄洪洞   126.87\n  3.100565e7   45137.895833333336   249.26            257.29                 320.0        130.0        126.87                3.13          开启 1# 泄洪洞   126.87\n  3.100565e7   45137.916666666664   249.3             257.68      涨     322.0        106.0        103.18                2.82          开启 1# 泄洪洞   103.18\n  3.100565e7   45137.930555555555   249.33            257.97      涨     322.0        97.2         94.38000000000001     2.82          开启 1# 泄洪洞   94.38000000000001\n  3.100565e7   45137.9375           249.34            258.07                 333.0        97.2         94.38000000000001     2.82          开启 1# 泄洪洞   94.38000000000001\n  3.100565e7   45137.958333333336   249.39            258.55      涨     339.0        97.2         94.38000000000001     2.82          开启 1# 泄洪洞   94.38000000000001\n  3.100565e7   45138.0              249.46            259.24      涨     289.0        97.3         94.48                 2.82          开启 1# 泄洪洞   94.48\n  3.100565e7   45138.020833333336   249.5             259.63                 314.0        97.3         94.48                 2.82          开启 1# 泄洪洞   94.48\n  3.100565e7   45138.041666666664   249.54            260.02      涨     313.0        96.0         93.18                 2.82          开启 1# 泄洪洞   93.18\n  3.100565e7   45138.0625           249.58            260.4                  303.0        96.0         93.18                 2.82          开启 1# 泄洪洞   93.18\n  3.100565e7   45138.083333333336   249.61            260.7       涨     285.0        96.1         93.28                 2.82          开启 1# 泄洪洞   93.28\n  3.100565e7   45138.125            249.67            261.28      涨     257.0        96.2         93.38000000000001     2.82          开启 1# 泄洪洞   93.38000000000001\n  3.100565e7   45138.145833333336   249.71            261.67                 272.0        96.2         93.38000000000001     2.82          开启 1# 泄洪洞   93.38000000000001\n  3.100565e7   45138.166666666664   249.72            261.77      涨     232.0        96.2         93.38000000000001     2.82          开启 1# 泄洪洞   93.38000000000001\n  3.100565e7   45138.208333333336   249.79            262.45      涨     285.0        96.3         93.48                 2.82          开启 1# 泄洪洞   93.48\n  3.100565e7   45138.229166666664   249.84            262.94                 273.0        96.3         93.48                 2.82          开启 1# 泄洪洞   93.48\n  3.100565e7   45138.25             249.86            263.13      涨     285.0        96.4         93.58000000000001     2.82          开启 1# 泄洪洞   93.58000000000001\n  3.100565e7   45138.291666666664   249.91            263.62      涨     232.0        96.5         93.68                 2.82          开启 1# 泄洪洞   93.68\n  3.100565e7   45138.333333333336   249.96            264.11      涨     232.0        96.6         93.78                 2.82          开启 1# 泄洪洞   93.78\n  3.100565e7   45138.375            250.01            264.6       涨     233.0        96.6         93.78                 2.82          开启 1# 泄洪洞   93.78\n  3.100565e7   45138.416666666664   250.05            264.98      涨     203.0        96.6         93.78                 2.82          开启 1# 泄洪洞   93.78\n  3.100565e7   45138.458333333336   250.09            265.36      涨     203.0        96.6         93.78                 2.82          开启 1# 泄洪洞   93.78\n  3.100565e7   45138.5              250.13            265.74      涨     203.0        96.7         93.88000000000001     2.82          开启 1# 泄洪洞   93.88000000000001\n  3.100565e7   45138.520833333336   250.16            266.1                  221.0        96.7         93.88000000000001     2.82          开启 1# 泄洪洞   93.88000000000001\n  3.100565e7   45138.541666666664   250.17            266.12      涨     202.0        96.7         93.88000000000001     2.82          开启 1# 泄洪洞   93.88000000000001\n  3.100565e7   45138.583333333336   250.2             266.4       涨     175.0        96.7         93.88000000000001     2.82          开启 1# 泄洪洞   93.88000000000001\n  3.100565e7   45138.604166666664   250.23            266.8                  194.0        96.7         93.88000000000001     2.82          开启 1# 泄洪洞   93.88000000000001\n  3.100565e7   45138.625            250.24            266.78      涨     202.0        96.7         93.88000000000001     2.82          开启 1# 泄洪洞   93.88000000000001\n  3.100565e7   45138.666666666664   250.27            267.07      涨     178.0        96.7         93.88000000000001     2.82          开启 1# 泄洪洞   93.88000000000001\n  3.100565e7   45138.708333333336   250.3             267.35      涨     175.0        96.7         93.88000000000001     2.82          开启 1# 泄洪洞   93.88000000000001\n  3.100565e7   45138.75             250.33            267.64      涨     178.0        97.0         94.18                 2.82          开启 1# 泄洪洞   94.18\n  3.100565e7   45138.791666666664   250.36            267.92      涨     175.0        97.0         94.18                 2.82          开启 1# 泄洪洞   94.18\n  3.100565e7   45138.833333333336   250.43            268.59      涨     150.0        97.1         94.28                 2.82          开启 1# 泄洪洞   94.28\n  3.100565e7   45138.854166666664   250.4             268.5                  193.0        97.1         94.28                 2.82          开启 1# 泄洪洞   94.28\n  3.100565e7   45138.875            250.41            268.4       涨     150.0        97.1         94.28                 2.82          开启 1# 泄洪洞   94.28\n  3.100565e7   45138.916666666664   250.43            268.59      涨     150.0        97.1         94.28                 2.82          开启 1# 泄洪洞   94.28\n  3.100565e7   45138.958333333336   250.45            269.0                  180.0        97.1         94.28                 2.82          开启 1# 泄洪洞   94.28\n  3.100565e7   45139.0              250.48            269.06      涨     162.0        97.2         94.38000000000001     2.82          开启 1# 泄洪洞   94.38000000000001\n  3.100565e7   45139.041666666664   250.49            269.4                  153.0        97.2         94.38000000000001     2.82          开启 1# 泄洪洞   94.38000000000001\n  3.100565e7   45139.083333333336   250.52            269.44      涨     150.0        97.1         94.28                 2.82          开启 1# 泄洪洞   94.28\n  3.100565e7   45139.125            250.55            270.0                  181.0        97.1         94.28                 2.82          开启 1# 泄洪洞   94.28\n  3.100565e7   45139.166666666664   250.58            270.01      涨     176.0        97.2         94.38000000000001     2.82          开启 1# 泄洪洞   94.38000000000001\n  3.100565e7   45139.208333333336   250.62            270.7                  194.0        97.2         94.38000000000001     2.82          开启 1# 泄洪洞   94.38000000000001\n  3.100565e7   45139.25             250.67            270.86      涨     215.0        97.1         94.28                 2.82          开启 1# 泄洪洞   94.28\n  3.100565e7   45139.291666666664   250.71            271.24      涨     203.0        97.5         94.68                 2.82          开启 1# 泄洪洞   94.68\n  3.100565e7   45139.333333333336   250.76            271.72      涨     231.0        97.5         94.68                 2.82          开启 1# 泄洪洞   94.68\n  3.100565e7   45139.375            250.83            272.8                  314.0        97.5         94.68                 2.82          开启 1# 泄洪洞   94.68\n  3.100565e7   45139.416666666664   250.89            272.95      涨     269.0        97.7         94.88000000000001     2.82          开启 1# 泄洪洞   94.88000000000001\n  3.100565e7   45139.4375           250.93            273.33      涨     303.0        49.0         45.93                 3.07          开启 1# 泄洪洞   45.93\n  3.100565e7   45139.458333333336   250.98            273.81      涨     315.0        49.0         45.93                 3.07          开启 1# 泄洪洞   45.93\n  3.100565e7   45139.479166666664   251.02            274.7                  309.0        49.0         45.93                 3.07          开启 1# 泄洪洞   45.93\n  3.100565e7   45139.5              251.07            274.66      涨     285.0        49.0         45.93                 3.07          开启 1# 泄洪洞   45.93\n  3.100565e7   45139.520833333336   251.12            275.7                  378.0        49.0         45.93                 3.07          开启 1# 泄洪洞   45.93\n  3.100565e7   45139.541666666664   251.18            275.7       涨     338.0        49.1         46.03                 3.07          开启 1# 泄洪洞   46.03\n  3.100565e7   45139.5625           251.25            277.0                  368.0        49.1         46.03                 3.07          开启 1# 泄洪洞   46.03\n  3.100565e7   45139.583333333336   251.32            277.03      涨     419.0        49.2         46.13                 3.07          开启 1# 泄洪洞   46.13\n  3.100565e7   45139.604166666664   251.38            278.3                  410.0        49.2         46.13                 3.07          开启 1# 泄洪洞   46.13\n  3.100565e7   45139.625            251.45            278.26      涨     390.0        49.2         46.13                 3.07          开启 1# 泄洪洞   46.13\n  3.100565e7   45139.645833333336   251.52            279.7                  424.0        49.2         46.13                 3.07          开启 1# 泄洪洞   46.13\n  3.100565e7   45139.666666666664   251.59            279.59      涨     418.0        49.3         46.23                 3.07          开启 1# 泄洪洞   46.23\n  3.100565e7   45139.6875           251.66            281.1                  438.0        49.3         46.23                 3.07          开启 1# 泄洪洞   46.23\n  3.100565e7   45139.708333333336   251.73            280.91      涨     416.0        49.4         46.33                 3.07          开启 1# 泄洪洞   46.33\n  3.100565e7   45139.729166666664   251.8             282.5                  438.0        49.4         46.33                 3.07          开启 1# 泄洪洞   46.33\n  3.100565e7   45139.75             251.88            282.35      涨     449.0        49.5         46.43                 3.07          开启 1# 泄洪洞   46.43\n  3.100565e7   45139.791666666664   252.03            283.82      涨     457.0        49.5         46.43                 3.07          开启 1# 泄洪洞   46.43\n  3.100565e7   45139.8125           252.09            285.4                  452.0        49.5         46.43                 3.07          开启 1# 泄洪洞   46.43\n  3.100565e7   45139.833333333336   252.17            285.33      涨     469.0        49.6         46.53                 3.07          开启 1# 泄洪洞   46.53\n  3.100565e7   45139.854166666664   252.23            286.8                  544.0        49.6         46.53                 3.07          开启 1# 泄洪洞   46.53\n  3.100565e7   45139.875            252.31            286.83      涨     468.0        50.9         47.83                 3.07          开启 1# 泄洪洞   47.83\n  3.100565e7   45139.895833333336   252.36            288.1                  425.0        50.9         47.83                 3.07          开启 1# 泄洪洞   47.83\n  3.100565e7   45139.916666666664   252.44            288.23      涨     440.0        51.0         47.93                 3.07          开启 1# 泄洪洞   47.93\n  3.100565e7   45139.9375           252.47            289.2                  383.0        51.0         47.93                 3.07          开启 1# 泄洪洞   47.93\n  3.100565e7   45139.958333333336   252.52            289.09      涨     289.0        98.8         95.73                 3.07          开启 1# 泄洪洞   95.73\n  3.100565e7   45139.979166666664   252.58            290.3                  356.0        98.8         95.73                 3.07          开启 1# 泄洪洞   95.73\n  3.100565e7   45140.0              252.62            290.16      涨     396.0        98.9         95.83000000000001     3.07          开启 1# 泄洪洞   95.83000000000001\n  3.100565e7   45140.020833333336   252.67            291.2                  329.0        98.9         95.83000000000001     3.07          开启 1# 泄洪洞   95.83000000000001\n  3.100565e7   45140.041666666664   252.71            291.13      涨     368.0        99.0         95.93                 3.07          开启 1# 泄洪洞   95.93\n  3.100565e7   45140.0625           252.76            292.1                  349.0        99.0         95.93                 3.07          开启 1# 泄洪洞   95.93\n  3.100565e7   45140.083333333336   252.79            291.99      涨     338.0        99.1         96.03                 3.07          开启 1# 泄洪洞   96.03\n  3.100565e7   45140.125            252.86            292.74      涨     307.0        99.2         96.13000000000001     3.07          开启 1# 泄洪洞   96.13000000000001\n  3.100565e7   45140.145833333336   252.91            293.6                  307.0        99.2         96.13000000000001     3.07          开启 1# 泄洪洞   96.13000000000001\n  3.100565e7   45140.166666666664   252.94            293.6       涨     338.0        99.3         96.23                 3.07          开启 1# 泄洪洞   96.23\n  3.100565e7   45140.1875           252.98            294.3                  356.0        99.3         96.23                 3.07          开启 1# 泄洪洞   96.23\n  3.100565e7   45140.208333333336   253.01            294.36      涨     310.0        99.4         96.33000000000001     3.07          开启 1# 泄洪洞   96.33000000000001\n  3.100565e7   45140.25             253.07            295.0       涨     278.0        99.5         96.43                 3.07          开启 1# 泄洪洞   96.43\n  3.100565e7   45140.291666666664   253.13            295.65      涨     280.0        99.5         96.43                 3.07          开启 1# 泄洪洞   96.43\n  3.100565e7   45140.333333333336   253.18            296.19      涨     250.0        99.6         96.53                 3.07          开启 1# 泄洪洞   96.53\n  3.100565e7   45140.375            253.24            296.83      涨     277.0        99.7         96.63000000000001     3.07          开启 1# 泄洪洞   96.63000000000001\n  3.100565e7   45140.416666666664   253.29            297.37      涨     250.0        100.0        96.65                 3.35          开启 1# 泄洪洞   96.65\n  3.100565e7   45140.458333333336   253.34            297.91      涨     250.0        100.0        96.65                 3.35          开启 1# 泄洪洞   96.65\n  3.100565e7   45140.479166666664   253.36            298.1                  241.0        100.0        96.65                 3.35          开启 1# 泄洪洞   96.65\n  3.100565e7   45140.5              253.38            298.34      涨     218.0        99.0         95.65                 3.35          开启 1# 泄洪洞   95.65\n  3.100565e7   45140.541666666664   253.41            298.66      涨     188.0        99.2         95.85000000000001     3.35          开启 1# 泄洪洞   95.85000000000001\n  3.100565e7   45140.583333333336   253.43            298.87      涨     158.0        99.2         95.85000000000001     3.35          开启 1# 泄洪洞   95.85000000000001\n  3.100565e7   45140.625            253.46            299.2       涨     191.0        99.2         95.85000000000001     3.35          开启 1# 泄洪洞   95.85000000000001\n  3.100565e7   45140.666666666664   253.49            299.52      涨     188.0        99.2         95.85000000000001     3.35          开启 1# 泄洪洞   95.85000000000001\n  3.100565e7   45140.6875           253.51            299.6                  180.0        99.2         95.85000000000001     3.35          开启 1# 泄洪洞   95.85000000000001\n  3.100565e7   45140.708333333336   253.52            299.84      涨     188.0        99.2         95.85000000000001     3.35          开启 1# 泄洪洞   95.85000000000001\n  3.100565e7   45140.75             253.54            300.06      涨     160.0        99.2         95.85000000000001     3.35          开启 1# 泄洪洞   95.85000000000001\n  3.100565e7   45140.791666666664   253.56            300.27      涨     158.0        99.2         95.85000000000001     3.35          开启 1# 泄洪洞   95.85000000000001\n  3.100565e7   45140.833333333336   253.59            300.59      涨     188.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45140.854166666664   253.6             300.5                  148.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45140.875            253.61            300.81      涨     161.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45140.916666666664   253.63            301.02      涨     158.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45140.958333333336   253.64            301.13      涨     130.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.0              253.65            301.24      涨     130.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.041666666664   253.66            301.34      涨     127.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.083333333336   253.67            301.45      涨     130.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.125            253.68            301.56      涨     130.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.166666666664   253.69            301.67      涨     130.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.208333333336   253.7             301.77      涨     127.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.25             253.71            301.88      涨     130.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.291666666664   253.71            301.88      平     99.4         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.333333333336   253.71            301.88      平     99.4         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.375            253.72            301.99      涨     130.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.416666666664   253.72            301.99      平     99.4         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.458333333336   253.72            301.99      平     99.4         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.5              253.73            301.99      涨     130.0        99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.541666666664   253.73            302.1       平     99.4         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.583333333336   253.73            302.1       平     99.4         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.604166666664   253.72            301.7                  67.2         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.625            253.73            302.1       平     99.4         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.666666666664   253.72            301.99      落     68.8         99.4         96.05000000000001     3.35          开启 1# 泄洪洞   96.05000000000001\n  3.100565e7   45141.708333333336   253.72            301.99      平     83.8         99.1         96.08                 3.02          开启 1# 泄洪洞   96.08\n  3.100565e7   45141.75             253.71            301.88      落     83.8         99.1         96.08                 3.02          开启 1# 泄洪洞   96.08\n  3.100565e7   45141.77777777778    253.71            301.88      平     83.8         48.8         45.779999999999994    3.02          开启 1# 泄洪洞   45.779999999999994\n  3.100565e7   45141.791666666664   253.72            301.99      涨     83.8         48.8         45.779999999999994    3.02          开启 1# 泄洪洞   45.779999999999994\n  3.100565e7   45141.833333333336   253.73            302.1       涨     80.4         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45141.875            253.75            302.31      涨     108.0        49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45141.895833333336   253.76            302.1                  61.0         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45141.916666666664   253.77            302.53      涨     111.0        49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45141.958333333336   253.78            302.63      涨     93.8         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45141.979166666664   253.79            302.4                  91.5         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.0              253.79            302.74      涨     80.4         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.041666666664   253.8             302.85      涨     80.4         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.083333333336   253.81            302.96      涨     80.4         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.125            253.82            303.06      涨     77.6         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.166666666664   253.83            303.17      涨     80.4         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.208333333336   253.84            303.28      涨     80.4         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.229166666664   253.86            303.1                  54.2         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.25             253.86            303.49      涨     84.5         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.291666666664   253.87            303.6       涨     80.4         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994\n  3.100565e7   45142.333333333336   253.88            303.71      涨     80.4         49.8         46.779999999999994    3.02          开启 1# 泄洪洞   46.779999999999994', 'metadata': {'doc_name': '卫共237水库实测洪水过程', 'node_id': '0001', 'title': '"23.7"洪水 --盘石头水库洪水过程', 'category': 'history_flood', 'source': 'pageindex'}, 'id': '卫共237水库实测洪水过程_0001', 'score': 0.6878064923706944}
+  4. {'content': '## "21.7"洪水 --石门(辉县)水库洪水过程\n| 站号 | 时间 | 库上水位(m) | 蓄水量(10⁶m³) | 库水水势 | 入库流量(m³/s) | 出库流量(m³/s) | 累积出库(万m³) | 泄洪流量(m³/s) | 供水流量(m³/s) | 调度过程 | 1#溢流堰开启孔数 | 1#溢流堰开度 | 1#溢流堰流量 | 2#溢流堰开启孔数 | 2#溢流堰开度 | 2#溢流堰流量 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| 31005200 | 2021-07-19 08:00:00 | 293.52 | 15.05 | 涨 | 183.0000 | 0.000000 | 0.000000 | 0.000000 | 0.0 | NaN | 2 | 1.0 | 0.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-19 10:00:00 | 295.90 | 16.80 | 涨 | 244.0000 | 0.000000 | 0.000000 | 0.000000 | 0.0 | NaN | 2 | 1.0 | 0.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-19 14:20:00 | 299.20 | 19.41 | 涨 | 167.0000 | 195.000000 | 152.100000 | 195.000000 | 0.0 | 开始溢洪 | 2 | 1.0 | 195.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-19 16:00:00 | 300.44 | 20.46 | 涨 | 539.0000 | 415.000000 | 335.100000 | 415.000000 | 0.0 | NaN | 2 | 1.0 | 415.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-19 18:27:00 | 301.20 | 21.11 | 涨 | 340.0000 | 297.000000 | 649.092000 | 297.000000 | 0.0 | NaN | 2 | 1.0 | 297.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-19 20:00:00 | 301.28 | 21.18 | 涨 | 311.0000 | 311.000000 | 818.724000 | 311.000000 | 0.0 | NaN | 2 | 1.0 | 311.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-19 22:00:00 | 301.23 | 21.14 | 落 | 288.0000 | 297.000000 | 1037.604000 | 297.000000 | 0.0 | NaN | 2 | 1.0 | 297.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-20 00:00:00 | 301.08 | 21.01 | 落 | 259.0000 | 283.000000 | 1246.404000 | 283.000000 | 0.0 | NaN | 2 | 1.0 | 283.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-20 02:00:00 | 300.49 | 20.50 | 落 | 168.0000 | 219.000000 | 1427.124000 | 219.000000 | 0.0 | NaN | 2 | 1.0 | 219.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-20 04:00:00 | 300.09 | 20.16 | 落 | 131.0000 | 181.000000 | 1571.124000 | 181.000000 | 0.0 | NaN | 2 | 1.0 | 181.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-20 06:00:00 | 299.77 | 19.89 | 落 | 120.0000 | 155.000000 | 1692.084000 | 155.000000 | 0.0 | NaN | 2 | 1.0 | 155.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-20 08:00:00 | 299.36 | 19.54 | 落 | 75.0000 | 119.000000 | 1790.724000 | 119.000000 | 0.0 | NaN | 2 | 1.5 | 119.00 | 4 | 1 | 0.000000 |\n| 31005200 | 2021-07-20 18:00:00 | 301.38 | 21.27 | 涨 | 405.0000 | 217.559013 | 2396.530224 | 217.559013 | 0.0 | NaN | 2 | 1.5 | 211.00 | 4 | 1 | 6.559013 |\n| 31005200 | 2021-07-20 20:00:00 | 301.80 | 21.63 | 涨 | 319.0000 | 262.916885 | 2569.501548 | 262.916885 | 0.0 | NaN | 2 | 1.5 | 223.00 | 4 | 1 | 39.916885 |\n| 31005200 | 2021-07-20 22:00:00 | 301.80 | 21.63 | 落 | 279.0000 | 262.916885 | 2758.801705 | 262.916885 | 0.0 | NaN | 2 | 1.5 | 223.00 | 4 | 1 | 39.916885 |\n| 31005200 | 2021-07-21 00:00:00 | 301.78 | 21.61 | 涨 | 289.0000 | 259.937766 | 2947.029379 | 259.937766 | 0.0 | NaN | 2 | 1.5 | 222.00 | 4 | 1 | 37.937766 |\n| 31005200 | 2021-07-21 02:00:00 | 302.31 | 22.08 | 涨 | 602.0000 | 336.441741 | 3161.726002 | 336.441741 | 0.0 | NaN | 2 | 1.5 | 236.00 | 4 | 1 | 100.441741 |\n| 31005200 | 2021-07-21 04:00:00 | 302.81 | 22.54 | 涨 | 638.0000 | 422.456144 | 3434.929240 | 422.456144 | 0.0 | NaN | 2 | 1.5 | 247.00 | 4 | 1 | 175.456144 |\n| 31005200 | 2021-07-21 06:00:00 | 303.24 | 22.94 | 涨 | 727.0000 | 505.250536 | 3768.903645 | 505.250536 | 0.0 | NaN | 2 | 1.5 | 255.00 | 4 | 1 | 250.250536 |\n| 31005200 | 2021-07-21 07:00:00 | 303.60 | 23.27 | 涨 | 775.0000 | 582.335079 | 3964.669056 | 582.335079 | 0.0 | NaN | 2 | 1.5 | 263.00 | 4 | 1 | 319.335079 |\n| 31005200 | 2021-07-21 08:00:00 | 303.90 | 23.54 | 涨 | 770.0000 | 650.044249 | 4186.497335 | 650.044249 | 0.0 | NaN | 2 | 1.5 | 269.00 | 4 | 1 | 381.044249 |\n| 31005200 | 2021-07-21 09:00:00 | 304.22 | 23.86 | 涨 | 843.0000 | 725.754613 | 4434.141130 | 725.754613 | 0.0 | NaN | 2 | 1.5 | 275.00 | 4 | 1 | 450.754613 |\n| 31005200 | 2021-07-21 10:00:00 | 304.85 | 24.50 | 涨 | 1120.0000 | 885.920340 | 4724.242622 | 885.920340 | 0.0 | NaN | 2 | 1.5 | 287.00 | 4 | 1 | 598.920340 |\n| 31005200 | 2021-07-21 11:00:00 | 305.55 | 25.22 | 涨 | 1250.0000 | 1078.226388 | 5077.789033 | 1078.226388 | 0.0 | NaN | 2 | 1.5 | 299.00 | 4 | 1 | 779.226388 |\n| 31005200 | 2021-07-21 12:00:00 | 305.96 | 25.64 | 涨 | 1260.0000 | 1197.949353 | 5487.500666 | 1197.949353 | 0.0 | NaN | 2 | 1.5 | 306.00 | 4 | 1 | 891.949353 |\n| 31005200 | 2021-07-21 13:00:00 | 306.63 | 26.32 | 涨 | 1510.0000 | 1403.749652 | 5955.806487 | 1403.749652 | 0.0 | NaN | 2 | 1.5 | 317.00 | 4 | 1 | 1086.749652 |\n| 31005200 | 2021-07-21 14:00:00 | 306.60 | 26.29 | 涨 | 1260.0000 | 1394.755891 | 6459.537485 | 1394.755891 | 0.0 | NaN | 2 | 1.5 | 317.00 | 4 | 1 | 1077.755891 |\n| 31005200 | 2021-07-21 15:00:00 | 306.00 | 25.68 | 落 | 1020.0000 | 1210.215999 | 6928.432425 | 1210.215999 | 0.0 | NaN | 2 | 1.5 | 307.00 | 4 | 1 | 903.215999 |\n| 31005200 | 2021-07-21 17:00:00 | 304.37 | 24.01 | 落 | 530.0000 | 763.750939 | 7639.060522 | 763.750939 | 0.0 | NaN | 2 | 1.5 | 279.00 | 4 | 1 | 484.750939 |\n| 31005200 | 2021-07-21 18:00:00 | 303.75 | 23.41 | 落 | 510.0000 | 614.735757 | 7887.188128 | 614.735757 | 0.0 | NaN | 2 | 1.5 | 265.00 | 4 | 1 | 349.735757 |\n| 31005200 | 2021-07-21 19:00:00 | 303.20 | 22.90 | 落 | 450.0000 | 497.926425 | 8087.467320 | 497.926425 | 0.0 | NaN | 2 | 1.5 | 255.00 | 4 | 1 | 242.926425 |\n| 31005200 | 2021-07-21 20:00:00 | 303.10 | 22.81 | 落 | 420.0000 | 477.936621 | 8263.122669 | 477.936621 | 0.0 | NaN | 2 | 1.5 | 253.00 | 4 | 1 | 224.936621 |\n| 31005200 | 2021-07-21 22:00:00 | 302.75 | 22.49 | 落 | 415.0000 | 403.739992 | 8580.526249 | 403.739992 | 0.0 | NaN | 2 | 1.5 | 238.00 | 4 | 1 | 165.739992 |\n| 31005200 | 2021-07-22 00:00:00 | 302.69 | 22.43 | 落 | 380.0000 | 394.210121 | 8867.788290 | 394.210121 | 0.0 | NaN | 2 | 1.5 | 238.00 | 4 | 1 | 156.210121 |\n| 31005200 | 2021-07-22 02:00:00 | 302.65 | 22.40 | 落 | 370.0000 | 387.962188 | 9149.370321 | 387.962188 | 0.0 | NaN | 2 | 1.5 | 238.00 | 4 | 1 | 149.962188 |\n| 31005200 | 2021-07-22 04:00:00 | 302.45 | 22.21 | 落 | 360.0000 | 354.031376 | 9416.488004 | 354.031376 | 0.0 | NaN | 2 | 1.5 | 234.00 | 4 | 1 | 120.031376 |\n| 31005200 | 2021-07-22 06:00:00 | 302.34 | 22.11 | 落 | 350.0000 | 334.541094 | 9664.374094 | 334.541094 | 0.0 | NaN | 2 | 1.5 | 230.00 | 4 | 1 | 104.541094 |\n| 31005200 | 2021-07-22 08:00:00 | 302.42 | 22.18 | 涨 | 345.0000 | 350.736278 | 9911.073948 | 350.736278 | 0.0 | NaN | 2 | 1.5 | 235.00 | 4 | 1 | 115.736278 |\n| 31005200 | 2021-07-22 09:00:00 | 302.53 | 22.29 | 涨 | 340.0000 | 368.736836 | 10040.579108 | 368.736836 | 0.0 | NaN | 2 | 1.5 | 237.00 | 4 | 1 | 131.736836 |\n| 31005200 | 2021-07-22 10:00:00 | 302.54 | 22.30 | 涨 | 335.0000 | 370.225379 | 10173.592307 | 370.225379 | 0.0 | NaN | 2 | 1.5 | 237.00 | 4 | 1 | 133.225379 |\n| 31005200 | 2021-07-22 12:00:00 | 302.40 | 22.17 | 涨 | 325.0000 | 347.902000 | 10432.118163 | 347.902000 | 0.0 | NaN | 2 | 1.5 | 235.00 | 4 | 1 | 112.902000 |\n| 31005200 | 2021-07-22 14:00:00 | 302.17 | 21.96 | 落 | 320.0000 | 311.051659 | 10669.341480 | 311.051659 | 0.0 | NaN | 2 | 1.5 | 229.00 | 4 | 1 | 82.051659 |\n| 31005200 | 2021-07-22 20:00:00 | 301.65 | 21.50 | 涨 | 190.0000 | 172.926777 | 11192.038191 | 172.926777 | 0.0 | NaN | 2 | 1.0 | 147.00 | 4 | 1 | 25.926777 |\n| 31005200 | 2021-07-23 02:00:00 | 301.26 | 21.16 | 涨 | 150.0000 | 136.262283 | 11525.962376 | 136.262283 | 0.0 | NaN | 2 | 1.0 | 135.00 | 4 | 1 | 1.262283 |\n| 31005200 | 2021-07-23 08:00:00 | 300.50 | 20.51 | 落 | 130.0000 | 126.000000 | 11809.205642 | 126.000000 | 0.0 | NaN | 2 | 1.0 | 126.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-23 14:00:00 | 299.89 | 19.99 | 落 | 55.0000 | 59.500000 | 12009.545642 | 59.500000 | 0.0 | NaN | 1 | 1.0 | 59.50 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-23 20:00:00 | 299.71 | 19.84 | 落 | 33.0000 | 20.500000 | 12095.945642 | 20.500000 | 0.0 | NaN | 1 | 0.5 | 20.50 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-24 02:00:00 | 299.73 | 19.85 | 涨 | 33.0000 | 30.500000 | 12151.025642 | 30.500000 | 0.0 | NaN | 1 | 0.5 | 30.50 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-24 08:00:00 | 299.63 | 19.77 | 落 | 16.7000 | 14.500000 | 12199.625642 | 14.500000 | 0.0 | NaN | 1 | 0.2 | 14.50 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-24 14:00:00 | 299.99 | 20.07 | 涨 | 19.6000 | 3.500000 | 12219.065642 | 0.000000 | 3.5 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-24 20:00:00 | 300.35 | 20.38 | 涨 | 17.8000 | 3.500000 | 12226.625642 | 0.000000 | 3.5 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-25 02:00:00 | 300.63 | 20.62 | 涨 | 14.6000 | 3.500000 | 12234.185642 | 0.000000 | 3.5 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-25 08:00:00 | 300.82 | 20.79 | 涨 | 11.1000 | 3.500000 | 12241.745642 | 0.000000 | 3.5 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-25 14:00:00 | 301.00 | 20.94 | 涨 | 12.2000 | 5.000000 | 12250.925642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-25 20:00:00 | 301.16 | 21.08 | 涨 | 11.4000 | 5.000000 | 12261.725642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-26 02:00:00 | 301.28 | 21.09 | 涨 | 5.8000 | 5.000000 | 12272.525642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-26 08:00:00 | 301.36 | 21.25 | 涨 | 9.5000 | 6.000000 | 12284.405642 | 1.000000 | 5.0 | NaN | 1 | 0.2 | 6.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-26 14:00:00 | 301.40 | 21.28 | 涨 | 8.7000 | 7.100000 | 12298.553642 | 2.100000 | 5.0 | NaN | 1 | 0.2 | 7.10 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-26 20:00:00 | 301.45 | 21.33 | 涨 | 10.9000 | 3.960000 | 12310.498442 | 3.500000 | 5.0 | NaN | 1 | 0.2 | 3.96 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-27 02:00:00 | 301.38 | 21.27 | 落 | 8.3900 | 11.200000 | 12326.871242 | 6.200000 | 5.0 | NaN | 1 | 1.0 | 11.20 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-27 08:00:00 | 301.34 | 21.23 | 落 | 5.5600 | 7.180000 | 12346.721642 | 2.180000 | 5.0 | NaN | 1 | 1.0 | 7.18 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-27 14:00:00 | 301.30 | 21.20 | 落 | 4.2000 | 5.770000 | 12360.707642 | 1.400000 | 5.0 | NaN | 1 | 0.2 | 5.77 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-27 20:00:00 | 301.31 | 21.21 | 涨 | 6.8000 | 6.420000 | 12373.872842 | 0.500000 | 5.0 | NaN | 1 | 0.2 | 5.25 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-28 02:00:00 | 301.29 | 21.19 | 落 | 4.4625 | 5.250000 | 12386.476442 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-28 08:00:00 | 301.29 | 21.19 | 平 | 4.4795 | 5.270000 | 12397.838042 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-28 14:00:00 | 301.26 | 21.16 | 落 | 4.4200 | 5.200000 | 12409.145642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-28 20:00:00 | 301.28 | 21.18 | 涨 | 4.4625 | 5.250000 | 12420.431642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-29 02:00:00 | 301.26 | 21.16 | 落 | 4.3500 | 5.200000 | 12431.717642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-29 08:00:00 | 301.24 | 21.15 | 落 | 4.3000 | 5.000000 | 12442.733642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-29 14:00:00 | 301.20 | 21.12 | 落 | 4.2500 | 5.000000 | 12453.533642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-29 20:00:00 | 301.18 | 21.09 | 落 | 4.2000 | 5.000000 | 12464.333642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-30 02:00:00 | 301.15 | 21.07 | 落 | 4.1500 | 5.000000 | 12475.133642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |\n| 31005200 | 2021-07-30 08:00:00 | 301.10 | 21.03 | 落 | 4.0000 | 5.000000 | 12485.933642 | 0.000000 | 5.0 | NaN | 0 | 0.0 | 0.00 | 0 | 0 | 0.000000 |', 'metadata': {'doc_name': '217洪水水库实测洪水过程', 'node_id': '0013', 'title': '"21.7"洪水 --石门(辉县)水库洪水过程', 'category': 'history_flood', 'source': 'pageindex'}, 'id': '217洪水水库实测洪水过程_0013', 'score': 0.6469774735352346}
+  5. {'content': '## "23.7"洪水 --石门(辉县)水库洪水过程\n\n  站号        时间                 库上水位(m)   蓄水量(10⁶m³)   库水水势   入库流量(m³/s)   出库流量(m³/s)   泄洪流量 (m³/s)   供水流量 (m³/s)   调度过程\n  ----------- -------------------- ------------- --------------- ---------- ---------------- ---------------- ----------------- ----------------- ----------\n  3.10052e7   45135.333333333336   272.72        4.43            涨         0.5              0.0              0.0           0.0               \n  3.10052e7   45136.333333333336   272.84        4.47            涨         1.3              0.0              0.0           0.0               \n  3.10052e7   45136.5              272.88        4.49            涨         0.97             0.0              0.0           0.0               \n  3.10052e7   45136.625            272.97        4.52            涨         2.96             0.0              0.0           0.0               \n  3.10052e7   45136.75             273.61        4.74            涨         20.6             0.0              0.0           0.0               \n  3.10052e7   45136.875            275.34        5.38            涨         59.1             0.0              0.0           0.0               \n  3.10052e7   45137.0              277.82        6.38            涨         92.4             0.0              0.0           0.0               \n  3.10052e7   45137.125            279.95        7.3             涨         86.0             0.0              0.0           0.0               \n  3.10052e7   45137.208333333336   281.46        8.05            涨         104.0            0.0              0.0           0.0               \n  3.10052e7   45137.23611111111    282.21        8.43            涨         104.0            0.0              0.0           0.0               \n  3.10052e7   45137.25             282.38        8.56            涨         116.0            0.0              0.0           0.0               \n  3.10052e7   45137.291666666664   283.37        9.01            涨         124.0            0.0              0.0           0.0               \n  3.10052e7   45137.333333333336   283.85        9.24            涨         95.1             0.0              0.0           0.0               \n  3.10052e7   45137.416666666664   285.86        10.3            涨         146.0            0.0              0.0           0.0               \n  3.10052e7   45137.458333333336   286.79        10.82           涨         145.0            0.0              0.0           0.0               \n  3.10052e7   45137.583333333336   288.63        11.89           涨         98.9             0.0              0.0           0.0               \n  3.10052e7   45137.666666666664   289.74        12.57           涨         95.0             0.0              0.0           0.0               \n  3.10052e7   45137.708333333336   290.16        12.83           涨         72.5             0.0              0.0           0.0               \n  3.10052e7   45137.833333333336   291.26        13.53           涨         69.8             0.0              0.0           0.0               \n  3.10052e7   45138.25             293.46        15.0            涨         34.3             0.0              0.0           0.0               \n  3.10052e7   45138.291666666664   293.6         15.1            涨         26.9             0.0              0.0           0.0               \n  3.10052e7   45138.333333333336   293.75        15.21           涨         27.9             0.0              0.0           0.0               \n  3.10052e7   45139.25             298.03        18.43           涨         120.0            0.0              0.0           0.0               \n  3.10052e7   45139.291666666664   298.96        19.21           涨         185.0            0.0              0.0           0.0               \n  3.10052e7   45139.333333333336   299.81        19.92           涨         207.0            0.0              0.0           0.0               \n  3.10052e7   45139.45486111111    303.2         22.9            涨         284.0            0.0              0.0           0.0               \n  3.10052e7   45139.5              303.89        23.54           涨         324.0            200.0            200.0         0.0               开闸泄洪\n  3.10052e7   45139.541666666664   304.09        23.73           涨         373.0            320.0            320.0         0.0               开闸泄洪\n  3.10052e7   45139.583333333336   303.98        23.62           落         211.0            353.0            353.0         0.0               开闸泄洪\n  3.10052e7   45139.625            303.78        23.43           落         291.0            342.0            342.0         0.0               开闸泄洪\n  3.10052e7   45139.666666666664   303.55        23.22           落         271.0            330.0            330.0         0.0               开闸泄洪\n  3.10052e7   45139.708333333336   303.38        23.07           落         175.0            218.0            218.0         0.0               开闸泄洪\n  3.10052e7   45139.75             303.27        22.97           落         138.0            167.0            167.0         0.0               开闸泄洪\n  3.10052e7   45139.791666666664   303.26        22.96           落         203.0            63.8             63.8          0.0               开闸泄洪\n  3.10052e7   45139.833333333336   303.57        23.24           涨         205.0            15.5             15.5          0.0               开闸泄洪\n  3.10052e7   45139.875            303.88        23.52           涨         143.0            16.0             16.0          0.0               开闸泄洪\n  3.10052e7   45139.916666666664   304.16        23.8            涨         92.5             16.7             16.7          0.0               开闸泄洪\n  3.10052e7   45139.958333333336   304.42        24.06           涨         91.1             17.2             17.2          0.0               开闸泄洪\n  3.10052e7   45140.0              304.61        24.26           涨         96.4             42.6             42.6          0.0               开闸泄洪\n  3.10052e7   45140.041666666664   304.64        24.29           涨         48.5             157.0            157.0         0.0               开闸泄洪\n  3.10052e7   45140.083333333336   304.54        24.19           落         32.7             204.0            204.0         0.0               开闸泄洪\n  3.10052e7   45140.125            304.42        24.06           落         126.0            201.0            201.0         0.0               开闸泄洪\n  3.10052e7   45140.125            304.42        24.06           落         126.0            201.0            201.0         0.0               开闸泄洪\n  3.10052e7   45140.166666666664   304.3         23.94           落         170.0            197.0            197.0         0.0               开闸泄洪\n  3.10052e7   45140.208333333336   304.17        23.81           落         166.0            193.0            193.0         0.0               开闸泄洪\n  3.10052e7   45140.25             304.05        23.69           落         161.0            189.0            189.0         0.0               开闸泄洪\n  3.10052e7   45140.291666666664   303.91        23.55           落         148.0            185.0            185.0         0.0               开闸泄洪\n  3.10052e7   45140.333333333336   303.77        23.43           落         153.0            180.0            180.0         0.0               开闸泄洪\n  3.10052e7   45140.375            303.63        23.3            落         139.0            175.0            175.0         0.0               开闸泄洪\n  3.10052e7   45140.416666666664   303.49        23.17           落         134.0            170.0            170.0         0.0               开闸泄洪\n  3.10052e7   45140.458333333336   303.47        23.15           落         102.0            108.0            108.0         0.0               开闸泄洪\n  3.10052e7   45140.5              303.44        23.12           落         99.5             107.0            107.0         0.0               开闸泄洪\n  3.10052e7   45140.541666666664   303.43        23.11           落         103.0            105.0            105.0         0.0               开闸泄洪\n  3.10052e7   45140.583333333336   303.42        23.1            落         83.9             86.4             86.4          0.0               开闸泄洪\n  3.10052e7   45140.625            303.4         23.09           落         81.0             86.0             86.0          0.0               开闸泄洪\n  3.10052e7   45140.666666666664   303.38        23.07           落         80.0             85.0             85.0          0.0               开闸泄洪\n  3.10052e7   45140.708333333336   303.35        23.04           落         77.5             85.0             85.0          0.0               开闸泄洪\n  3.10052e7   45140.75             303.36        23.05           涨         82.5             45.0             45.0          0.0               开闸泄洪\n  3.10052e7   45140.791666666664   303.4         23.09           涨         91.3             45.0             45.0          0.0               开闸泄洪\n  3.10052e7   45140.833333333336   303.45        23.13           涨         37.8             25.0             25.0          0.0               开闸泄洪\n  3.10052e7   45140.875            303.5         23.18           涨         32.8             20.0             20.0          0.0               开闸泄洪\n  3.10052e7   45140.916666666664   303.57        23.24           涨         33.8             16.0             16.0          0.0               开闸泄洪\n  3.10052e7   45140.958333333336   303.62        23.29           涨         28.8             16.0             16.0          0.0               开闸泄洪\n  3.10052e7   45141.0              303.68        23.34           涨         31.3             16.0             16.0          0.0               开闸泄洪\n  3.10052e7   45141.041666666664   303.72        23.38           涨         26.1             15.8             15.8          0.0               开闸泄洪\n  3.10052e7   45141.083333333336   303.76        23.42           涨         26.2             15.8             15.8          0.0               开闸泄洪\n  3.10052e7   45141.125            303.8         23.45           涨         26.0             16.0             16.0          0.0               开闸泄洪\n  3.10052e7   45141.166666666664   303.84        23.49           涨         26.3             16.0             16.0          0.0               开闸泄洪\n  3.10052e7   45141.208333333336   303.87        23.52           涨         27.5             20.0             20.0          0.0               开闸泄洪\n  3.10052e7   45141.25             303.9         23.54           涨         27.1             21.8             21.8          0.0               开闸泄洪\n  3.10052e7   45141.291666666664   303.91        23.55           涨         23.6             21.8             21.8          0.0               开闸泄洪\n  3.10052e7   45141.333333333336   303.93        23.57           涨         26.9             21.9             21.9          0.0               开闸泄洪\n  3.10052e7   45141.375            303.93        23.57           平         21.9             21.9             21.9          0.0               开闸泄洪\n  3.10052e7   45141.416666666664   303.94        23.58           涨         24.4             21.9             21.9          0.0               开闸泄洪\n  3.10052e7   45141.458333333336   303.95        23.59           涨         24.4             21.9             21.9          0.0               开闸泄洪\n  3.10052e7   45141.5              303.96        23.6            涨         24.4             21.9             21.9          0.0               开闸泄洪\n  3.10052e7   45141.541666666664   303.97        23.61           涨         24.5             22.0             22.0          0.0               开闸泄洪\n  3.10052e7   45141.583333333336   303.98        23.62           涨         24.5             22.0             22.0          0.0               开闸泄洪\n  3.10052e7   45141.625            303.98        23.62           平         24.5             22.0             22.0          0.0               开闸泄洪\n  3.10052e7   45141.666666666664   303.98        23.62           平         24.5             22.0             22.0          0.0               开闸泄洪\n  3.10052e7   45141.708333333336   303.99        23.63           涨         24.8             22.0             22.0          0.0               开闸泄洪\n  3.10052e7   45141.75             304.0         23.64           涨         24.3             22.1             22.1          0.0               开闸泄洪\n  3.10052e7   45141.791666666664   304.0         23.64           平         24.4             24.4             24.4          0.0               开闸泄洪\n  3.10052e7   45141.833333333336   304.0         23.64           平         24.4             24.4             24.4          0.0               开闸泄洪\n  3.10052e7   45141.875            303.99        23.63           落         22.2             24.4             24.4          0.0               开闸泄洪\n  3.10052e7   45141.916666666664   303.99        23.63           平         24.3             24.3             24.3          0.0               开闸泄洪\n  3.10052e7   45141.958333333336   303.98        23.62           落         21.6             24.3             24.3          0.0               开闸泄洪\n  3.10052e7   45142.0              303.97        23.61           落         21.8             24.3             24.3          0.0               开闸泄洪\n  3.10052e7   45142.041666666664   303.97        23.61           平         24.3             24.3             24.3          0.0               开闸泄洪\n  3.10052e7   45142.083333333336   303.96        23.6            落         21.7             24.2             24.2          0.0               开闸泄洪\n  3.10052e7   45142.125            303.95        23.59           落         21.7             24.2             24.2          0.0               开闸泄洪\n  3.10052e7   45142.166666666664   303.93        23.57           落         19.2             24.2             24.2          0.0               开闸泄洪\n  3.10052e7   45142.208333333336   303.92        23.56           落         20.3             24.1             24.1          0.0               开闸泄洪\n  3.10052e7   45142.25             303.9         23.54           落         17.2             24.0             24.0          0.0               开闸泄洪\n  3.10052e7   45142.291666666664   303.88        23.52           落         19.8             24.0             24.0          0.0               开闸泄洪\n  3.10052e7   45142.333333333336   303.87        23.52           落         20.1             23.9             23.9          0.0               开闸泄洪', 'metadata': {'doc_name': '卫共237水库实测洪水过程', 'node_id': '0013', 'title': '"23.7"洪水 --石门(辉县)水库洪水过程', 'category': 'history_flood', 'source': 'pageindex'}, 'id': '卫共237水库实测洪水过程_0013', 'score': 0.6248545133789714}
 
 步骤2:   - success: True
+  - data: [{'county': '淇滨区', 'dead_cap': '2250', 'res_name': '盘石头水库', 'che_flo_sta': '0.05', 'che_flo_lev': '275', 'main_dam_wav_wal_elev': '276.9', 'main_dam_top_len': '606', 'wat_shed_area': 1915.0, 'id': '298ab3d2-b828-4f6c-8bf3-9198b57a4baa', 'norm_pool_stag_cap': '30275', 'longitude': 114.053761, 'tot_cap': '60800', 'ben_res_cap': '28750', 'daad_mul_aver_ruof': '36000', 'che_flo_flow': '15400', 'town': '大河涧乡', 'shape': 'POINT (114.053761714 35.8415127740001)', 'res_type': '1', 'sw_che_fl_flow': '2374', 'fl_low_lim_lev': '248', 'stcd': '31005650', 'des_flo_cri': '1', 'dead_lev': '207', 'upp_lev_flco': '270', 'res_loc': '河南省鹤壁市淇滨区大河涧乡', 'sw_patt': '正槽式溢洪道', 'code': 'HP0014106110000076', 'norm_wat_lev': '254', 'city': '鹤壁市', 'latitude': 35.841512, 'sw_weir_top_wid': '48', 'main_dam_top_elev': '275.7', 'eng_scal': '2', 'coll_date': '2', 'main_dam_top_wid': '8', 'flco_cap': '27560', 'loc_rv_cd': 'FFFAB1A0000L', 'start_date': '1998-10-01', 'stor_fl_cap': '36300', 'norm_pool_stag_area': '13', 'sw_hs_mode': '无控制', 'main_dam_max_heig': '102.2', 'eng_stat': '1', 'sw_weir_top_elev': '254', 'fl_low_lim_lev_cap': '24500', 'sw_nm': '正常溢洪道', 'des_flo_lev': '270.7', 'comp_date': '2007-01-01', 'adm_dep': '9', 'sw_des_fl_flow': '1', 'eng_grad': '2', 'des_flo_flow': '6900', 'loc_rv_nm': '淇河'}]
+  - error: None
+  - execution_time_ms: 902
+  - metadata: {'code': '00000', 'message': '请求成功'}
+
+步骤3:   - success: True
   - data: [{'sort': None, 'lgtd': 114.1281, 'lttd': 35.83131, 'stnm': '盘石头', 'warn': None, 'rvnm': '淇河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '豫-淇县', 'addvcd': '410622', 'sttp': 'RR', 'stazt': None, 'stcd': '31005650', 'tm': '2026-01-13 08:00:00', 'rz': 245.35, 'w': 215.13, 'otq': 2.56, 'rwptn': '5', 'inq': 6.61, 'rwchrcd': None, 'inqdr': 24.0, 'msqmt': None, 'blrz': None}]
   - error: None
-  - execution_time_ms: 65
+  - execution_time_ms: 59
   - metadata: {'query_type': 'reservoir_last', 'record_count': 1}
 
-步骤3: 盘石头水库当前的水位为 **245.35 米**。
+步骤4:   - success: True
+  - data: {'stcd': '31005650', 'damel': 275.7, 'ckflz': 275.0, 'dsflz': 270.7, 'normz': 254.0, 'ddz': 208.0, 'actz': 254.0, 'ttcp': 608.3, 'fldcp': None, 'actcp': None, 'ddcp': 22.5, 'hhrz': 260.08, 'hhrztm': '2021-09-30 00:00:00', 'hmxinq': None, 'rstdr': None, 'hmxinqtm': None, 'hmxw': None, 'hmxwtm': None, 'rhmxotq': None, 'rhmxotqtm': None, 'rsvrtp': 4.0, 'hmxotq': None, 'hmxotqtm': None, 'hlrz': None, 'hmninq': None, 'hmninqtm': None, 'fsrs': [{'stcd': '31005650', 'bgmd': '0701', 'actyr': 2020, 'edmd': '0831', 'fsltdz': 248.0, 'fstp': '1', 'flv': 245.0, 'stcd5': '        ', 'fsltdw': 245.0, 'moditime': '2020-08-05 15:44:05'}], 'stcdt': None, 'laz': None, 'sfq': None, 'moditime': '2020-08-05 15:44:05'}
+  - error: None
+  - execution_time_ms: 31
+  - metadata: {'code': '00000', 'message': '请求成功'}
+
+步骤5: ### 盘石头水库洪水数据综合分析
+
+#### 1. **盘石头水库最高水位**
+根据历史洪水数据，**2021年7月24日08:00**，盘石头水库的库上水位达到**257.91m**，这是该次洪水期间的**最高水位**。
+
+#### 2. **当前水位与最高水位对比**
+- **当前水位**：根据最新的监测数据（2026年1月13日08:00），盘石头水库的库上水位为 **245.35m**。
+- **最高水位**：2021年7月24日08:00 的水位为 **257.91m**。
+
+因此，**当前水位低于最高水位**。
+
+#### 3. **防洪高水位对比**
+- **防洪高水位**：盘石头水库的防洪高水位为 **275.0m**（根据步骤4的数据）。
+- **当前水位**：245.35m。
+- **最高水位**：257.91m。
+
+#### 4. **结论**
+- **当前水位**：245.35m，**低于防洪高水位**（275.0m）。
+- **最高水位**：257.91m，**也低于防洪高水位**（275.0m）。
+
+综上所述：
+- 盘石头水库在2021年7月24日08:00时的最高水位为 **257.91m**。
+- 当前水位为 **245.35m**，**低于最高水位**。
+- 防洪高水位为 **275.0m**，**当前水位和最高水位均未超过防洪高水位**。
 
 ## 检索到的相关知识
 无相关知识
@@ -1706,15 +375,24 @@ data_query
 
 **LLM响应**:
 ```
-根据卫共流域数字孪生系统的实时监测数据，盘石头水库的当前水情信息如下：
+根据您的查询，为您整理了盘石头水库在“21.7”洪水期间的历史水位、实时水位以及防洪特征值的对比分析结果：
 
-*   **当前水位**：**245.35 米**
-*   **蓄水量**：215.13（百万立方米）
-*   **入库流量**：6.61 立方米/秒
-*   **出库流量**：2.56 立方米/秒
-*   **数据监测时间**：2026年01月13日 08:00
+### 1. 水位数据对比
+*   **“21.7”洪水最高水位**：根据历史实测过程，盘石头水库在2021年7月24日16时至21时期间达到最高库上水位 **257.91m**。
+*   **当前实时水位**：根据2026年1月13日08:00的监测数据，当前水位为 **245.35m**。
+*   **对比结果**：21.7洪水期间的最高水位显著高于当前水位（高出12.56m）。
 
-目前水库运行状态正常。
+### 2. 防洪高水位达标情况
+盘石头水库的防洪高水位（校核洪水位）为 **275.0m**：
+*   **21.7最高水位（257.91m）**：未超过防洪高水位，距该水位还有17.09m的空间。
+*   **当前水位（245.35m）**：远低于防洪高水位，处于安全运行范围。
+
+### 总结
+在“21.7”洪水期间，盘石头水库发挥了显著的拦洪削峰作用，最高水位达到了 **257.91m**。目前的实时水位为 **245.35m**。**两项数值均未超过275.0m的防洪高水位。**
+
+参考来源：
+[1] 21.7洪水调查报告_1766975805.2124398
+[2] 217洪水水库实测洪水过程
 ```
 
 ---

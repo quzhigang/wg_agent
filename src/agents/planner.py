@@ -72,6 +72,11 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
 - "XX水库设计库容多少" → knowledge（固有属性）
 - "XX水库当前水位和库容" → business（实时数据）
 - "未来洪水预报" → business（预报结果）
+- "历史洪水最高水位与当前水位对比" → business（包含实时数据，优先归为business）
+- "21.7洪水水位是否超过防洪高水位" → knowledge（纯历史数据与固有参数对比）
+- "21.7洪水水位和当前水位哪个大" → business（涉及当前实时数据）
+
+**核心原则**：1、只要问题中涉及"当前"、"实时"、"最新"等动态数据需求，整体归类为business；2、即包含固有知识查询，又包含业务的混合问题，归类为business
 
 ## 上下文信息
 对话历史摘要: {context_summary}
@@ -121,9 +126,13 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
 {{
     "intent_category": "business",
     "confidence": 0.95,
-    "entities": {{"站点": "xxx", "时间": "xxx"}}
+    "entities": {{"站点": "xxx", "时间": "xxx"}},
+    "target_kbs": ["需要参考的知识库id列表"]
 }}
-注意：business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定。
+注意：
+- business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定
+- target_kbs用于辅助计划生成阶段的知识库检索，从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, business_workflow, hydro_model, catchment_planning, project_designplan
+- 根据问题涉及的内容选择相关知识库，如涉及历史洪水则包含history_flood，涉及水库信息则包含water_project
 """
 
 # 业务工作流选择提示词（第2阶段，仅business类触发）
@@ -170,22 +179,80 @@ WORKFLOW_SELECT_PROMPT = """你是卫共流域数字孪生系统的业务流程�
 - damage_assessment: 灾损评估、避险转移
 - other: 其他业务操作
 
+## 【核心】工作流匹配决策流程（必须严格按顺序执行）
+
+**第一步：拆解用户问题的所有子需求**
+将用户问题拆解为独立的子需求列表，每个子需求对应一个具体的数据获取或操作。
+
+**第二步：逐一检查每个子需求的数据来源**
+对每个子需求标注其数据来源类型：
+- [知识库]：历史洪水数据、水库特征参数、防洪标准等静态信息
+- [API调用]：当前/实时水位、流量等动态监测数据
+- [模型计算]：预报、预演等需要启动计算的操作
+
+**第三步：评估工作流覆盖度**
+检查候选工作流能覆盖哪些子需求：
+- 完全覆盖（100%）：工作流能满足所有子需求 → 可以匹配
+- 部分覆盖（<100%）：工作流只能满足部分子需求 → **禁止匹配**
+- 无覆盖（0%）：工作流与需求无关 → 不匹配
+
+**第四步：做出最终决策**
+- 只有"完全覆盖"才能返回工作流ID
+- "部分覆盖"必须返回null，交给动态规划处理
+
 ## 输出要求
-返回JSON格式：
+返回JSON格式（注意字段顺序，先分析后决策）：
 {{
+    "sub_requirements": ["子需求1描述", "子需求2描述", ...],
+    "coverage_analysis": "分析每个子需求的覆盖情况",
+    "is_fully_covered": true/false,
     "business_sub_intent": "子意图类别",
-    "matched_workflow": "工作流名称（如果匹配到预定义工作流）或 null",
-    "saved_workflow_id": "已保存工作流ID（如果匹配到已保存工作流）或 null",
+    "matched_workflow": null或"工作流名称",
+    "saved_workflow_id": null或"工作流ID",
     "output_type": "text 或 web_page",
-    "reason": "简要说明选择理由"
+    "reason": "最终决策理由"
 }}
 
-注意：
-- 优先匹配"已保存的动态工作流"，因为这些是经过验证的流程
-- 如果匹配到已保存工作流，设置saved_workflow_id，matched_workflow设为null
-- 如果匹配到预定义工作流模板，设置matched_workflow，saved_workflow_id设为null
-- 如果都没有匹配，两者都返回null，系统将进行动态规划
-- 涉及图表、结果展示的场景，output_type应为"web_page"
+**关键规则：**
+- is_fully_covered=false时，matched_workflow和saved_workflow_id必须都为null
+- 部分匹配=不匹配，宁可动态规划也不能返回只能满足部分需求的工作流
+
+## 示例
+
+**示例1（部分覆盖→不匹配）：**
+用户问："21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？"
+
+正确输出：
+{{
+    "sub_requirements": [
+        "查询21.7洪水历史最高水位[知识库]",
+        "查询当前实时水位[API调用]",
+        "查询防洪高水位参数[知识库]",
+        "对比三个水位值[计算]"
+    ],
+    "coverage_analysis": "存在query_reservoir_realtime_water_level工作流，但它只能满足'查询当前实时水位'这1个子需求，无法满足其他3个子需求，覆盖率仅25%",
+    "is_fully_covered": false,
+    "business_sub_intent": "data_query",
+    "matched_workflow": null,
+    "saved_workflow_id": null,
+    "output_type": "web_page",
+    "reason": "用户问题包含4个子需求，现有工作流只能覆盖1个，属于部分覆盖，必须返回null进行动态规划"
+}}
+
+**示例2（完全覆盖→匹配）：**
+用户问："盘石头水库当前水位是多少？"
+
+正确输出：
+{{
+    "sub_requirements": ["查询当前实时水位[API调用]"],
+    "coverage_analysis": "query_reservoir_realtime_water_level工作流完全满足这唯一的子需求，覆盖率100%",
+    "is_fully_covered": true,
+    "business_sub_intent": "data_query",
+    "matched_workflow": null,
+    "saved_workflow_id": "xxx-xxx-xxx",
+    "output_type": "web_page",
+    "reason": "用户问题仅包含1个子需求，工作流完全覆盖，可以匹配"
+}}
 """
 
 # 计划生成提示词
@@ -197,12 +264,13 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
 ## 可用工作流
 {available_workflows}
 
-## 相关知识和业务流程参考
+## 业务流程参考（仅供规划参考）
 {rag_context}
 
 ## 用户意图
 意图类别: {intent}
 提取实体: {entities}
+目标知识库: {target_kbs}
 
 ## 用户消息
 {user_message}
@@ -230,7 +298,14 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
 3. 耗时操作（如模型调用）应标记为异步
 4. 最后一步不需要指定工具，系统会自动生成响应
 5. 只使用可用工具列表中存在的工具名称，不要使用不存在的工具如"generate_response"
-6. 参考"相关知识和业务流程参考"中的信息，优化执行计划的步骤和工具选择
+6. 参考"业务流程参考"中的信息，了解类似业务的处理模式
+
+**知识库检索规划（重要）：**
+- 如果用户问题需要知识库中的信息（如历史洪水数据、水库特征参数、防洪标准等），必须在计划中添加"search_knowledge"工具调用步骤
+- search_knowledge工具参数：{{"query": "检索关键词", "target_kbs": ["知识库id列表"]}}
+- 目标知识库应根据问题内容选择，参考上面的"目标知识库"字段
+- 知识库检索步骤应安排在需要该信息的步骤之前
+- 例如：查询历史洪水水位需要先search_knowledge检索history_flood，再进行数据处理
 """
 
 # 工作流模板化提示词（将具体执行计划抽象为通用模板）
@@ -405,6 +480,7 @@ class Planner:
                     "intent": "business",  # 兼容旧字段
                     "intent_confidence": result.get("confidence", 0.9),
                     "entities": result.get("entities", {}),
+                    "target_kbs": result.get("target_kbs", []),  # 业务场景需要参考的知识库
                     "next_action": "business_match"  # 进入第2阶段：工作流选择
                 }
 
@@ -496,7 +572,11 @@ class Planner:
 
             # 第2优先级：检查已保存的动态工作流
             if saved_workflow_id:
-                saved_result = self._load_saved_workflow(saved_workflow_id)
+                saved_result = self._load_saved_workflow(
+                    saved_workflow_id,
+                    entities=state.get('entities', {}),
+                    user_message=state['user_message']
+                )
                 if saved_result:
                     logger.info(f"匹配到已保存工作流: {saved_workflow_id}")
                     saved_result.update({
@@ -538,41 +618,52 @@ class Planner:
             包含执行计划的状态更新
         """
         logger.info("开始生成执行计划...")
-        
+
         try:
-            # 1. 执行RAG检索，获取相关知识和业务流程参考
-            # 业务场景动态规划只查询：水利工程、监测站点、业务流程 3个知识库
-            rag_context = "无相关知识"
+            # 1. 计划生成阶段只检索业务流程知识库，用于了解可用的业务流程模式
+            # 具体的业务知识（如历史洪水数据、水库参数等）应在计划执行阶段按需检索
+            # 这样避免：1) 重复检索 2) 无关知识稀释规划注意力
+            plan_target_kbs = ["business_workflow"]
+
+            logger.info(f"计划生成阶段目标知识库: {plan_target_kbs}（仅检索业务流程参考）")
+
+            # 2. 执行RAG检索，仅获取业务流程参考
+            rag_context = "无相关业务流程参考"
             rag_doc_count = 0
-            business_target_kbs = ["water_project", "monitor_site", "business_workflow"]
             try:
                 from ..rag.retriever import get_rag_retriever
                 rag_retriever = get_rag_retriever()
                 rag_result = await rag_retriever.get_relevant_context(
                     user_message=state['user_message'],
                     intent=state.get('intent'),
-                    max_length=3000,
-                    target_kbs=business_target_kbs
+                    max_length=2000,
+                    target_kbs=plan_target_kbs
                 )
-                rag_context = rag_result.get('context', '无相关知识')
+                rag_context = rag_result.get('context', '无相关业务流程参考')
                 rag_doc_count = rag_result.get('document_count', 0)
-                logger.info(f"计划生成RAG检索完成（知识库: {business_target_kbs}），获取到 {rag_doc_count} 条相关文档")
+                logger.info(f"计划生成RAG检索完成（知识库: {plan_target_kbs}），获取到 {rag_doc_count} 条业务流程参考")
             except Exception as rag_error:
                 logger.warning(f"计划生成RAG检索失败: {rag_error}")
-            
-            # 2. 获取可用工具描述
+
+            # 3. 获取可用工具描述
             available_tools = self._get_available_tools_description()
-            
-            # 3. 获取可用工作流描述
+
+            # 4. 获取可用工作流描述
             available_workflows = self._get_available_workflows_description()
-            
-            # 4. 准备上下文变量
+
+            # 5. 准备上下文变量
+            # 从意图识别阶段获取目标知识库列表，供计划生成时参考
+            target_kbs = state.get('target_kbs', [])
+            if not target_kbs:
+                target_kbs = ["water_project", "monitor_site"]
+
             plan_context_vars = {
                 "available_tools": available_tools,
                 "available_workflows": available_workflows,
                 "rag_context": rag_context,
                 "intent": state.get('intent', 'unknown'),
                 "entities": state.get('entities', {}),
+                "target_kbs": target_kbs,  # 传递目标知识库，供LLM规划检索步骤
                 "user_message": state['user_message']
             }
             
@@ -726,8 +817,15 @@ class Planner:
             logger.warning(f"获取已保存工作流描述失败: {e}")
             return "暂无已保存的动态工作流"
 
-    def _load_saved_workflow(self, workflow_id: str) -> Optional[Dict[str, Any]]:
-        """根据ID加载已保存的工作流"""
+    def _load_saved_workflow(self, workflow_id: str, entities: Dict[str, Any] = None, user_message: str = None) -> Optional[Dict[str, Any]]:
+        """
+        根据ID加载已保存的工作流，并填充模板参数
+
+        Args:
+            workflow_id: 工作流ID
+            entities: 用户实体（用于填充模板占位符）
+            user_message: 用户原始消息（用于填充query等参数）
+        """
         try:
             db = SessionLocal()
             try:
@@ -737,11 +835,13 @@ class Planner:
                 ).first()
 
                 if saved:
-                    # 在 Session 关闭前提取所有需要的数据
                     workflow_name = saved.name
                     workflow_id = saved.id
                     plan_steps = json.loads(saved.plan_steps)
                     output_type = saved.output_type
+
+                    # 填充模板参数
+                    plan_steps = self._fill_template_params(plan_steps, entities or {}, user_message or "")
 
                     # 更新使用次数
                     saved.use_count += 1
@@ -763,6 +863,58 @@ class Planner:
         except Exception as e:
             logger.warning(f"加载已保存工作流失败: {e}")
         return None
+
+    def _fill_template_params(self, plan_steps: List[Dict], entities: Dict[str, Any], user_message: str) -> List[Dict]:
+        """
+        填充工作流模板中的占位符参数
+
+        支持的占位符格式：{{实体名}}、{{站点名称}}、{{query}}等
+        """
+        import re
+
+        # 构建替换映射
+        replacements = {}
+        for key, value in entities.items():
+            replacements[f"{{{{{key}}}}}"] = str(value)
+            # 常见别名映射
+            if key in ["站点", "水库", "站点名称"]:
+                replacements["{{站点名称}}"] = str(value)
+                replacements["{{水库名称}}"] = str(value)
+                replacements["{{站点}}"] = str(value)
+
+        # 用户消息作为默认query
+        replacements["{{query}}"] = user_message
+        replacements["{{用户消息}}"] = user_message
+
+        filled_steps = []
+        for step in plan_steps:
+            new_step = step.copy()
+            tool_args = step.get("tool_args") or step.get("tool_args_template") or {}
+
+            if isinstance(tool_args, dict):
+                new_args = {}
+                for arg_key, arg_value in tool_args.items():
+                    if isinstance(arg_value, str):
+                        # 替换占位符
+                        new_value = arg_value
+                        for placeholder, replacement in replacements.items():
+                            new_value = new_value.replace(placeholder, replacement)
+                        # 如果仍然是占位符格式且未被替换，尝试用用户消息填充
+                        if re.match(r"^\{\{.*\}\}$", new_value):
+                            new_value = user_message
+                        new_args[arg_key] = new_value
+                    else:
+                        new_args[arg_key] = arg_value
+                new_step["tool_args"] = new_args
+            elif not tool_args:
+                # 如果tool_args为空，根据工具类型填充默认参数
+                tool_name = step.get("tool_name", "")
+                if tool_name == "search_knowledge":
+                    new_step["tool_args"] = {"query": user_message}
+
+            filled_steps.append(new_step)
+
+        return filled_steps
 
     def _match_saved_workflow(self, state: AgentState) -> Optional[Dict[str, Any]]:
         """匹配自动保存的流程"""

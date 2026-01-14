@@ -128,9 +128,13 @@ class BaseTool(ABC):
             
             if param.name in params:
                 value = params[param.name]
-                # 类型检查
-                if param.type == "string" and not isinstance(value, str):
-                    return False, f"参数 {param.name} 应为字符串类型"
+                # 类型检查与自动转换
+                if param.type == "string":
+                    if value is None:
+                        return False, f"参数 {param.name} 不能为空"
+                    if not isinstance(value, str):
+                        # 尝试自动转换为字符串
+                        params[param.name] = str(value)
                 elif param.type == "integer" and not isinstance(value, int):
                     return False, f"参数 {param.name} 应为整数类型"
                 elif param.type == "float" and not isinstance(value, (int, float)):

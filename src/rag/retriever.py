@@ -355,20 +355,22 @@ def get_rag_retriever() -> RAGRetriever:
 
 async def search_knowledge(
     query: str,
-    top_k: int = 5
+    top_k: int = 5,
+    target_kbs: Optional[List[str]] = None
 ) -> List[Dict[str, Any]]:
     """
     搜索知识库的便捷函数
-    
+
     Args:
         query: 查询文本
         top_k: 返回结果数量
-        
+        target_kbs: 目标知识库ID列表
+
     Returns:
         相关文档列表
     """
     retriever = get_rag_retriever()
-    return await retriever.retrieve(query, top_k)
+    return await retriever.retrieve(query, top_k, target_kbs=target_kbs)
 
 
 async def get_rag_context(
