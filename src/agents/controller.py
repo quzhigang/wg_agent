@@ -15,6 +15,16 @@ from .state import AgentState, OutputType
 logger = get_logger(__name__)
 
 
+# 需要过滤的工具列表（这些工具的结果不传递给响应合成LLM）
+EXCLUDE_TOOLS_FROM_RESPONSE = [
+    "login",           # 登录工具，返回token等敏感信息
+    "get_auth_token",  # 认证工具
+]
+
+# 需要过滤的敏感字段
+SENSITIVE_FIELDS = ["token", "password", "api_key", "secret"]
+
+
 # 响应生成提示词
 RESPONSE_GENERATION_PROMPT = """你是卫共流域数字孪生系统的智能助手，负责生成最终响应。
 
@@ -114,9 +124,10 @@ class Controller:
         logger.info("开始合成最终响应...")
 
         try:
-            # 格式化执行结果
+            # 格式化执行结果（传入plan用于过滤内部工具）
             execution_summary = self._format_execution_results(
-                state.get('execution_results', [])
+                state.get('execution_results', []),
+                state.get('plan', [])
             )
 
             # 格式化计划摘要
@@ -422,22 +433,37 @@ class Controller:
         
         return "处理中..."
     
-    def _format_execution_results(self, results: List[Dict[str, Any]]) -> str:
-        """格式化执行结果"""
+    def _format_execution_results(self, results: List[Dict[str, Any]], plan: List[Dict[str, Any]] = None) -> str:
+        """格式化执行结果，过滤内部工具和敏感信息"""
         if not results:
             return ""
-        
+
+        # 构建 step_id -> tool_name 映射
+        tool_map = {}
+        if plan:
+            for step in plan:
+                tool_map[step.get('step_id')] = step.get('tool_name', '')
+
         formatted = []
         for r in results:
             step_id = r.get('step_id', '?')
+            tool_name = tool_map.get(step_id, '')
+
+            # 过滤：跳过内部工具的结果
+            if tool_name in EXCLUDE_TOOLS_FROM_RESPONSE:
+                logger.debug(f"过滤步骤{step_id}的结果（工具: {tool_name}）")
+                continue
+
             success = r.get('success', False)
             output = r.get('output', '')
             error = r.get('error')
-            
+
             if success:
                 # 格式化输出
                 if isinstance(output, dict):
-                    output_str = self._format_dict_output(output)
+                    # 过滤敏感字段
+                    filtered_output = self._filter_sensitive_fields(output)
+                    output_str = self._format_dict_output(filtered_output)
                 elif isinstance(output, list):
                     output_str = self._format_list_output(output)
                 else:
@@ -445,8 +471,22 @@ class Controller:
                 formatted.append(f"步骤{step_id}: {output_str}")
             else:
                 formatted.append(f"步骤{step_id}: 执行失败 - {error}")
-        
+
         return "\n\n".join(formatted)
+
+    def _filter_sensitive_fields(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """过滤字典中的敏感字段"""
+        filtered = {}
+        for key, value in data.items():
+            # 检查是否为敏感字段
+            if any(sensitive in key.lower() for sensitive in SENSITIVE_FIELDS):
+                continue
+            # 递归处理嵌套字典
+            if isinstance(value, dict):
+                filtered[key] = self._filter_sensitive_fields(value)
+            else:
+                filtered[key] = value
+        return filtered
     
     def _format_dict_output(self, data: Dict[str, Any], max_items: int = 20) -> str:
         """格式化字典输出"""

@@ -137,22 +137,15 @@ INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智�
 
 **entities字段说明：**
 - object: 操作对象的名称，可以是：
-  - 具体站点/水库/河道名称（如"修武站"、"盘石头水库"、"卫河"）
+  - 具体站点/水库/河道/工程名称（如"修武站"、"盘石头水库"、"卫河"、"盐土庄闸"）
   - 业务事件名称（如"洪水预报"、"预演方案"）
   - 区域名称（如"卫共流域"、"新乡市"）
-- object_type: 对象的类型，如果能明确判断则填写，否则填null。常见类型：
-  - 站点类：水库水文站、河道水文站、雨量站、闸站监测、AI监测站点
-  - 工程类：水库、河道、蓄滞洪区、闸站
-  - 业务类：洪水预报、洪水预演、预案生成、灾损评估
-  - 如果无法从用户消息中明确判断类型，必须填null（后续阶段会自动查询补全）
+- object_type: 对象的类型，如果能明确判断则填写，否则填null。
 - action: 用户想要执行的具体操作（如"查询当前水位"、"启动预报"、"对比分析"）
 - time: 时间范围（如"当前"、"最近24小时"、"2023年7月"），无时间要求则填null
 
 **示例：**
-- "修武站当前水位流量" → {{"object": "修武站", "object_type": null, "action": "查询水位流量", "time": "当前"}}
-- "盘石头水库实时水情" → {{"object": "盘石头水库", "object_type": "水库水文站", "action": "查询实时水情", "time": "当前"}}
-- "启动洪水预报" → {{"object": "洪水预报", "object_type": "洪水预报", "action": "启动", "time": null}}
-- "查询最新自动预报结果" → {{"object": "自动预报", "object_type": "洪水预报", "action": "查询结果", "time": "最新"}}
+- "盘石头水库实时水情" → {{"object": "盘石头水库", "object_type": "水库", "action": "查询实时水情", "time": "当前"}}
 
 注意：
 - business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定
@@ -161,27 +154,71 @@ INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智�
 - 根据问题涉及的内容选择相关知识库，如涉及历史洪水则包含history_flood，涉及水库信息则包含water_project
 """
 
-# 2、业务工作流选择提示词（第2阶段，仅business类触发）
-WORKFLOW_SELECT_PROMPT = """你是河南省卫共流域数字孪生系统的业务流程选择器。
+# 2、业务子意图分类提示词（第3类business触发，在工作流匹配之前执行，第2阶段）
+BUSINESS_SUB_INTENT_PROMPT = """你是河南省卫共流域数字孪生系统的业务意图分类器，负责对业务类意图进行细分。
 
 ## 用户消息
 {user_message}
 
-## 提取的实体（含对象类型信息）
+## 提取的实体
 {entities}
 
-## 【重要】对象类型匹配规则
-在选择工作流之前，必须先检查实体中的object_type字段：
-- 如果object_type为"水库水文站"或包含"水库"：只能匹配水库相关工作流（如query_reservoir_xxx）
-- 如果object_type为"河道水文站"或包含"河道"：只能匹配河道相关工作流（如query_river_xxx）
-- 如果object_type为"雨量站"：只能匹配雨量相关工作流
-- 如果object_type为"洪水预报"相关：只能匹配预报类工作流
-- 如果object_type为"洪水预演"相关：只能匹配预演类工作流
-- **类型不匹配的工作流，即使功能相似，也必须视为覆盖率0%，禁止匹配！**
+## 业务子意图分类体系
 
-## 预定义工作流（模板）
-以下是系统中已注册的业务工作流模板：
+### data_query（监测数据查询）
+- 查询当前/实时水位、流量、雨量、视频、工情等监测数据
+- 查询历史某时间的监测数据
+- 示例："盘石头水库当前水位"、"修武站2024年7月14日 8点流量"、"最近24小时雨量"
 
+### flood_forecast（洪水预报）
+- 启动洪水预报计算
+- 查询预报结果
+- 预警信息查询
+- 示例："未来洪水预报"、"启动自动预报"、"最新预报结果"
+
+### flood_simulation（洪水预演）
+- 启动洪水预演/模拟
+- 查询预演结果
+- 淹没分析
+- 示例："启动洪水预演"、"模拟洪水淹没范围"
+
+### emergency_plan（预案生成）
+- 生成防洪预案
+- 调度方案制定
+- 示例："生成防洪预案"、"制定调度方案"
+
+### damage_assessment（灾损评估）
+- 灾害损失评估
+- 避险转移分析
+- 受灾人口统计
+- 示例："评估洪水损失"、"避险转移方案"
+
+### other（其他业务操作）
+- 不属于以上类别的业务操作
+
+## 输出要求
+返回JSON格式：
+{{
+    "business_sub_intent": "子意图类别（data_query/flood_forecast/flood_simulation/emergency_plan/damage_assessment/other）",
+    "confidence": 0.95,
+    "reason": "分类理由"
+}}
+
+## 分类规则
+1. 涉及"当前"、"实时"、"最新"、"水情"、"雨情"、"工情"、"视频"、"AI监测"、"无人机监测"等监测数据查询 → data_query
+2. 涉及"预报"、"预测"、"未来洪水" → flood_forecast
+3. 涉及"预演"、"模拟" → flood_simulation
+4. 涉及"预案"、"调度方案" → emergency_plan
+5. 涉及"损失"、"灾损"、"转移" → damage_assessment
+6. 无法明确归类 → other
+"""
+
+# 3、预定义工作流按子意图分类（用于工作流匹配阶段）
+PREDEFINED_WORKFLOWS_BY_SUB_INTENT = {
+    "data_query": """
+暂无预定义的数据查询工作流模板，请检查已保存的动态工作流或进行动态规划。
+""",
+    "flood_forecast": """
 1. get_auto_forecast_result - 查询最新自动预报结果
    适用场景：用户询问流域、水库、站点的未来洪水预报情况，且未指定启动新预报
    适用对象类型：洪水预报
@@ -206,102 +243,60 @@ WORKFLOW_SELECT_PROMPT = """你是河南省卫共流域数字孪生系统的业�
    适用场景：用户要求启动人工预报，通常需要指定降雨条件
    适用对象类型：洪水预报
    示例："按照XX降雨条件进行预报"、"自定义雨量预报"
+""",
+    "flood_simulation": """
+暂无预定义的洪水预演工作流模板，请检查已保存的动态工作流或进行动态规划。
+""",
+    "emergency_plan": """
+暂无预定义的预案生成工作流模板，请检查已保存的动态工作流或进行动态规划。
+""",
+    "damage_assessment": """
+暂无预定义的灾损评估工作流模板，请检查已保存的动态工作流或进行动态规划。
+""",
+    "other": """
+暂无预定义工作流模板，请检查已保存的动态工作流或进行动态规划。
+"""
+}
 
-## 已保存的动态工作流
-以下是之前对话中动态规划生成并保存的工作流，优先匹配这些已验证的流程：
+# 4、业务工作流匹配提示词（第3阶段，仅business类触发，根据子意图提供相应工作流）
+WORKFLOW_SELECT_PROMPT = """你是河南省卫共流域数字孪生系统的业务流程选择器，负责从可用工作流中选择最匹配的一个。
+
+## 输入信息
+- 用户消息：{user_message}
+- 实体：{entities}
+- 子意图：{business_sub_intent}
+
+## 可用的预定义工作流
+{predefined_workflows}
+
+## 可用的已保存工作流
 {saved_workflows}
 
-## 业务子意图分类
-- data_query: 监测数据查询（当前水位、实时雨情、流量数据等）
-- flood_forecast: 洪水预报相关（启动预报、查询预报结果）
-- flood_simulation: 洪水预演相关（启动预演、查询预演结果）
-- emergency_plan: 预案生成
-- damage_assessment: 灾损评估、避险转移
-- other: 其他业务操作
+## 匹配规则
 
-## 【核心】工作流匹配决策流程（必须严格按顺序执行）
+1. **data_query子意图必须严格匹配数据来源**
+   - 数据来源由entities中的object_type字段确定
+   - 工作流的数据来源必须与object_type完全对应
+   - 如：object_type为"水库水文站"，只能匹配水库水文站相关工作流
 
-**第零步：检查对象类型匹配**
-首先检查entities中的object_type，筛选出类型匹配的候选工作流。类型不匹配的工作流直接排除，不进入后续评估。
+2. **工作流必须完全覆盖用户需求**
+   - 只有完全满足用户需求才能匹配
+   - 部分满足视为不匹配，返回null交给动态规划
 
-**第一步：拆解用户问题的所有子需求**
-将用户问题拆解为独立的子需求列表，每个子需求对应一个具体的数据获取或操作。
+3. **无可用工作流时返回null**
 
-**第二步：逐一检查每个子需求的数据来源**
-对每个子需求标注其数据来源类型：
-- [知识库]：历史洪水数据、水库特征参数、防洪标准等静态信息
-- [API调用]：当前/实时水位、流量等动态监测数据
-- [模型计算]：预报、预演等需要启动计算的操作
-
-**第三步：评估工作流覆盖度**
-检查候选工作流能覆盖哪些子需求：
-- 完全覆盖（100%）：工作流能满足所有子需求 → 可以匹配
-- 部分覆盖（<100%）：工作流只能满足部分子需求 → **禁止匹配**
-- 无覆盖（0%）：工作流与需求无关 → 不匹配
-
-**第四步：做出最终决策**
-- 只有"完全覆盖"才能返回工作流ID
-- "部分覆盖"必须返回null，交给动态规划处理
-
-## 输出要求
-返回JSON格式（注意字段顺序，先分析后决策）：
+## 输出格式
+返回JSON：
 {{
-    "object_type_check": "对象类型检查结果，说明匹配或排除了哪些工作流",
-    "sub_requirements": ["子需求1描述", "子需求2描述", ...],
-    "coverage_analysis": "分析每个子需求的覆盖情况",
-    "is_fully_covered": true/false,
-    "business_sub_intent": "子意图类别",
-    "matched_workflow": null或"预定义工作流名称（仅限上面列出的5个预定义模板）",
-    "saved_workflow_id": null或"已保存工作流的UUID（如xxx-xxx-xxx格式的ID）",
-    "output_type": "text 或 web_page",
-    "reason": "最终决策理由"
+    "matched_workflow": null或"预定义工作流名称",
+    "saved_workflow_id": null或"已保存工作流的UUID",
+    "output_type": "text或web_page"
 }}
 
-**关键规则：**
-- matched_workflow字段：只能填预定义工作流模板的名称（如get_auto_forecast_result），不能填已保存工作流的名称
-- saved_workflow_id字段：只能填已保存动态工作流的ID（UUID格式），不能填工作流的name
-- 对象类型不匹配时，必须在object_type_check中说明，并将该工作流排除
-- is_fully_covered=false时，matched_workflow和saved_workflow_id必须都为null
-- 部分匹配=不匹配，宁可动态规划也不能返回只能满足部分需求的工作流
-
-## 示例
-
-**示例1（对象类型不匹配→排除）：**
-用户问："修武站当前水位流量？"
-实体：{{"object": "修武站", "object_type": "河道水文站", "action": "查询水位流量", "time": "当前"}}
-
-正确输出：
-{{
-    "object_type_check": "修武站是河道水文站，query_reservoir_realtime_water_level是水库工作流，类型不匹配，排除",
-    "sub_requirements": ["查询修武站当前水位流量[API调用]"],
-    "coverage_analysis": "没有匹配河道水文站的已保存工作流",
-    "is_fully_covered": false,
-    "business_sub_intent": "data_query",
-    "matched_workflow": null,
-    "saved_workflow_id": null,
-    "output_type": "web_page",
-    "reason": "对象类型为河道水文站，无匹配的河道查询工作流，需动态规划"
-}}
-
-**示例2（对象类型匹配+完全覆盖→匹配）：**
-用户问："盘石头水库当前水位是多少？"
-实体：{{"object": "盘石头水库", "object_type": "水库水文站", "action": "查询水位", "time": "当前"}}
-
-正确输出：
-{{
-    "object_type_check": "盘石头水库是水库水文站，与query_reservoir_realtime_water_level工作流类型匹配",
-    "sub_requirements": ["查询当前实时水位[API调用]"],
-    "coverage_analysis": "query_reservoir_realtime_water_level工作流完全满足这唯一的子需求，覆盖率100%",
-    "is_fully_covered": true,
-    "business_sub_intent": "data_query",
-    "matched_workflow": null,
-    "saved_workflow_id": "xxx-xxx-xxx",
-    "output_type": "web_page",
-    "reason": "对象类型匹配，工作流完全覆盖，可以匹配"
-}}
+注意：matched_workflow填预定义工作流名称，saved_workflow_id填已保存工作流的UUID，两者不要混淆。
 """
 
-# 3、计划生成提示词
+# 5、动态计划生成提示词
 PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任务规划器，负责制定执行计划。
 
 ## 可用工具
@@ -363,7 +358,7 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 - 例如：查询历史洪水水位需要先search_knowledge检索history_flood，再进行数据处理
 """
 
-# 4、工作流模板化生成提示词（将具体执行计划抽象为通用模板）
+# 6、工作流模板化生成提示词（将具体执行计划抽象为通用模板）
 WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将具体的执行计划抽象为通用的业务工作流模板。
 
 ## 原始用户消息
@@ -371,6 +366,9 @@ WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将�
 
 ## 提取的实体
 {entities}
+
+## 业务子意图
+{business_sub_intent}
 
 ## 执行计划步骤
 {plan_steps}
@@ -384,7 +382,7 @@ WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将�
     "workflow_name": "简短的工作流名称（英文，如 query_reservoir_realtime_water_level）",
     "display_name": "中文简称（4-10字，如"水库实时水位查询"、"河道水情查询"）",
     "description": "工作流的通用描述（中文，不要包含具体名称，描述对象类型和业务场景）",
-    "trigger_pattern": "触发模式描述（中文，用于匹配用户意图，必须强调适用的对象类型）",
+    "trigger_pattern": "触发模式描述（中文，用于匹配用户意图，如果是监测数据查询子意图，必须强调适用的数据来源）",
     "template_steps": [
         {{
             "step_id": 1,
@@ -400,7 +398,7 @@ WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将�
 
 **用户输入的实体（使用双花括号）：**
 - {{{{对象}}}}：操作对象名称（站点名、水库名等）
-- {{{{对象类型}}}}：对象的类型
+- {{{{对象类型}}}}：对象的类型或数据来源
 - {{{{时间}}}}：时间范围
 
 **步骤间数据传递（使用$$符号）：**
@@ -408,16 +406,16 @@ WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将�
 - 例如：步骤2返回stcd，步骤3使用 {{"stcd": "$$step_2.stcd$$"}}
 
 **示例：**
-- 步骤2：{{"station_name": "{{{{对象}}}}", "station_type": "{{{{对象类型}}}}"}}
+- 步骤2：{{"object": "{{{{对象}}}}", "object_type": "{{{{对象类型}}}}"}}
 - 步骤3：{{"stcd": "$$step_2.stcd$$"}}
 
 注意：
 1. 去除所有具体值，保留通用结构
 2. 严格区分用户输入占位符和步骤间传递占位符
-3. 强调对象类型匹配
+3. 如果是监测数据查询子意图，强调数据来源匹配
 """
 
-# 5、对象类型合成提示词（用于RAG检索后合成对象类型）
+# 7、对象类型(或数据来源)合成提示词（用于RAG检索后合成对象类型）
 OBJECT_TYPE_SYNTHESIS_PROMPT = """你是卫共流域数字孪生系统的实体识别助手，负责根据检索到的信息确定对象的类型。
 
 ## 用户消息
@@ -460,7 +458,6 @@ OBJECT_TYPE_SYNTHESIS_PROMPT = """你是卫共流域数字孪生系统的实体�
 4. 如果名称中包含"站"但无法确定类型，设为"unknown"
 5. 对于"洪水预报"、"预演"等业务名词，直接设置对应业务类型
 """
-
 
 class Planner:
     """规划调度器"""
@@ -515,6 +512,10 @@ class Planner:
         # 对象类型合成LLM（复用意图识别配置，保持一致性）
         self.object_type_prompt = ChatPromptTemplate.from_template(OBJECT_TYPE_SYNTHESIS_PROMPT)
         self.object_type_chain = self.object_type_prompt | intent_llm | self.json_parser
+
+        # 业务子意图分类LLM（复用意图识别配置，保持一致性）
+        self.sub_intent_prompt = ChatPromptTemplate.from_template(BUSINESS_SUB_INTENT_PROMPT)
+        self.sub_intent_chain = self.sub_intent_prompt | intent_llm | self.json_parser
 
         # 保存intent_llm引用，供多类型站点选择等场景使用
         self.intent_llm = intent_llm
@@ -864,19 +865,78 @@ class Planner:
 
         return enhanced_entities
 
-    async def check_workflow_match(self, state: AgentState) -> Dict[str, Any]:
+    async def classify_business_sub_intent(self, state: AgentState) -> Dict[str, Any]:
         """
-        检查是否匹配预定义工作流（用于第3类业务场景）
+        对业务类意图进行子意图分类
 
-        通过LLM选择最匹配的业务工作流（第2阶段）
+        在意图识别为第3类business后、工作流匹配之前执行
 
         Args:
             state: 当前智能体状态
 
         Returns:
+            包含子意图分类结果的状态更新
+        """
+        logger.info("执行业务子意图分类...")
+
+        try:
+            user_message = state['user_message']
+            entities = state.get('entities', {})
+
+            context_vars = {
+                "user_message": user_message,
+                "entities": json.dumps(entities, ensure_ascii=False)
+            }
+
+            import time
+            _start = time.time()
+            result = await self.sub_intent_chain.ainvoke(context_vars)
+            _elapsed = time.time() - _start
+
+            # 记录LLM调用日志
+            full_prompt = BUSINESS_SUB_INTENT_PROMPT.format(**context_vars)
+            log_llm_call(
+                step_name="业务子意图分类",
+                module_name="Planner.classify_business_sub_intent",
+                prompt_template_name="BUSINESS_SUB_INTENT_PROMPT",
+                context_variables=context_vars,
+                full_prompt=full_prompt,
+                response=str(result),
+                elapsed_time=_elapsed
+            )
+
+            logger.info(f"业务子意图分类结果: {result}")
+
+            sub_intent = result.get("business_sub_intent", "other")
+            confidence = result.get("confidence", 0.9)
+
+            return {
+                "business_sub_intent": sub_intent,
+                "sub_intent_confidence": confidence,
+                "sub_intent_reason": result.get("reason", "")
+            }
+
+        except Exception as e:
+            logger.error(f"业务子意图分类失败: {e}")
+            return {
+                "business_sub_intent": "other",
+                "sub_intent_confidence": 0.0,
+                "error": f"子意图分类失败: {str(e)}"
+            }
+
+    async def check_workflow_match(self, state: AgentState) -> Dict[str, Any]:
+        """
+        检查是否匹配预定义工作流（用于第3类业务场景）
+
+        通过LLM选择最匹配的业务工作流（第3阶段，使用已分类的子意图）
+
+        Args:
+            state: 当前智能体状态（包含已分类的business_sub_intent）
+
+        Returns:
             包含工作流匹配结果的状态更新
         """
-        logger.info("执行第2阶段：业务工作流选择...")
+        logger.info("执行第3阶段：业务工作流选择...")
 
         intent_category = state.get('intent_category')
 
@@ -885,7 +945,11 @@ class Planner:
             return {"matched_workflow": None, "workflow_from_template": False}
 
         try:
-            # 【新增】先解析对象类型（如果未知的话）
+            # 获取已分类的子意图（由上一阶段传入）
+            business_sub_intent = state.get('business_sub_intent', 'other')
+            logger.info(f"使用已分类的子意图: {business_sub_intent}")
+
+            # 先解析对象类型（如果未知的话）
             entities = state.get('entities', {})
             target_kbs = state.get('target_kbs', [])
             user_message = state['user_message']
@@ -899,13 +963,23 @@ class Planner:
                 enhanced_entities = entities
                 logger.info(f"对象类型已知: {object_type}")
 
-            # 获取已保存的动态工作流列表
-            saved_workflows_desc = self._get_saved_workflows_description()
+            # 根据子意图获取对应的预定义工作流
+            predefined_workflows = PREDEFINED_WORKFLOWS_BY_SUB_INTENT.get(
+                business_sub_intent,
+                PREDEFINED_WORKFLOWS_BY_SUB_INTENT.get("other", "暂无预定义工作流模板")
+            )
+            logger.info(f"根据子意图 {business_sub_intent} 筛选预定义工作流")
 
-            # 使用LLM选择工作流（使用增强后的实体）
+            # 根据子意图获取已保存的动态工作流列表
+            saved_workflows_desc = self._get_saved_workflows_description(sub_intent=business_sub_intent)
+            logger.info(f"根据子意图 {business_sub_intent} 筛选已保存工作流")
+
+            # 使用LLM选择工作流（使用增强后的实体和已分类的子意图，以及筛选后的工作流）
             context_vars = {
                 "user_message": user_message,
                 "entities": json.dumps(enhanced_entities, ensure_ascii=False),
+                "business_sub_intent": business_sub_intent,
+                "predefined_workflows": predefined_workflows,
                 "saved_workflows": saved_workflows_desc
             }
 
@@ -930,7 +1004,6 @@ class Planner:
 
             matched_workflow = result.get("matched_workflow")
             saved_workflow_id = result.get("saved_workflow_id")
-            sub_intent = result.get("business_sub_intent", "other")
             output_type = result.get("output_type", "text")
 
             # 第1优先级：检查预定义工作流模板
@@ -942,8 +1015,7 @@ class Planner:
                     return {
                         "matched_workflow": matched_workflow,
                         "workflow_from_template": True,
-                        "business_sub_intent": sub_intent,
-                        "intent": sub_intent,
+                        "intent": business_sub_intent,
                         "output_type": output_type,
                         "entities": enhanced_entities,  # 返回增强后的实体
                         "next_action": "execute"
@@ -962,19 +1034,17 @@ class Planner:
                     display_name = saved_result.get("saved_workflow_name", saved_workflow_id)
                     logger.info(f"匹配到已保存工作流: {display_name}")
                     saved_result.update({
-                        "business_sub_intent": sub_intent,
-                        "intent": sub_intent,
+                        "intent": business_sub_intent,
                         "entities": enhanced_entities,  # 返回增强后的实体
                     })
                     return saved_result
 
             # 未匹配到工作流，需要动态规划
-            logger.info(f"未匹配到工作流，子意图: {sub_intent}，将进行动态规划")
+            logger.info(f"未匹配到工作流，子意图: {business_sub_intent}，将进行动态规划")
             return {
                 "matched_workflow": None,
                 "workflow_from_template": False,
-                "business_sub_intent": sub_intent,
-                "intent": sub_intent,
+                "intent": business_sub_intent,
                 "output_type": output_type,
                 "entities": enhanced_entities,  # 返回增强后的实体
                 "next_action": "dynamic_plan"
@@ -985,7 +1055,6 @@ class Planner:
             return {
                 "matched_workflow": None,
                 "workflow_from_template": False,
-                "business_sub_intent": "other",
                 "output_type": "text",
                 "next_action": "dynamic_plan",
                 "error": f"工作流选择失败: {str(e)}"
@@ -1175,16 +1244,30 @@ class Planner:
    触发条件: 用户询问最新预报结果
 """
 
-    def _get_saved_workflows_description(self) -> str:
-        """获取已保存的动态工作流描述（用于提示词）"""
+    def _get_saved_workflows_description(self, sub_intent: str = None) -> str:
+        """
+        获取已保存的动态工作流描述（用于提示词）
+
+        Args:
+            sub_intent: 业务子意图，如果提供则只返回该子意图相关的工作流
+        """
         try:
             db = SessionLocal()
             try:
-                saved_workflows = db.query(SavedWorkflow).filter(
+                # 构建查询
+                query = db.query(SavedWorkflow).filter(
                     SavedWorkflow.is_active == True
-                ).order_by(SavedWorkflow.use_count.desc()).limit(10).all()
+                )
+
+                # 如果指定了子意图，则按子意图筛选
+                if sub_intent:
+                    query = query.filter(SavedWorkflow.sub_intent == sub_intent)
+
+                saved_workflows = query.order_by(SavedWorkflow.use_count.desc()).limit(10).all()
 
                 if not saved_workflows:
+                    if sub_intent:
+                        return f"暂无已保存的{sub_intent}类动态工作流"
                     return "暂无已保存的动态工作流"
 
                 # 在 Session 关闭前提取所有需要的数据，提供更详细的匹配信息
@@ -1196,7 +1279,6 @@ class Planner:
   中文名: {display}
   描述: {wf.description}
   触发模式: {wf.trigger_pattern}
-  子意图: {wf.sub_intent}
   使用次数: {wf.use_count}"""
                     descriptions.append(desc)
 
@@ -1205,6 +1287,8 @@ class Planner:
                 db.close()
         except Exception as e:
             logger.warning(f"获取已保存工作流描述失败: {e}")
+            if sub_intent:
+                return f"暂无已保存的{sub_intent}类动态工作流"
             return "暂无已保存的动态工作流"
 
     def _load_saved_workflow(self, workflow_id: str, entities: Dict[str, Any] = None, user_message: str = None) -> Optional[Dict[str, Any]]:
@@ -1385,6 +1469,7 @@ class Planner:
             template_vars = {
                 "user_message": user_msg,
                 "entities": json.dumps(entities, ensure_ascii=False),
+                "business_sub_intent": sub_intent,
                 "plan_steps": json.dumps(steps, ensure_ascii=False, indent=2)
             }
 
@@ -1461,14 +1546,15 @@ async def planner_node(state: AgentState) -> Dict[str, Any]:
     """
     LangGraph节点函数 - 规划节点
 
-    两阶段意图分析：
+    三阶段意图分析：
     - 第1阶段：三大类分类（chat/knowledge/business）
-    - 第2阶段：仅business类触发工作流选择
+    - 第2阶段：仅business类触发子意图分类
+    - 第3阶段：工作流选择（使用子意图分类结果）
 
     流程：
     - chat: 直接返回回复
     - knowledge: 走知识库检索流程
-    - business: 第2阶段LLM选择工作流，未匹配则动态规划
+    - business: 先子意图分类，再工作流选择，未匹配则动态规划
     """
     planner = get_planner()
 
@@ -1487,28 +1573,36 @@ async def planner_node(state: AgentState) -> Dict[str, Any]:
         logger.info("意图类别: knowledge，走知识库检索流程")
         return intent_result
 
-    # 第3类：business - 第2阶段：LLM选择工作流
+    # 第3类：business - 先子意图分类，再工作流选择
     if intent_category == IntentCategory.BUSINESS.value:
-        logger.info("意图类别: business，进入第2阶段工作流选择")
+        logger.info("意图类别: business，进入第2阶段子意图分类")
 
         # 合并意图结果到临时状态
         temp_state = dict(state)
         temp_state.update(intent_result)
 
-        # 第2阶段：LLM选择工作流
+        # 第2阶段：子意图分类
+        sub_intent_result = await planner.classify_business_sub_intent(temp_state)
+        logger.info(f"子意图分类结果: {sub_intent_result.get('business_sub_intent')}")
+
+        # 合并子意图分类结果
+        temp_state.update(sub_intent_result)
+
+        # 第3阶段：工作流选择（传入子意图分类结果）
+        logger.info("进入第3阶段工作流选择")
         workflow_result = await planner.check_workflow_match(temp_state)
 
         # 如果匹配到工作流（预定义模板或已保存的动态工作流），直接执行
         if workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_id'):
             matched_name = workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_name') or workflow_result.get('saved_workflow_id')
             logger.info(f"匹配到工作流: {matched_name}，直接执行")
-            return {**intent_result, **workflow_result}
+            return {**intent_result, **sub_intent_result, **workflow_result}
 
         # 未匹配到工作流，进行动态规划
-        logger.info(f"未匹配工作流，子意图: {workflow_result.get('business_sub_intent')}，进行动态规划")
+        logger.info(f"未匹配工作流，子意图: {sub_intent_result.get('business_sub_intent')}，进行动态规划")
         temp_state.update(workflow_result)
         plan_result = await planner.generate_plan(temp_state)
-        return {**intent_result, **workflow_result, **plan_result}
+        return {**intent_result, **sub_intent_result, **workflow_result, **plan_result}
 
     # 默认返回意图结果
     return intent_result

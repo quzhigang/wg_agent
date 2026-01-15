@@ -1,14 +1,14 @@
 
-*****会话ID: 48c9dd6c-9b2f-4ba9-bff1-a84e254d0e51 | 问题: 小南海水库当前库容？*****
+*****会话ID: 00c38b82-9ab2-4870-9363-75348aa521e6 | 问题: 盘石头水库当前水位？*****
 
-## 意图分析 [1.65s] (Planner.analyze_intent)
-**时间**: 2026-01-15 11:50:17
+## 意图分析 [1.71s] (Planner.analyze_intent)
+**时间**: 2026-01-15 18:07:17
 **提示词模板**: INTENT_ANALYSIS_PROMPT
 
 **上下文变量**:
 - context_summary: 无
 - chat_history: 无
-- user_message: 小南海水库当前库容？
+- user_message: 盘石头水库当前水位？
 
 **完整提示词**:
 ```
@@ -58,7 +58,7 @@
 无
 
 ## 用户当前消息
-小南海水库当前库容？
+盘石头水库当前水位？
 
 ## 输出要求
 请分析用户意图，返回JSON格式:
@@ -110,22 +110,15 @@
 
 **entities字段说明：**
 - object: 操作对象的名称，可以是：
-  - 具体站点/水库/河道名称（如"修武站"、"盘石头水库"、"卫河"）
+  - 具体站点/水库/河道/工程名称（如"修武站"、"盘石头水库"、"卫河"、"盐土庄闸"）
   - 业务事件名称（如"洪水预报"、"预演方案"）
   - 区域名称（如"卫共流域"、"新乡市"）
-- object_type: 对象的类型，如果能明确判断则填写，否则填null。常见类型：
-  - 站点类：水库水文站、河道水文站、雨量站、闸站监测、AI监测站点
-  - 工程类：水库、河道、蓄滞洪区、闸站
-  - 业务类：洪水预报、洪水预演、预案生成、灾损评估
-  - 如果无法从用户消息中明确判断类型，必须填null（后续阶段会自动查询补全）
+- object_type: 对象的类型，如果能明确判断则填写，否则填null。
 - action: 用户想要执行的具体操作（如"查询当前水位"、"启动预报"、"对比分析"）
 - time: 时间范围（如"当前"、"最近24小时"、"2023年7月"），无时间要求则填null
 
 **示例：**
-- "修武站当前水位流量" → {"object": "修武站", "object_type": null, "action": "查询水位流量", "time": "当前"}
-- "盘石头水库实时水情" → {"object": "盘石头水库", "object_type": "水库水文站", "action": "查询实时水情", "time": "当前"}
-- "启动洪水预报" → {"object": "洪水预报", "object_type": "洪水预报", "action": "启动", "time": null}
-- "查询最新自动预报结果" → {"object": "自动预报", "object_type": "洪水预报", "action": "查询结果", "time": "最新"}
+- "盘石头水库实时水情" → {"object": "盘石头水库", "object_type": "水库", "action": "查询实时水情", "time": "当前"}
 
 注意：
 - business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定
@@ -137,202 +130,178 @@
 
 **LLM响应**:
 ```
-{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '小南海水库', 'object_type': '水库', 'action': '查询当前库容', 'time': '当前'}, 'target_kbs': ['water_project']}
+{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '盘石头水库', 'object_type': '水库', 'action': '查询当前水位', 'time': '当前'}, 'target_kbs': ['water_project', 'monitor_site']}
 ```
 
-## 工作流选择 [3.14s] (Planner.check_workflow_match)
-**时间**: 2026-01-15 11:50:20
-**提示词模板**: WORKFLOW_SELECT_PROMPT
+## 业务子意图分类 [1.03s] (Planner.classify_business_sub_intent)
+**时间**: 2026-01-15 18:07:18
+**提示词模板**: BUSINESS_SUB_INTENT_PROMPT
 
 **上下文变量**:
-- user_message: 小南海水库当前库容？
-- entities: {"object": "小南海水库", "object_type": "水库", "action": "查询当前库容", "time": "当前"}
-- saved_workflows: - ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
-  名称: query_reservoir_realtime_water_level
-  中文名: 水库实时水情查询
-  描述: 查询指定水库的实时水情数据，包括当前水位、蓄水量、入库和出库流量等。仅适用于水库水文站类型的站点。
-  触发模式: 查询水库当前水位、水库实时水情、水库蓄水量（仅适用于水库水文站）
-  子意图: data_query
-  使用次数: 6
-- ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
-  名称: query_river_realtime_water_flow
-  中文名: 河道水文站实时水情查询
-  描述: 查询指定河道水文站的实时水情，包括水位、流量等
-  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，适用于河道水文站类型对象
-  子意图: data_query
-  使用次数: 1
+- user_message: 盘石头水库当前水位？
+- entities: {"object": "盘石头水库", "object_type": "水库", "action": "查询当前水位", "time": "当前"}
 
 **完整提示词**:
 ```
-你是河南省卫共流域数字孪生系统的业务流程选择器。
+你是河南省卫共流域数字孪生系统的业务意图分类器，负责对业务类意图进行细分。
 
 ## 用户消息
-小南海水库当前库容？
+盘石头水库当前水位？
 
-## 提取的实体（含对象类型信息）
-{"object": "小南海水库", "object_type": "水库", "action": "查询当前库容", "time": "当前"}
+## 提取的实体
+{"object": "盘石头水库", "object_type": "水库", "action": "查询当前水位", "time": "当前"}
 
-## 【重要】对象类型匹配规则
-在选择工作流之前，必须先检查实体中的object_type字段：
-- 如果object_type为"水库水文站"或包含"水库"：只能匹配水库相关工作流（如query_reservoir_xxx）
-- 如果object_type为"河道水文站"或包含"河道"：只能匹配河道相关工作流（如query_river_xxx）
-- 如果object_type为"雨量站"：只能匹配雨量相关工作流
-- 如果object_type为"洪水预报"相关：只能匹配预报类工作流
-- 如果object_type为"洪水预演"相关：只能匹配预演类工作流
-- **类型不匹配的工作流，即使功能相似，也必须视为覆盖率0%，禁止匹配！**
+## 业务子意图分类体系
 
-## 预定义工作流（模板）
-以下是系统中已注册的业务工作流模板：
+### data_query（监测数据查询）
+- 查询当前/实时水位、流量、雨量、视频、工情等监测数据
+- 查询历史某时间的监测数据
+- 示例："盘石头水库当前水位"、"修武站2024年7月14日 8点流量"、"最近24小时雨量"
 
-1. get_auto_forecast_result - 查询最新自动预报结果
-   适用场景：用户询问流域、水库、站点的未来洪水预报情况，且未指定启动新预报
-   适用对象类型：洪水预报
-   示例："未来几天流域洪水情况"、"最新预报结果"、"水库预报水位"
+### flood_forecast（洪水预报）
+- 启动洪水预报计算
+- 查询预报结果
+- 预警信息查询
+- 示例："未来洪水预报"、"启动自动预报"、"最新预报结果"
 
-2. get_history_autoforecast_result - 查询历史自动预报结果
-   适用场景：用户询问过去某次自动预报的结果
-   适用对象类型：洪水预报
-   示例："上次自动预报结果"、"历史预报记录"
+### flood_simulation（洪水预演）
+- 启动洪水预演/模拟
+- 查询预演结果
+- 淹没分析
+- 示例："启动洪水预演"、"模拟洪水淹没范围"
 
-3. flood_autoforecast_getresult - 启动自动洪水预报并获取结果
-   适用场景：用户明确要求启动/执行一次新的自动预报计算
-   适用对象类型：洪水预报
-   示例："启动自动预报"、"执行一次预报"、"运行预报模型"
+### emergency_plan（预案生成）
+- 生成防洪预案
+- 调度方案制定
+- 示例："生成防洪预案"、"制定调度方案"
 
-4. get_manual_forecast_result - 查询人工预报结果
-   适用场景：用户询问人工/手动预报的结果
-   适用对象类型：洪水预报
-   示例："人工预报结果"、"手动预报情况"
+### damage_assessment（灾损评估）
+- 灾害损失评估
+- 避险转移分析
+- 受灾人口统计
+- 示例："评估洪水损失"、"避险转移方案"
 
-5. flood_manualforecast_getresult - 启动人工洪水预报并获取结果
-   适用场景：用户要求启动人工预报，通常需要指定降雨条件
-   适用对象类型：洪水预报
-   示例："按照XX降雨条件进行预报"、"自定义雨量预报"
-
-## 已保存的动态工作流
-以下是之前对话中动态规划生成并保存的工作流，优先匹配这些已验证的流程：
-- ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
-  名称: query_reservoir_realtime_water_level
-  中文名: 水库实时水情查询
-  描述: 查询指定水库的实时水情数据，包括当前水位、蓄水量、入库和出库流量等。仅适用于水库水文站类型的站点。
-  触发模式: 查询水库当前水位、水库实时水情、水库蓄水量（仅适用于水库水文站）
-  子意图: data_query
-  使用次数: 6
-- ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
-  名称: query_river_realtime_water_flow
-  中文名: 河道水文站实时水情查询
-  描述: 查询指定河道水文站的实时水情，包括水位、流量等
-  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，适用于河道水文站类型对象
-  子意图: data_query
-  使用次数: 1
-
-## 业务子意图分类
-- data_query: 监测数据查询（当前水位、实时雨情、流量数据等）
-- flood_forecast: 洪水预报相关（启动预报、查询预报结果）
-- flood_simulation: 洪水预演相关（启动预演、查询预演结果）
-- emergency_plan: 预案生成
-- damage_assessment: 灾损评估、避险转移
-- other: 其他业务操作
-
-## 【核心】工作流匹配决策流程（必须严格按顺序执行）
-
-**第零步：检查对象类型匹配**
-首先检查entities中的object_type，筛选出类型匹配的候选工作流。类型不匹配的工作流直接排除，不进入后续评估。
-
-**第一步：拆解用户问题的所有子需求**
-将用户问题拆解为独立的子需求列表，每个子需求对应一个具体的数据获取或操作。
-
-**第二步：逐一检查每个子需求的数据来源**
-对每个子需求标注其数据来源类型：
-- [知识库]：历史洪水数据、水库特征参数、防洪标准等静态信息
-- [API调用]：当前/实时水位、流量等动态监测数据
-- [模型计算]：预报、预演等需要启动计算的操作
-
-**第三步：评估工作流覆盖度**
-检查候选工作流能覆盖哪些子需求：
-- 完全覆盖（100%）：工作流能满足所有子需求 → 可以匹配
-- 部分覆盖（<100%）：工作流只能满足部分子需求 → **禁止匹配**
-- 无覆盖（0%）：工作流与需求无关 → 不匹配
-
-**第四步：做出最终决策**
-- 只有"完全覆盖"才能返回工作流ID
-- "部分覆盖"必须返回null，交给动态规划处理
+### other（其他业务操作）
+- 不属于以上类别的业务操作
 
 ## 输出要求
-返回JSON格式（注意字段顺序，先分析后决策）：
+返回JSON格式：
 {
-    "object_type_check": "对象类型检查结果，说明匹配或排除了哪些工作流",
-    "sub_requirements": ["子需求1描述", "子需求2描述", ...],
-    "coverage_analysis": "分析每个子需求的覆盖情况",
-    "is_fully_covered": true/false,
-    "business_sub_intent": "子意图类别",
-    "matched_workflow": null或"工作流名称",
-    "saved_workflow_id": null或"工作流ID",
-    "output_type": "text 或 web_page",
-    "reason": "最终决策理由"
+    "business_sub_intent": "子意图类别（data_query/flood_forecast/flood_simulation/emergency_plan/damage_assessment/other）",
+    "confidence": 0.95,
+    "reason": "分类理由"
 }
 
-**关键规则：**
-- 对象类型不匹配时，必须在object_type_check中说明，并将该工作流排除
-- is_fully_covered=false时，matched_workflow和saved_workflow_id必须都为null
-- 部分匹配=不匹配，宁可动态规划也不能返回只能满足部分需求的工作流
-
-## 示例
-
-**示例1（对象类型不匹配→排除）：**
-用户问："修武站当前水位流量？"
-实体：{"object": "修武站", "object_type": "河道水文站", "action": "查询水位流量", "time": "当前"}
-
-正确输出：
-{
-    "object_type_check": "修武站是河道水文站，query_reservoir_realtime_water_level是水库工作流，类型不匹配，排除",
-    "sub_requirements": ["查询修武站当前水位流量[API调用]"],
-    "coverage_analysis": "没有匹配河道水文站的已保存工作流",
-    "is_fully_covered": false,
-    "business_sub_intent": "data_query",
-    "matched_workflow": null,
-    "saved_workflow_id": null,
-    "output_type": "web_page",
-    "reason": "对象类型为河道水文站，无匹配的河道查询工作流，需动态规划"
-}
-
-**示例2（对象类型匹配+完全覆盖→匹配）：**
-用户问："盘石头水库当前水位是多少？"
-实体：{"object": "盘石头水库", "object_type": "水库水文站", "action": "查询水位", "time": "当前"}
-
-正确输出：
-{
-    "object_type_check": "盘石头水库是水库水文站，与query_reservoir_realtime_water_level工作流类型匹配",
-    "sub_requirements": ["查询当前实时水位[API调用]"],
-    "coverage_analysis": "query_reservoir_realtime_water_level工作流完全满足这唯一的子需求，覆盖率100%",
-    "is_fully_covered": true,
-    "business_sub_intent": "data_query",
-    "matched_workflow": null,
-    "saved_workflow_id": "xxx-xxx-xxx",
-    "output_type": "web_page",
-    "reason": "对象类型匹配，工作流完全覆盖，可以匹配"
-}
+## 分类规则
+1. 涉及"当前"、"实时"、"最新"、"水情"、"雨情"、"工情"、"视频"、"AI监测"、"无人机监测"等监测数据查询 → data_query
+2. 涉及"预报"、"预测"、"未来洪水" → flood_forecast
+3. 涉及"预演"、"模拟" → flood_simulation
+4. 涉及"预案"、"调度方案" → emergency_plan
+5. 涉及"损失"、"灾损"、"转移" → damage_assessment
+6. 无法明确归类 → other
 
 ```
 
 **LLM响应**:
 ```
-{'object_type_check': '小南海水库是水库，与query_reservoir_realtime_water_level工作流类型匹配', 'sub_requirements': ['查询小南海水库当前库容[API调用]'], 'coverage_analysis': 'query_reservoir_realtime_water_level工作流完全满足这唯一的子需求，覆盖率100%', 'is_fully_covered': True, 'business_sub_intent': 'data_query', 'matched_workflow': 'query_reservoir_realtime_water_level', 'saved_workflow_id': '1a1cafb9-04e4-447e-b16d-afa641e8d7e9', 'output_type': 'web_page', 'reason': '对象类型匹配，工作流完全覆盖，可以匹配'}
+{'business_sub_intent': 'data_query', 'confidence': 0.95, 'reason': '用户询问的是盘石头水库当前水位，属于对实时监测数据的查询，符合data_query类别的定义。'}
 ```
 
-## Web页面响应合成 [6.83s] (Controller._generate_web_page_response)
-**时间**: 2026-01-15 11:50:28
+## 工作流选择 [1.13s] (Planner.check_workflow_match)
+**时间**: 2026-01-15 18:07:19
+**提示词模板**: WORKFLOW_SELECT_PROMPT
+
+**上下文变量**:
+- user_message: 盘石头水库当前水位？
+- entities: {"object": "盘石头水库", "object_type": "水库", "action": "查询当前水位", "time": "当前"}
+- business_sub_intent: data_query
+- predefined_workflows: 
+暂无预定义的数据查询工作流模板，请检查已保存的动态工作流或进行动态规划。
+
+- saved_workflows: - ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
+  名称: query_reservoir_realtime_water_level
+  中文名: 水库实时水情查询
+  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。仅适用于水库水文站类型的站点。
+  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容（仅适用于水库水文站数据来源）
+  使用次数: 11
+- ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
+  名称: query_river_realtime_water_flow
+  中文名: 河道实时水情查询
+  描述: 查询指定河道水文站的实时水情，包括水位、流量等
+  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，适用于河道水文站数据来源
+  使用次数: 2
+
+**完整提示词**:
+```
+你是河南省卫共流域数字孪生系统的业务流程选择器，负责从可用工作流中选择最匹配的一个。
+
+## 输入信息
+- 用户消息：盘石头水库当前水位？
+- 实体：{"object": "盘石头水库", "object_type": "水库", "action": "查询当前水位", "time": "当前"}
+- 子意图：data_query
+
+## 可用的预定义工作流
+
+暂无预定义的数据查询工作流模板，请检查已保存的动态工作流或进行动态规划。
+
+
+## 可用的已保存工作流
+- ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
+  名称: query_reservoir_realtime_water_level
+  中文名: 水库实时水情查询
+  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。仅适用于水库水文站类型的站点。
+  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容（仅适用于水库水文站数据来源）
+  使用次数: 11
+- ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
+  名称: query_river_realtime_water_flow
+  中文名: 河道实时水情查询
+  描述: 查询指定河道水文站的实时水情，包括水位、流量等
+  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，适用于河道水文站数据来源
+  使用次数: 2
+
+## 匹配规则
+
+1. **data_query子意图必须严格匹配数据来源**
+   - 数据来源由entities中的object_type字段确定
+   - 工作流的数据来源必须与object_type完全对应
+   - 如：object_type为"水库水文站"，只能匹配水库水文站相关工作流
+
+2. **工作流必须完全覆盖用户需求**
+   - 只有完全满足用户需求才能匹配
+   - 部分满足视为不匹配，返回null交给动态规划
+
+3. **无可用工作流时返回null**
+
+## 输出格式
+返回JSON：
+{
+    "matched_workflow": null或"预定义工作流名称",
+    "saved_workflow_id": null或"已保存工作流的UUID",
+    "output_type": "text或web_page"
+}
+
+注意：matched_workflow填预定义工作流名称，saved_workflow_id填已保存工作流的UUID，两者不要混淆。
+
+```
+
+**LLM响应**:
+```
+{'matched_workflow': 'query_reservoir_realtime_water_level', 'saved_workflow_id': '1a1cafb9-04e4-447e-b16d-afa641e8d7e9', 'output_type': 'text'}
+```
+
+## Web页面响应合成 [8.77s] (Controller._generate_web_page_response)
+**时间**: 2026-01-15 18:07:29
 **提示词模板**: RESPONSE_GENERATION_PROMPT
 
 **上下文变量**:
 - chat_history: 无
-- user_message: 小南海水库当前库容？
+- user_message: 盘石头水库当前水位？
 - intent: data_query
 - plan_summary: 1. 登录流域数字孪生系统获取访问令牌 [completed]
 2. 根据站点名称查询对应的测站编码 [completed]
 3. 根据测站编码查询水库的最新实时水位信息 [completed]
 - execution_results: 步骤1:   - success: True
-  - data: {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI0MmE0ZmY0Zi1jYWRmLTRkNTMtYjIzMS01NDFlODdmZmRmOGQiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjkwNTM4NDM2MjIsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODQ0OTA0MywiZXhwIjoxNzY5MDUzODQzfQ.NkpTT5T_Lk4Iit5VjhUyDqONJ1VBttYIEuP5B0jGdjOC1u5RjtLLGDOKHg948ixALnDbZRYjC9BNzfm4obA6dQ', 'userId': '1339550467939639299'...(已截断)
+  - data: {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJkYzNlNDFmNS0yMTJhLTQzZTYtOThmYy1lNTNiMjUzNWI1ODYiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjkwNzY0NjI5NDgsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODQ3MTY2MiwiZXhwIjoxNzY5MDc2NDYyfQ.PuGc2BZ2wlII4twKAD5r5_H-VcHCOWcv4CEYm0QikYduS7-5YxxUsft_Pv1J0RBuBML_I1yMT3b5FLrnz2rMZA', 'userId': '1339550467939639299'...(已截断)
 - retrieved_documents: 无相关知识
 
 **完整提示词**:
@@ -343,7 +312,7 @@
 无
 
 ## 用户原始问题
-小南海水库当前库容？
+盘石头水库当前水位？
 
 ## 用户意图
 data_query
@@ -355,19 +324,19 @@ data_query
 
 ## 执行结果
 步骤1:   - success: True
-  - data: {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI0MmE0ZmY0Zi1jYWRmLTRkNTMtYjIzMS01NDFlODdmZmRmOGQiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjkwNTM4NDM2MjIsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODQ0OTA0MywiZXhwIjoxNzY5MDUzODQzfQ.NkpTT5T_Lk4Iit5VjhUyDqONJ1VBttYIEuP5B0jGdjOC1u5RjtLLGDOKHg948ixALnDbZRYjC9BNzfm4obA6dQ', 'userId': '1339550467939639299', 'message': '登录成功'}
+  - data: {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJkYzNlNDFmNS0yMTJhLTQzZTYtOThmYy1lNTNiMjUzNWI1ODYiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjkwNzY0NjI5NDgsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODQ3MTY2MiwiZXhwIjoxNzY5MDc2NDYyfQ.PuGc2BZ2wlII4twKAD5r5_H-VcHCOWcv4CEYm0QikYduS7-5YxxUsft_Pv1J0RBuBML_I1yMT3b5FLrnz2rMZA', 'userId': '1339550467939639299', 'message': '登录成功'}
   - error: None
-  - execution_time_ms: 755
+  - execution_time_ms: 729
   - metadata: {'code': '00000', 'message': '请求成功'}
 
 步骤2:   - success: True
-  - data: {'stcd': '31006700', 'stnm': '小南海水库', 'stations': [{'stnm': '小南海水库', 'stcd': '31006700', 'type': '水库水文站'}, {'stnm': '小南海水库', 'stcd': '41000020003-A4', 'type': '视频监测'}]}
+  - data: {'stcd': '31005650', 'stnm': '盘石头水库', 'stations': [{'stnm': '盘石头水库', 'stcd': '31005650', 'type': '水库水文站'}, {'stnm': '盘石头水库', 'stcd': '41000020004-A3', 'type': '视频监测'}]}
   - error: None
-  - execution_time_ms: 16
-  - metadata: {'query': '小南海水库', 'count': 2}
+  - execution_time_ms: 14
+  - metadata: {'query': '盘石头水库', 'count': 2}
 
 步骤3:   - success: True
-  - data: [{'sort': None, 'lgtd': 114.1, 'lttd': 36.033055, 'stnm': '小南海', 'warn': None, 'rvnm': '安阳河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '安阳市安阳县善应镇小南海水库管理所', 'addvcd': '410522', 'sttp': 'RR', 'stazt': None, 'stcd': '31006700', 'tm': '2026-01-15 08:00:00', 'rz': 164.29, 'w': 19.88, 'otq': None, 'rwptn': '4', 'inq': None, 'rwchrcd': None, 'inqdr': None, 'msqmt': None, 'blrz': None}]
+  - data: [{'sort': None, 'lgtd': 114.1281, 'lttd': 35.83131, 'stnm': '盘石头', 'warn': None, 'rvnm': '淇河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '豫-淇县', 'addvcd': '410622', 'sttp': 'RR', 'stazt': None, 'stcd': '31005650', 'tm': '2026-01-15 08:00:00', 'rz': 245.44, 'w': 215.93, 'otq': 2.56, 'rwptn': '5', 'inq': 8.69, 'rwchrcd': None, 'inqdr': 24.0, 'msqmt': None, 'blrz': None}]
   - error: None
   - execution_time_ms: 45
   - metadata: {'query_type': 'reservoir_last', 'record_count': 1}
@@ -389,352 +358,16 @@ data_query
 
 **LLM响应**:
 ```
-根据系统实时监测数据，小南海水库的最新运行状态如下：
+根据卫共流域数字孪生系统监测数据，盘石头水库的最新实时水情信息如下：
 
-*   **监测时间**：2026年01月15日 08:00
-*   **当前库容**：19.88 百万立方米
-*   **实时水位**：164.29 米
+**盘石头水库（2026-01-15 08:00）**
+*   **当前水位：** 245.44 米
+*   **蓄水量：** 215.93 百万立方米
+*   **入库流量：** 8.69 立方米/秒
+*   **出库流量：** 2.56 立方米/秒
 
-该水库位于安阳河，隶属于海河流域漳卫南运河系。
+目前水库运行状态正常。
 ```
 
 ---
-
-
-*****会话ID: 48c9dd6c-9b2f-4ba9-bff1-a84e254d0e51 | 问题: 盘石头呢？*****
-
-## 意图分析 [1.75s] (Planner.analyze_intent)
-**时间**: 2026-01-15 11:56:00
-**提示词模板**: INTENT_ANALYSIS_PROMPT
-
-**上下文变量**:
-- context_summary: 无
-- chat_history: user: 小南海水库当前库容？
-assistant: 根据系统实时监测数据，小南海水库的最新运行状态如下：
-
-*   **监测时间**：2026年01月15日 08:00
-*   **当前库容**：19.88 百万立方米
-*   **实时水位**：164.29 米
-
-该水库位于安阳河，隶属于海河流域漳卫南运河系。
-- user_message: 盘石头呢？
-
-**完整提示词**:
-```
-你是河南省卫共流域数字孪生系统的智能助手"小卫"，负责分析用户意图。
-
-## 意图分类体系（三大类）
-
-### 第1类：chat（一般对话/闲聊）
-- 问候、感谢、告别、闲聊
-- 询问助手信息（你是谁、你能做什么等）
-- 与流域业务无关的日常对话
-
-### 第2类：knowledge（固有知识查询）
-查询静态的、固有的知识信息，包括：
-- catchment_basin(流域概况)：卫共流域概况、流域各节点控制面积、流域内行政区划等
-- water_project(水利工程)：水库、河道、闸站、蓄滞洪区、险工险段、南水北调工程、各河段防洪标准、工程现场照片等
-- monitor_site(监测站点)：雨量站、水库和河道水文站、视频监测、取水监测、安全监测、AI监测等站点信息，且包含这些水利工程的基本参数信息
-- history_flood(历史洪水)："21.7"、"23.7"等典型历史洪水信息、发生过程和受灾情况
-- flood_preplan(防洪预案)：水库汛期调度运用计划、蓄滞洪区运用预案、流域和河道防洪预案等
-- system_function(系统功能)：防洪"四预"系统的功能介绍、操作使用手册、系统api接口等
-- business_workflow(业务流程)：防洪"四预"系统的业务操作流程信息，包括数据查询、预报预演等业务，包括调用接口和顺序
-- hydro_model(专业模型)：水利专业模型简介、模型类别、模型编码、模型算法、模型原理等
-- catchment_planning(防洪规划)：海河流域防洪规划、防洪形势、暴雨洪水、防洪工程体系等
-- project_designplan(工程治理)：水库、河道和蓄滞洪区等水利工程的设计治理方案报告
-
-### 第3类：business（业务操作）
-涉及动态数据查询或业务操作，包括：
-- 实时数据查询：当前水位、当前雨情、最新流量、实时监测数据、历时某时间的数据等
-- 洪水预报：启动预报、查询预报结果、预警信息
-- 洪水预演：启动预演、查询预演结果
-- 预案生成、灾损评估等业务操作
-
-**区分要点（knowledge vs business）：**
-- "XX水库设计库容多少" → knowledge（固有属性）
-- "XX水库当前水位和库容" → business（实时数据）
-- "未来洪水预报" → business（预报结果）
-- "历史洪水最高水位与当前水位对比" → business（包含实时数据，优先归为business）
-- "21.7洪水水位是否超过防洪高水位" → knowledge（纯历史数据与固有参数对比）
-- "21.7洪水水位和当前水位哪个大" → business（涉及当前实时数据）
-
-**核心原则**：1、只要问题中涉及"当前"、"实时"、"最新"等动态数据需求，整体归类为business；2、即包含固有知识查询，又包含业务的混合问题，归类为business
-
-## 上下文信息
-对话历史摘要: 无
-
-最近对话:
-user: 小南海水库当前库容？
-assistant: 根据系统实时监测数据，小南海水库的最新运行状态如下：
-
-*   **监测时间**：2026年01月15日 08:00
-*   **当前库容**：19.88 百万立方米
-*   **实时水位**：164.29 米
-
-该水库位于安阳河，隶属于海河流域漳卫南运河系。
-
-## 用户当前消息
-盘石头呢？
-
-## 输出要求
-请分析用户意图，返回JSON格式:
-
-**如果是 chat（一般对话/闲聊），直接生成回复：**
-{
-    "intent_category": "chat",
-    "confidence": 0.95,
-    "direct_response": "你的友好回复内容（控制在100字以内）",
-    "is_greeting": true/false
-}
-注意：is_greeting仅在用户打招呼（你好、您好、hi、hello等）或询问"你是谁"、"介绍一下你自己"等自我介绍场景时为true。
-- 当is_greeting=true时，回复需包含自我介绍："您好！我是卫共流域数字孪生系统的智能助手小卫，..."
-- 当is_greeting=false时（如感谢、告别、闲聊等），直接回复，不要加自我介绍
-
-**如果是 knowledge（固有知识查询）：**
-{
-    "intent_category": "knowledge",
-    "confidence": 0.95,
-    "target_kbs": ["知识库id1", "知识库id2"],
-    "entities": {"关键词": "值"},
-    "needs_kb_search": true,
-    "needs_web_search": false,
-    "rewritten_query": "结合对话历史补全后的完整查询语句"
-}
-注意：rewritten_query字段非常重要！如果用户消息存在省略（如"小南海呢？"），必须结合对话历史补全为完整查询（如"小南海水库的流域面积"）。如果用户消息已经完整，则直接复制用户消息。
-注意：
-- target_kbs从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, hydro_model, catchment_planning, project_designplan
-- needs_kb_search和needs_web_search的判断规则：
-  1. 知识库能完全回答（如卫共流域概况、水库基本信息、历史洪水记录、规划内容等静态信息）：needs_kb_search=true, needs_web_search=false
-  2. 知识库完全不能回答的情况，needs_kb_search=false, needs_web_search=true：
-     - 询问具体年份的实际执行情况、完成情况、进展（如"2025年完成了哪些工程"）
-     - 询问最新新闻、动态、政策变化
-     - 询问其他流域、非水利知识
-  3. 知识库部分能回答，需网络补充，或无法确定知识库是否有完整答案的情况：needs_kb_search=true, needs_web_search=true
-
-**如果是 business（业务操作）：**
-{
-    "intent_category": "business",
-    "confidence": 0.95,
-    "entities": {
-        "object": "对象名称",
-        "object_type": "对象类型或null",
-        "action": "要执行的操作",
-        "time": "时间范围或null"
-    },
-    "target_kbs": ["需要参考的知识库id列表"]
-}
-
-**entities字段说明：**
-- object: 操作对象的名称，可以是：
-  - 具体站点/水库/河道名称（如"修武站"、"盘石头水库"、"卫河"）
-  - 业务事件名称（如"洪水预报"、"预演方案"）
-  - 区域名称（如"卫共流域"、"新乡市"）
-- object_type: 对象的类型，如果能明确判断则填写，否则填null。常见类型：
-  - 站点类：水库水文站、河道水文站、雨量站、闸站监测、AI监测站点
-  - 工程类：水库、河道、蓄滞洪区、闸站
-  - 业务类：洪水预报、洪水预演、预案生成、灾损评估
-  - 如果无法从用户消息中明确判断类型，必须填null（后续阶段会自动查询补全）
-- action: 用户想要执行的具体操作（如"查询当前水位"、"启动预报"、"对比分析"）
-- time: 时间范围（如"当前"、"最近24小时"、"2023年7月"），无时间要求则填null
-
-**示例：**
-- "修武站当前水位流量" → {"object": "修武站", "object_type": null, "action": "查询水位流量", "time": "当前"}
-- "盘石头水库实时水情" → {"object": "盘石头水库", "object_type": "水库水文站", "action": "查询实时水情", "time": "当前"}
-- "启动洪水预报" → {"object": "洪水预报", "object_type": "洪水预报", "action": "启动", "time": null}
-- "查询最新自动预报结果" → {"object": "自动预报", "object_type": "洪水预报", "action": "查询结果", "time": "最新"}
-
-注意：
-- business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定
-- 如果无法确定object_type，一定要填null，不要猜测！后续阶段会通过数据库和知识库查询补全
-- target_kbs用于辅助计划生成阶段的知识库检索，从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, business_workflow, hydro_model, catchment_planning, project_designplan
-- 根据问题涉及的内容选择相关知识库，如涉及历史洪水则包含history_flood，涉及水库信息则包含water_project
-
-```
-
-**LLM响应**:
-```
-{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '盘石头水库', 'object_type': '水库', 'action': '查询实时水情', 'time': '当前'}, 'target_kbs': ['water_project', 'monitor_site']}
-```
-
-## 工作流选择 [2.97s] (Planner.check_workflow_match)
-**时间**: 2026-01-15 11:56:03
-**提示词模板**: WORKFLOW_SELECT_PROMPT
-
-**上下文变量**:
-- user_message: 盘石头呢？
-- entities: {"object": "盘石头水库", "object_type": "水库", "action": "查询实时水情", "time": "当前"}
-- saved_workflows: - ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
-  名称: query_reservoir_realtime_water_level
-  中文名: 水库实时水情查询
-  描述: 查询指定水库的实时水情数据，包括当前水位、蓄水量、入库和出库流量等。仅适用于水库水文站类型的站点。
-  触发模式: 查询水库当前水位、水库实时水情、水库蓄水量（仅适用于水库水文站）
-  子意图: data_query
-  使用次数: 7
-- ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
-  名称: query_river_realtime_water_flow
-  中文名: 河道实时水情查询
-  描述: 查询指定河道水文站的实时水情，包括水位、流量等
-  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，适用于河道水文站类型对象
-  子意图: data_query
-  使用次数: 1
-
-**完整提示词**:
-```
-你是河南省卫共流域数字孪生系统的业务流程选择器。
-
-## 用户消息
-盘石头呢？
-
-## 提取的实体（含对象类型信息）
-{"object": "盘石头水库", "object_type": "水库", "action": "查询实时水情", "time": "当前"}
-
-## 【重要】对象类型匹配规则
-在选择工作流之前，必须先检查实体中的object_type字段：
-- 如果object_type为"水库水文站"或包含"水库"：只能匹配水库相关工作流（如query_reservoir_xxx）
-- 如果object_type为"河道水文站"或包含"河道"：只能匹配河道相关工作流（如query_river_xxx）
-- 如果object_type为"雨量站"：只能匹配雨量相关工作流
-- 如果object_type为"洪水预报"相关：只能匹配预报类工作流
-- 如果object_type为"洪水预演"相关：只能匹配预演类工作流
-- **类型不匹配的工作流，即使功能相似，也必须视为覆盖率0%，禁止匹配！**
-
-## 预定义工作流（模板）
-以下是系统中已注册的业务工作流模板：
-
-1. get_auto_forecast_result - 查询最新自动预报结果
-   适用场景：用户询问流域、水库、站点的未来洪水预报情况，且未指定启动新预报
-   适用对象类型：洪水预报
-   示例："未来几天流域洪水情况"、"最新预报结果"、"水库预报水位"
-
-2. get_history_autoforecast_result - 查询历史自动预报结果
-   适用场景：用户询问过去某次自动预报的结果
-   适用对象类型：洪水预报
-   示例："上次自动预报结果"、"历史预报记录"
-
-3. flood_autoforecast_getresult - 启动自动洪水预报并获取结果
-   适用场景：用户明确要求启动/执行一次新的自动预报计算
-   适用对象类型：洪水预报
-   示例："启动自动预报"、"执行一次预报"、"运行预报模型"
-
-4. get_manual_forecast_result - 查询人工预报结果
-   适用场景：用户询问人工/手动预报的结果
-   适用对象类型：洪水预报
-   示例："人工预报结果"、"手动预报情况"
-
-5. flood_manualforecast_getresult - 启动人工洪水预报并获取结果
-   适用场景：用户要求启动人工预报，通常需要指定降雨条件
-   适用对象类型：洪水预报
-   示例："按照XX降雨条件进行预报"、"自定义雨量预报"
-
-## 已保存的动态工作流
-以下是之前对话中动态规划生成并保存的工作流，优先匹配这些已验证的流程：
-- ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
-  名称: query_reservoir_realtime_water_level
-  中文名: 水库实时水情查询
-  描述: 查询指定水库的实时水情数据，包括当前水位、蓄水量、入库和出库流量等。仅适用于水库水文站类型的站点。
-  触发模式: 查询水库当前水位、水库实时水情、水库蓄水量（仅适用于水库水文站）
-  子意图: data_query
-  使用次数: 7
-- ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
-  名称: query_river_realtime_water_flow
-  中文名: 河道实时水情查询
-  描述: 查询指定河道水文站的实时水情，包括水位、流量等
-  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，适用于河道水文站类型对象
-  子意图: data_query
-  使用次数: 1
-
-## 业务子意图分类
-- data_query: 监测数据查询（当前水位、实时雨情、流量数据等）
-- flood_forecast: 洪水预报相关（启动预报、查询预报结果）
-- flood_simulation: 洪水预演相关（启动预演、查询预演结果）
-- emergency_plan: 预案生成
-- damage_assessment: 灾损评估、避险转移
-- other: 其他业务操作
-
-## 【核心】工作流匹配决策流程（必须严格按顺序执行）
-
-**第零步：检查对象类型匹配**
-首先检查entities中的object_type，筛选出类型匹配的候选工作流。类型不匹配的工作流直接排除，不进入后续评估。
-
-**第一步：拆解用户问题的所有子需求**
-将用户问题拆解为独立的子需求列表，每个子需求对应一个具体的数据获取或操作。
-
-**第二步：逐一检查每个子需求的数据来源**
-对每个子需求标注其数据来源类型：
-- [知识库]：历史洪水数据、水库特征参数、防洪标准等静态信息
-- [API调用]：当前/实时水位、流量等动态监测数据
-- [模型计算]：预报、预演等需要启动计算的操作
-
-**第三步：评估工作流覆盖度**
-检查候选工作流能覆盖哪些子需求：
-- 完全覆盖（100%）：工作流能满足所有子需求 → 可以匹配
-- 部分覆盖（<100%）：工作流只能满足部分子需求 → **禁止匹配**
-- 无覆盖（0%）：工作流与需求无关 → 不匹配
-
-**第四步：做出最终决策**
-- 只有"完全覆盖"才能返回工作流ID
-- "部分覆盖"必须返回null，交给动态规划处理
-
-## 输出要求
-返回JSON格式（注意字段顺序，先分析后决策）：
-{
-    "object_type_check": "对象类型检查结果，说明匹配或排除了哪些工作流",
-    "sub_requirements": ["子需求1描述", "子需求2描述", ...],
-    "coverage_analysis": "分析每个子需求的覆盖情况",
-    "is_fully_covered": true/false,
-    "business_sub_intent": "子意图类别",
-    "matched_workflow": null或"预定义工作流名称（仅限上面列出的5个预定义模板）",
-    "saved_workflow_id": null或"已保存工作流的UUID（如xxx-xxx-xxx格式的ID）",
-    "output_type": "text 或 web_page",
-    "reason": "最终决策理由"
-}
-
-**关键规则：**
-- matched_workflow字段：只能填预定义工作流模板的名称（如get_auto_forecast_result），不能填已保存工作流的名称
-- saved_workflow_id字段：只能填已保存动态工作流的ID（UUID格式），不能填工作流的name
-- 对象类型不匹配时，必须在object_type_check中说明，并将该工作流排除
-- is_fully_covered=false时，matched_workflow和saved_workflow_id必须都为null
-- 部分匹配=不匹配，宁可动态规划也不能返回只能满足部分需求的工作流
-
-## 示例
-
-**示例1（对象类型不匹配→排除）：**
-用户问："修武站当前水位流量？"
-实体：{"object": "修武站", "object_type": "河道水文站", "action": "查询水位流量", "time": "当前"}
-
-正确输出：
-{
-    "object_type_check": "修武站是河道水文站，query_reservoir_realtime_water_level是水库工作流，类型不匹配，排除",
-    "sub_requirements": ["查询修武站当前水位流量[API调用]"],
-    "coverage_analysis": "没有匹配河道水文站的已保存工作流",
-    "is_fully_covered": false,
-    "business_sub_intent": "data_query",
-    "matched_workflow": null,
-    "saved_workflow_id": null,
-    "output_type": "web_page",
-    "reason": "对象类型为河道水文站，无匹配的河道查询工作流，需动态规划"
-}
-
-**示例2（对象类型匹配+完全覆盖→匹配）：**
-用户问："盘石头水库当前水位是多少？"
-实体：{"object": "盘石头水库", "object_type": "水库水文站", "action": "查询水位", "time": "当前"}
-
-正确输出：
-{
-    "object_type_check": "盘石头水库是水库水文站，与query_reservoir_realtime_water_level工作流类型匹配",
-    "sub_requirements": ["查询当前实时水位[API调用]"],
-    "coverage_analysis": "query_reservoir_realtime_water_level工作流完全满足这唯一的子需求，覆盖率100%",
-    "is_fully_covered": true,
-    "business_sub_intent": "data_query",
-    "matched_workflow": null,
-    "saved_workflow_id": "xxx-xxx-xxx",
-    "output_type": "web_page",
-    "reason": "对象类型匹配，工作流完全覆盖，可以匹配"
-}
-
-```
-
-**LLM响应**:
-```
-{'object_type_check': '盘石头水库是水库水文站，与query_reservoir_realtime_water_level工作流类型匹配', 'sub_requirements': ['查询盘石头水库实时水情[API调用]'], 'coverage_analysis': 'query_reservoir_realtime_water_level工作流完全满足这唯一的子需求，覆盖率100%', 'is_fully_covered': True, 'business_sub_intent': 'data_query', 'matched_workflow': None, 'saved_workflow_id': '1a1cafb9-04e4-447e-b16d-afa641e8d7e9', 'output_type': 'web_page', 'reason': '对象类型匹配，工作流完全覆盖，可以匹配'}
-```
 
