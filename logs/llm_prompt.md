@@ -1,14 +1,14 @@
 
-*****会话ID: 00c38b82-9ab2-4870-9363-75348aa521e6 | 问题: 盘石头水库当前水位？*****
+*****会话ID: 32e9f497-d0a9-421f-b26a-75154371d461 | 问题: 修武站水情？*****
 
-## 意图分析 [1.71s] (Planner.analyze_intent)
-**时间**: 2026-01-15 18:07:17
+## 一、意图分析 [1.32s] (Planner.analyze_intent)
+**时间**: 2026-01-15 19:25:26
 **提示词模板**: INTENT_ANALYSIS_PROMPT
 
 **上下文变量**:
 - context_summary: 无
 - chat_history: 无
-- user_message: 盘石头水库当前水位？
+- user_message: 修武站水情？
 
 **完整提示词**:
 ```
@@ -58,7 +58,7 @@
 无
 
 ## 用户当前消息
-盘石头水库当前水位？
+修武站水情？
 
 ## 输出要求
 请分析用户意图，返回JSON格式:
@@ -130,26 +130,26 @@
 
 **LLM响应**:
 ```
-{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '盘石头水库', 'object_type': '水库', 'action': '查询当前水位', 'time': '当前'}, 'target_kbs': ['water_project', 'monitor_site']}
+{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '修武站', 'object_type': '监测站点', 'action': '查询实时水情', 'time': '当前'}, 'target_kbs': ['monitor_site']}
 ```
 
-## 业务子意图分类 [1.03s] (Planner.classify_business_sub_intent)
-**时间**: 2026-01-15 18:07:18
+## 二、业务子意图分类 [1.54s] (Planner.classify_business_sub_intent)
+**时间**: 2026-01-15 19:25:27
 **提示词模板**: BUSINESS_SUB_INTENT_PROMPT
 
 **上下文变量**:
-- user_message: 盘石头水库当前水位？
-- entities: {"object": "盘石头水库", "object_type": "水库", "action": "查询当前水位", "time": "当前"}
+- user_message: 修武站水情？
+- entities: {"object": "修武站", "object_type": "监测站点", "action": "查询实时水情", "time": "当前"}
 
 **完整提示词**:
 ```
 你是河南省卫共流域数字孪生系统的业务意图分类器，负责对业务类意图进行细分。
 
 ## 用户消息
-盘石头水库当前水位？
+修武站水情？
 
 ## 提取的实体
-{"object": "盘石头水库", "object_type": "水库", "action": "查询当前水位", "time": "当前"}
+{"object": "修武站", "object_type": "监测站点", "action": "查询实时水情", "time": "当前"}
 
 ## 业务子意图分类体系
 
@@ -204,16 +204,60 @@
 
 **LLM响应**:
 ```
-{'business_sub_intent': 'data_query', 'confidence': 0.95, 'reason': '用户询问的是盘石头水库当前水位，属于对实时监测数据的查询，符合data_query类别的定义。'}
+{'business_sub_intent': 'data_query', 'confidence': 0.95, 'reason': "用户询问的是'修武站水情'，其中包含'水情'这一关键词，并且时间描述为'当前'，符合data_query类别中'查询当前/实时水情'的定义。"}
 ```
 
-## 工作流选择 [1.13s] (Planner.check_workflow_match)
-**时间**: 2026-01-15 18:07:19
+## 三、多类型站点选择 [0.30s] (Planner._llm_select_station_type)
+**时间**: 2026-01-15 19:25:27
+**提示词模板**: STATION_TYPE_SELECT_PROMPT
+
+**上下文变量**:
+- object_name: 修武站
+- user_message: 修武站水情？
+- candidate_types: ['雨量站', '闸站监测', '视频监测', '河道水文站', '墒情站', '取水监测', '无人机']
+
+**完整提示词**:
+```
+根据用户的对话意图，判断"修武站"最可能是哪种类型的监测站点。
+
+## 用户消息
+修武站水情？
+
+## 候选类型（数据库查询到的）
+雨量站, 闸站监测, 视频监测, 河道水文站, 墒情站, 取水监测, 无人机
+
+## 所有监测站点类型参考
+- 水库水文站：监测水库水位、入库流量、出库流量等
+- 河道水文站：监测河道水位、流量等水情信息
+- 雨量站：监测降雨量
+- 闸站监测：监测闸门开度、过闸流量等
+- AI监测站点：AI视频监测
+- 工程安全监测：监测工程结构安全
+- 取水监测：监测取水量
+- 墒情站：监测土壤墒情
+
+## 判断规则
+1. "水情"、"水位"、"流量"相关查询 → 优先选择"河道水文站"或"水库水文站"
+2. "雨量"、"降雨"相关查询 → 选择"雨量站"
+3. "闸门"、"开度"相关查询 → 选择"闸站监测"
+4. "墒情"、"土壤"相关查询 → 选择"墒情站"
+5. 如果用户没有明确指定，根据常见业务场景推断（水情查询最常见的是河道水文站）
+
+请直接返回最可能的类型名称（必须是候选类型之一），不要解释：
+```
+
+**LLM响应**:
+```
+河道水文站
+```
+
+## 四、工作流选择 [1.32s] (Planner.check_workflow_match)
+**时间**: 2026-01-15 19:25:29
 **提示词模板**: WORKFLOW_SELECT_PROMPT
 
 **上下文变量**:
-- user_message: 盘石头水库当前水位？
-- entities: {"object": "盘石头水库", "object_type": "水库", "action": "查询当前水位", "time": "当前"}
+- user_message: 修武站水情？
+- entities: {"object": "修武站", "object_type": "河道水文站", "action": "查询实时水情", "time": "当前", "stcd": "31004900"}
 - business_sub_intent: data_query
 - predefined_workflows: 
 暂无预定义的数据查询工作流模板，请检查已保存的动态工作流或进行动态规划。
@@ -221,23 +265,23 @@
 - saved_workflows: - ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
   名称: query_reservoir_realtime_water_level
   中文名: 水库实时水情查询
-  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。仅适用于水库水文站类型的站点。
-  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容（仅适用于水库水文站数据来源）
-  使用次数: 11
+  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。
+  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容，仅适用于水库水文站数据来源
+  使用次数: 15
 - ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
   名称: query_river_realtime_water_flow
   中文名: 河道实时水情查询
   描述: 查询指定河道水文站的实时水情，包括水位、流量等
-  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，适用于河道水文站数据来源
-  使用次数: 2
+  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，仅适用于河道水文站数据来源
+  使用次数: 6
 
 **完整提示词**:
 ```
 你是河南省卫共流域数字孪生系统的业务流程选择器，负责从可用工作流中选择最匹配的一个。
 
 ## 输入信息
-- 用户消息：盘石头水库当前水位？
-- 实体：{"object": "盘石头水库", "object_type": "水库", "action": "查询当前水位", "time": "当前"}
+- 用户消息：修武站水情？
+- 实体：{"object": "修武站", "object_type": "河道水文站", "action": "查询实时水情", "time": "当前", "stcd": "31004900"}
 - 子意图：data_query
 
 ## 可用的预定义工作流
@@ -249,15 +293,15 @@
 - ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
   名称: query_reservoir_realtime_water_level
   中文名: 水库实时水情查询
-  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。仅适用于水库水文站类型的站点。
-  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容（仅适用于水库水文站数据来源）
-  使用次数: 11
+  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。
+  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容，仅适用于水库水文站数据来源
+  使用次数: 15
 - ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
   名称: query_river_realtime_water_flow
   中文名: 河道实时水情查询
   描述: 查询指定河道水文站的实时水情，包括水位、流量等
-  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，适用于河道水文站数据来源
-  使用次数: 2
+  触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，仅适用于河道水文站数据来源
+  使用次数: 6
 
 ## 匹配规则
 
@@ -286,22 +330,28 @@
 
 **LLM响应**:
 ```
-{'matched_workflow': 'query_reservoir_realtime_water_level', 'saved_workflow_id': '1a1cafb9-04e4-447e-b16d-afa641e8d7e9', 'output_type': 'text'}
+{'matched_workflow': 'query_river_realtime_water_flow', 'saved_workflow_id': 'd4f5231d-8f26-4fb1-818f-d2d45498d2c5', 'output_type': 'text'}
 ```
 
-## Web页面响应合成 [8.77s] (Controller._generate_web_page_response)
-**时间**: 2026-01-15 18:07:29
+## 五、Web页面响应合成 [3.12s] (Controller._generate_web_page_response)
+**时间**: 2026-01-15 19:25:33
 **提示词模板**: RESPONSE_GENERATION_PROMPT
 
 **上下文变量**:
 - chat_history: 无
-- user_message: 盘石头水库当前水位？
+- user_message: 修武站水情？
 - intent: data_query
 - plan_summary: 1. 登录流域数字孪生系统获取访问令牌 [completed]
-2. 根据站点名称查询对应的测站编码 [completed]
-3. 根据测站编码查询水库的最新实时水位信息 [completed]
+2. 根据站点名称和类型查询测站编码 [completed]
+3. 根据测站编码查询实时水位和流量数据 [completed]
 - execution_results: 步骤1:   - success: True
-  - data: {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJkYzNlNDFmNS0yMTJhLTQzZTYtOThmYy1lNTNiMjUzNWI1ODYiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjkwNzY0NjI5NDgsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODQ3MTY2MiwiZXhwIjoxNzY5MDc2NDYyfQ.PuGc2BZ2wlII4twKAD5r5_H-VcHCOWcv4CEYm0QikYduS7-5YxxUsft_Pv1J0RBuBML_I1yMT3b5FLrnz2rMZA', 'userId': '1339550467939639299'...(已截断)
+  - data: {'userId': '1339550467939639299', 'message': '登录成功'}
+  - error: None
+  - execution_time_ms: 784
+  - metadata: {'code': '00000', 'message': '请求成功'}
+
+步骤2:   - success: True
+  - data: {'stcd': '31004900', 'stnm': '修武', 'stations': [{'stnm': '修武', 'stcd': '31004900', 'type': '河道水文站'}, {'stnm': '修武', 'stcd': '31004900', 'type': '雨量站'}, {'stnm': '修武(Ⅱ)', 'stcd': '310A4900', 'type': '墒情站'}, {'stnm': '修武洼村闸', 'stcd': 'HP0074108210000054', 'type': '闸站监测'}, {'stnm': '修武水利局...(已截断)
 - retrieved_documents: 无相关知识
 
 **完整提示词**:
@@ -312,34 +362,34 @@
 无
 
 ## 用户原始问题
-盘石头水库当前水位？
+修武站水情？
 
 ## 用户意图
 data_query
 
 ## 执行计划
 1. 登录流域数字孪生系统获取访问令牌 [completed]
-2. 根据站点名称查询对应的测站编码 [completed]
-3. 根据测站编码查询水库的最新实时水位信息 [completed]
+2. 根据站点名称和类型查询测站编码 [completed]
+3. 根据测站编码查询实时水位和流量数据 [completed]
 
 ## 执行结果
 步骤1:   - success: True
-  - data: {'token': 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJkYzNlNDFmNS0yMTJhLTQzZTYtOThmYy1lNTNiMjUzNWI1ODYiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NjkwNzY0NjI5NDgsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2ODQ3MTY2MiwiZXhwIjoxNzY5MDc2NDYyfQ.PuGc2BZ2wlII4twKAD5r5_H-VcHCOWcv4CEYm0QikYduS7-5YxxUsft_Pv1J0RBuBML_I1yMT3b5FLrnz2rMZA', 'userId': '1339550467939639299', 'message': '登录成功'}
+  - data: {'userId': '1339550467939639299', 'message': '登录成功'}
   - error: None
-  - execution_time_ms: 729
+  - execution_time_ms: 784
   - metadata: {'code': '00000', 'message': '请求成功'}
 
 步骤2:   - success: True
-  - data: {'stcd': '31005650', 'stnm': '盘石头水库', 'stations': [{'stnm': '盘石头水库', 'stcd': '31005650', 'type': '水库水文站'}, {'stnm': '盘石头水库', 'stcd': '41000020004-A3', 'type': '视频监测'}]}
+  - data: {'stcd': '31004900', 'stnm': '修武', 'stations': [{'stnm': '修武', 'stcd': '31004900', 'type': '河道水文站'}, {'stnm': '修武', 'stcd': '31004900', 'type': '雨量站'}, {'stnm': '修武(Ⅱ)', 'stcd': '310A4900', 'type': '墒情站'}, {'stnm': '修武洼村闸', 'stcd': 'HP0074108210000054', 'type': '闸站监测'}, {'stnm': '修武水利局', 'stcd': '31024902', 'type': '雨量站'}, {'stnm': '修武水文站机场', 'stcd': '7CTDM6F00B01QN', 'type': '无人机'}, {'stnm': '修武县烈杠营断面', 'stcd': 'ST_AI85', 'type': '视频监测'}, {'stnm': '修武水文站无人机', 'stcd': '1581F6Q8D246E00G8LJ7', 'type': '无人机'}, {'stnm': '修武县大沙河断面9', 'stcd': 'ST_AI87', 'type': '视频监测'}, {'stnm': '修武县大沙河断面2', 'stcd': 'ST_AI86', 'type': '视频监测'}, {'stnm': '修武县大沙河断面4', 'stcd': 'ST_AI78', 'type': '视频监测'}, {'stnm': '修武县山门河六股涧', 'stcd': 'ST_AI88', 'type': '视频监测'}, {'stnm': '修武县水务有限公司', 'stcd': '91410821678085079J', 'type': '取水监测'}, {'stnm': '修武县新河大沙河断面', 'stcd': 'wg-dm-074', 'type': '视频监测'}, {'stnm': '修武县新河大沙河断面', 'stcd': 'ST_AI89', 'type': '视频监测'}, {'stnm': '焦作市大沙河修武水文站', 'stcd': '31004900', 'type': '视频监测'}, {'stnm': '修武县大河坡水务有限公司', 'stcd': '91410821MA44T93MXA', 'type': '取水监测'}]}
   - error: None
-  - execution_time_ms: 14
-  - metadata: {'query': '盘石头水库', 'count': 2}
+  - execution_time_ms: 17
+  - metadata: {'query': '修武站', 'count': 17}
 
 步骤3:   - success: True
-  - data: [{'sort': None, 'lgtd': 114.1281, 'lttd': 35.83131, 'stnm': '盘石头', 'warn': None, 'rvnm': '淇河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '豫-淇县', 'addvcd': '410622', 'sttp': 'RR', 'stazt': None, 'stcd': '31005650', 'tm': '2026-01-15 08:00:00', 'rz': 245.44, 'w': 215.93, 'otq': 2.56, 'rwptn': '5', 'inq': 8.69, 'rwchrcd': None, 'inqdr': 24.0, 'msqmt': None, 'blrz': None}]
+  - data: [{'lgtd': 113.443, 'lttd': 35.2648, 'stnm': '修武', 'warn': None, 'rvnm': '大沙河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '焦作市修武县五里源乡大堤屯村', 'addvcd': '410821', 'sttp': 'ZQ', 'stazt': '40', 'q': 7.4, 'stcd': '31004900', 'z': 78.53, 'tm': '2026-01-15 08:00:00', 'flwchrcd': None, 'wptn': '5'}]
   - error: None
-  - execution_time_ms: 45
-  - metadata: {'query_type': 'reservoir_last', 'record_count': 1}
+  - execution_time_ms: 36
+  - metadata: {'query_type': 'river_last', 'record_count': 1}
 
 ## 检索到的相关知识
 无相关知识
@@ -349,7 +399,7 @@ data_query
 2. 根据执行结果，生成清晰、准确、专业的回答
 3. 如果有数据查询结果，请整理成易于理解的格式
 4. 如果执行过程中有错误，请适当说明并给出建议
-5. 回答应该简洁明了，重点突出
+5. 回答应该简洁明了，直接切中主题。
 6. 【重要】如果使用了检索到的知识，必须在回答末尾添加"参考来源"部分。直接复制上面每条知识的"来源引用格式"字段内容作为来源链接，不要修改或简化！
 
 请生成最终回答:
@@ -358,15 +408,22 @@ data_query
 
 **LLM响应**:
 ```
-根据卫共流域数字孪生系统监测数据，盘石头水库的最新实时水情信息如下：
+修武站的实时水情数据如下：
 
-**盘石头水库（2026-01-15 08:00）**
-*   **当前水位：** 245.44 米
-*   **蓄水量：** 215.93 百万立方米
-*   **入库流量：** 8.69 立方米/秒
-*   **出库流量：** 2.56 立方米/秒
+- **测站名称**：修武  
+- **测站编码**：31004900  
+- **经度**：113.443  
+- **纬度**：35.2648  
+- **所属河流**：大沙河  
+- **所属流域**：漳卫南运河  
+- **所属水系**：海河  
+- **测站地址**：焦作市修武县五里源乡大堤屯村  
+- **测站类型**：ZQ（河道水文站）  
+- **当前水位（z）**：78.53 米  
+- **当前流量（q）**：7.4 立方米/秒  
+- **数据时间**：2026-01-15 08:00:00  
 
-目前水库运行状态正常。
+以上为修武站最新的水情信息。
 ```
 
 ---

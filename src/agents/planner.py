@@ -700,12 +700,12 @@ class Planner:
             logger.error(f"LLM选择站点类型失败: {e}")
             return None
 
-    async def _resolve_object_type(self, entities: Dict[str, Any], target_kbs: List[str], user_message: str) -> Dict[str, Any]:
+    async def _resolve_object_type(self, entities: Dict[str, Any], target_kbs: List[str], user_message: str, force: bool = False) -> Dict[str, Any]:
         """
         解析并补全对象类型
 
         流程：
-        1. 检查 entities 中的 object_type 是否已有值
+        1. 检查 entities 中的 object_type 是否已有值（force=True时跳过此检查）
         2. 如果没有，调用 lookup_station_code 工具查询数据库
         3. 如果数据库查不到，进行 RAG 知识库检索
         4. 调用 LLM 合成对象和对象类型
@@ -714,6 +714,7 @@ class Planner:
             entities: 意图识别提取的实体
             target_kbs: 目标知识库列表
             user_message: 用户原始消息
+            force: 是否强制执行解析，忽略已有的object_type（用于data_query子意图）
 
         Returns:
             增强后的实体字典，包含 object_type 和可能的 stcd
@@ -722,8 +723,8 @@ class Planner:
         object_name = entities.get('object')
         object_type = entities.get('object_type')
 
-        # 如果已经有 object_type，直接返回
-        if object_type and object_type != 'null' and object_type.lower() != 'null':
+        # 如果已经有 object_type 且不是强制模式，直接返回
+        if not force and object_type and object_type != 'null' and object_type.lower() != 'null':
             logger.info(f"对象类型已存在: {object_name} -> {object_type}")
             return enhanced_entities
 
@@ -956,7 +957,11 @@ class Planner:
 
             # 检查是否需要解析对象类型
             object_type = entities.get('object_type')
-            if not object_type or object_type == 'null' or (isinstance(object_type, str) and object_type.lower() == 'null'):
+            # 对于监测数据查询子意图，强制执行3步对象类型解析（因为意图识别缺乏知识，无法准确判断对象类型）
+            if business_sub_intent == 'data_query':
+                logger.info("监测数据查询子意图，强制执行对象类型解析...")
+                enhanced_entities = await self._resolve_object_type(entities, target_kbs, user_message, force=True)
+            elif not object_type or object_type == 'null' or (isinstance(object_type, str) and object_type.lower() == 'null'):
                 logger.info("对象类型未知，开始解析...")
                 enhanced_entities = await self._resolve_object_type(entities, target_kbs, user_message)
             else:

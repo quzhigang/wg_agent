@@ -14,10 +14,14 @@ from .settings import settings
 
 class LLMPromptLogger:
     """LLM提示词日志记录器"""
-    
+
     _instance = None
     _lock = threading.Lock()
-    
+
+    # 大写中文数字序号
+    CHINESE_NUMBERS = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
+                       "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十"]
+
     def __new__(cls):
         if cls._instance is None:
             with cls._lock:
@@ -25,20 +29,21 @@ class LLMPromptLogger:
                     cls._instance = super().__new__(cls)
                     cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self):
         if self._initialized:
             return
-        
+
         # 日志文件路径
         self.log_file = Path(settings.log_file).parent / "llm_prompt.md"
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # 当前会话ID
         self._current_session_id: Optional[str] = None
         self._current_question: Optional[str] = None
         self._session_started = False
-        
+        self._step_counter = 0  # 步骤计数器
+
         self._initialized = True
     
     def start_session(self, session_id: str, question: str):
@@ -52,6 +57,7 @@ class LLMPromptLogger:
         self._current_session_id = session_id
         self._current_question = question
         self._session_started = False
+        self._step_counter = 0  # 重置步骤计数器
     
     def _write_session_header(self):
         """写入会话头部"""
@@ -63,6 +69,13 @@ class LLMPromptLogger:
         
         self._session_started = True
     
+    def _get_step_number(self) -> str:
+        """获取当前步骤的中文序号"""
+        if self._step_counter < len(self.CHINESE_NUMBERS):
+            return self.CHINESE_NUMBERS[self._step_counter]
+        else:
+            return str(self._step_counter + 1)
+
     def log_llm_call(
         self,
         step_name: str,
@@ -91,11 +104,15 @@ class LLMPromptLogger:
         # 确保会话头部已写入
         self._write_session_header()
 
+        # 获取中文序号并递增计数器
+        step_number = self._get_step_number()
+        self._step_counter += 1
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         with open(self.log_file, "a", encoding="utf-8") as f:
             time_str = f" [{elapsed_time:.2f}s]" if elapsed_time is not None else ""
-            f.write(f"## {step_name}{time_str} ({module_name})\n")
+            f.write(f"## {step_number}、{step_name}{time_str} ({module_name})\n")
             f.write(f"**时间**: {timestamp}\n")
             f.write(f"**提示词模板**: {prompt_template_name}\n\n")
             
