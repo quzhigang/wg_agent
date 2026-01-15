@@ -128,6 +128,11 @@ class BaseTool(ABC):
             
             if param.name in params:
                 value = params[param.name]
+
+                # 非必需参数值为None时跳过类型校验
+                if not param.required and value is None:
+                    continue
+
                 # 类型检查与自动转换
                 if param.type == "string":
                     if value is None:

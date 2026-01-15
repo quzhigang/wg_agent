@@ -143,7 +143,10 @@ class Executor:
             self.tool_registry[tool_name] = tool_func
         
         tool_func = self.tool_registry[tool_name]
-        
+
+        # 转换参数类型（处理字符串形式的布尔值）
+        tool_args = self._convert_arg_types(tool_args)
+
         # 执行工具（支持同步和异步）
         if asyncio.iscoroutinefunction(tool_func):
             result = await tool_func(**tool_args)
@@ -151,7 +154,22 @@ class Executor:
             result = tool_func(**tool_args)
         
         return result
-    
+
+    def _convert_arg_types(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """转换参数类型，处理字符串形式的布尔值"""
+        converted = {}
+        for key, value in args.items():
+            if isinstance(value, str):
+                if value.lower() == 'true':
+                    converted[key] = True
+                elif value.lower() == 'false':
+                    converted[key] = False
+                else:
+                    converted[key] = value
+            else:
+                converted[key] = value
+        return converted
+
     async def _load_tool(self, tool_name: str) -> Optional[callable]:
         """
         动态加载工具
@@ -418,8 +436,8 @@ class Executor:
         try:
             target_step_id = int(step_id_str)
 
-            # 查找对应步骤的结果
-            target_result = next((r for r in execution_results if r.get('step_id') == target_step_id), None)
+            # 查找对应步骤的结果（从后往前查找，确保获取当前轮次的结果）
+            target_result = next((r for r in reversed(execution_results) if r.get('step_id') == target_step_id), None)
 
             if not target_result:
                 logger.warning(f"未找到步骤 {target_step_id} 的执行结果")
@@ -443,6 +461,15 @@ class Executor:
         if isinstance(current_val, dict) and 'data' in current_val:
             if not (remaining_path.startswith('.data.') or remaining_path == '.data' or remaining_path.startswith('.data[')):
                 current_val = current_val.get('data')
+
+        # 常见字段别名映射（LLM可能使用不同的名称）
+        alias_map = {
+            'result_code': 'stcd', 'code': 'stcd', 'station_code': 'stcd',
+            'result_name': 'stnm', 'name': 'stnm', 'station_name': 'stnm',
+        }
+        # 检查路径中是否有别名需要替换
+        for alias, real in alias_map.items():
+            remaining_path = remaining_path.replace(f'.{alias}', f'.{real}')
 
         # 处理剩余路径（属性访问 .xxx 和索引访问 [idx]）
         ops = re.findall(r"\.([^.\[\]]+)|\[(\d+)\]", remaining_path)

@@ -126,11 +126,37 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
 {{
     "intent_category": "business",
     "confidence": 0.95,
-    "entities": {{"站点": "xxx", "时间": "xxx"}},
+    "entities": {{
+        "object": "对象名称",
+        "object_type": "对象类型或null",
+        "action": "要执行的操作",
+        "time": "时间范围或null"
+    }},
     "target_kbs": ["需要参考的知识库id列表"]
 }}
+
+**entities字段说明：**
+- object: 操作对象的名称，可以是：
+  - 具体站点/水库/河道名称（如"修武站"、"盘石头水库"、"卫河"）
+  - 业务事件名称（如"洪水预报"、"预演方案"）
+  - 区域名称（如"卫共流域"、"新乡市"）
+- object_type: 对象的类型，如果能明确判断则填写，否则填null。常见类型：
+  - 站点类：水库水文站、河道水文站、雨量站、闸站监测、AI监测站点
+  - 工程类：水库、河道、蓄滞洪区、闸站
+  - 业务类：洪水预报、洪水预演、预案生成、灾损评估
+  - 如果无法从用户消息中明确判断类型，必须填null（后续阶段会自动查询补全）
+- action: 用户想要执行的具体操作（如"查询当前水位"、"启动预报"、"对比分析"）
+- time: 时间范围（如"当前"、"最近24小时"、"2023年7月"），无时间要求则填null
+
+**示例：**
+- "修武站当前水位流量" → {{"object": "修武站", "object_type": null, "action": "查询水位流量", "time": "当前"}}
+- "盘石头水库实时水情" → {{"object": "盘石头水库", "object_type": "水库水文站", "action": "查询实时水情", "time": "当前"}}
+- "启动洪水预报" → {{"object": "洪水预报", "object_type": "洪水预报", "action": "启动", "time": null}}
+- "查询最新自动预报结果" → {{"object": "自动预报", "object_type": "洪水预报", "action": "查询结果", "time": "最新"}}
+
 注意：
 - business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定
+- 如果无法确定object_type，一定要填null，不要猜测！后续阶段会通过数据库和知识库查询补全
 - target_kbs用于辅助计划生成阶段的知识库检索，从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, business_workflow, hydro_model, catchment_planning, project_designplan
 - 根据问题涉及的内容选择相关知识库，如涉及历史洪水则包含history_flood，涉及水库信息则包含water_project
 """
@@ -141,30 +167,44 @@ WORKFLOW_SELECT_PROMPT = """你是卫共流域数字孪生系统的业务流程�
 ## 用户消息
 {user_message}
 
-## 提取的实体
+## 提取的实体（含对象类型信息）
 {entities}
+
+## 【重要】对象类型匹配规则
+在选择工作流之前，必须先检查实体中的object_type字段：
+- 如果object_type为"水库水文站"或包含"水库"：只能匹配水库相关工作流（如query_reservoir_xxx）
+- 如果object_type为"河道水文站"或包含"河道"：只能匹配河道相关工作流（如query_river_xxx）
+- 如果object_type为"雨量站"：只能匹配雨量相关工作流
+- 如果object_type为"洪水预报"相关：只能匹配预报类工作流
+- 如果object_type为"洪水预演"相关：只能匹配预演类工作流
+- **类型不匹配的工作流，即使功能相似，也必须视为覆盖率0%，禁止匹配！**
 
 ## 预定义工作流（模板）
 以下是系统中已注册的业务工作流模板：
 
 1. get_auto_forecast_result - 查询最新自动预报结果
    适用场景：用户询问流域、水库、站点的未来洪水预报情况，且未指定启动新预报
+   适用对象类型：洪水预报
    示例："未来几天流域洪水情况"、"最新预报结果"、"水库预报水位"
 
 2. get_history_autoforecast_result - 查询历史自动预报结果
    适用场景：用户询问过去某次自动预报的结果
+   适用对象类型：洪水预报
    示例："上次自动预报结果"、"历史预报记录"
 
 3. flood_autoforecast_getresult - 启动自动洪水预报并获取结果
    适用场景：用户明确要求启动/执行一次新的自动预报计算
+   适用对象类型：洪水预报
    示例："启动自动预报"、"执行一次预报"、"运行预报模型"
 
 4. get_manual_forecast_result - 查询人工预报结果
    适用场景：用户询问人工/手动预报的结果
+   适用对象类型：洪水预报
    示例："人工预报结果"、"手动预报情况"
 
 5. flood_manualforecast_getresult - 启动人工洪水预报并获取结果
    适用场景：用户要求启动人工预报，通常需要指定降雨条件
+   适用对象类型：洪水预报
    示例："按照XX降雨条件进行预报"、"自定义雨量预报"
 
 ## 已保存的动态工作流
@@ -180,6 +220,9 @@ WORKFLOW_SELECT_PROMPT = """你是卫共流域数字孪生系统的业务流程�
 - other: 其他业务操作
 
 ## 【核心】工作流匹配决策流程（必须严格按顺序执行）
+
+**第零步：检查对象类型匹配**
+首先检查entities中的object_type，筛选出类型匹配的候选工作流。类型不匹配的工作流直接排除，不进入后续评估。
 
 **第一步：拆解用户问题的所有子需求**
 将用户问题拆解为独立的子需求列表，每个子需求对应一个具体的数据获取或操作。
@@ -203,6 +246,7 @@ WORKFLOW_SELECT_PROMPT = """你是卫共流域数字孪生系统的业务流程�
 ## 输出要求
 返回JSON格式（注意字段顺序，先分析后决策）：
 {{
+    "object_type_check": "对象类型检查结果，说明匹配或排除了哪些工作流",
     "sub_requirements": ["子需求1描述", "子需求2描述", ...],
     "coverage_analysis": "分析每个子需求的覆盖情况",
     "is_fully_covered": true/false,
@@ -214,36 +258,36 @@ WORKFLOW_SELECT_PROMPT = """你是卫共流域数字孪生系统的业务流程�
 }}
 
 **关键规则：**
+- 对象类型不匹配时，必须在object_type_check中说明，并将该工作流排除
 - is_fully_covered=false时，matched_workflow和saved_workflow_id必须都为null
 - 部分匹配=不匹配，宁可动态规划也不能返回只能满足部分需求的工作流
 
 ## 示例
 
-**示例1（部分覆盖→不匹配）：**
-用户问："21.7洪水盘石头水库最高水位是多少？和当前水位相比哪个更大？都超过防洪高水位了吗？"
+**示例1（对象类型不匹配→排除）：**
+用户问："修武站当前水位流量？"
+实体：{{"object": "修武站", "object_type": "河道水文站", "action": "查询水位流量", "time": "当前"}}
 
 正确输出：
 {{
-    "sub_requirements": [
-        "查询21.7洪水历史最高水位[知识库]",
-        "查询当前实时水位[API调用]",
-        "查询防洪高水位参数[知识库]",
-        "对比三个水位值[计算]"
-    ],
-    "coverage_analysis": "存在query_reservoir_realtime_water_level工作流，但它只能满足'查询当前实时水位'这1个子需求，无法满足其他3个子需求，覆盖率仅25%",
+    "object_type_check": "修武站是河道水文站，query_reservoir_realtime_water_level是水库工作流，类型不匹配，排除",
+    "sub_requirements": ["查询修武站当前水位流量[API调用]"],
+    "coverage_analysis": "没有匹配河道水文站的已保存工作流",
     "is_fully_covered": false,
     "business_sub_intent": "data_query",
     "matched_workflow": null,
     "saved_workflow_id": null,
     "output_type": "web_page",
-    "reason": "用户问题包含4个子需求，现有工作流只能覆盖1个，属于部分覆盖，必须返回null进行动态规划"
+    "reason": "对象类型为河道水文站，无匹配的河道查询工作流，需动态规划"
 }}
 
-**示例2（完全覆盖→匹配）：**
+**示例2（对象类型匹配+完全覆盖→匹配）：**
 用户问："盘石头水库当前水位是多少？"
+实体：{{"object": "盘石头水库", "object_type": "水库水文站", "action": "查询水位", "time": "当前"}}
 
 正确输出：
 {{
+    "object_type_check": "盘石头水库是水库水文站，与query_reservoir_realtime_water_level工作流类型匹配",
     "sub_requirements": ["查询当前实时水位[API调用]"],
     "coverage_analysis": "query_reservoir_realtime_water_level工作流完全满足这唯一的子需求，覆盖率100%",
     "is_fully_covered": true,
@@ -251,7 +295,7 @@ WORKFLOW_SELECT_PROMPT = """你是卫共流域数字孪生系统的业务流程�
     "matched_workflow": null,
     "saved_workflow_id": "xxx-xxx-xxx",
     "output_type": "web_page",
-    "reason": "用户问题仅包含1个子需求，工作流完全覆盖，可以匹配"
+    "reason": "对象类型匹配，工作流完全覆盖，可以匹配"
 }}
 """
 
@@ -283,7 +327,7 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
             "step_id": 1,
             "description": "步骤描述",
             "tool_name": "工具名称（如果需要）",
-            "tool_args": {{"参数": "值"}},
+            "tool_args": {{"参数": "值", "布尔参数": true}},
             "dependencies": [],
             "is_async": false
         }}
@@ -291,6 +335,15 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
     "estimated_time_seconds": 30,
     "output_type": "text 或 web_page"
 }}
+
+**重要：tool_args中的布尔类型参数必须使用JSON布尔值true/false，不要使用字符串"true"/"false"**
+
+**步骤间参数传递（重要）：**
+- 当后续步骤需要使用前面步骤的结果时，使用占位符格式：$$step_N.字段名$$
+- 例如：步骤2返回 {{"data": {{"stcd": "31005650"}}}}，步骤3要使用stcd，应写：$$step_2.stcd$$
+- 常用字段：stcd（站点编码）、stnm（站点名称）、data（数据对象）
+- 错误示例：$$STEP_2.result_code$$（result_code不存在）
+- 正确示例：$$step_2.stcd$$（直接使用返回数据中的字段名）
 
 规划原则:
 1. 步骤应该清晰、可执行
@@ -344,12 +397,62 @@ WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将�
 - 原始："查询盘石头水库当前水位"
 - 抽象后的trigger_pattern："查询水库当前水位"、"XX水库实时水位"
 - 抽象后的description："查询指定水库的实时水情数据，包括当前水位、蓄水量等"
-- 步骤中的参数：{{"stcd": "{{站点编码}}"}} 而不是 {{"stcd": "31005650"}}
+
+参数占位符规则（非常重要）：
+1. 来自用户输入的实体参数：使用 {{实体名}} 格式，如 {{"station_name": "{{站点名称}}"}}
+2. 依赖前一步骤结果的参数：必须使用 $$step_N.字段名$$ 格式引用，如 {{"stcd": "$$step_2.stcd$$"}}
+   - 例如：步骤2通过站点名称查询得到stcd，步骤3需要使用这个stcd，则步骤3的参数应为 {{"stcd": "$$step_2.stcd$$"}}
+   - 绝对不要用 {{站点编码}} 这种格式来引用前一步的输出结果
 
 注意：
-1. 去除所有具体的实体值（水库名、站点编码、具体时间等）
+1. 去除所有具体的实体值（水库名、具体时间等）
 2. 保留业务流程的通用结构
 3. description 和 trigger_pattern 要足够通用，能匹配同类查询
+4. 区分"用户输入的实体"和"步骤间传递的数据"，使用正确的占位符格式
+"""
+
+# 对象类型合成提示词（用于RAG检索后合成对象类型）
+OBJECT_TYPE_SYNTHESIS_PROMPT = """你是卫共流域数字孪生系统的实体识别助手，负责根据检索到的信息确定对象的类型。
+
+## 用户消息
+{user_message}
+
+## 待识别对象
+对象名称：{object_name}
+
+## 数据库查询结果
+{db_result}
+
+## 知识库检索结果
+{rag_context}
+
+## 任务
+根据以上信息，确定对象的类型。
+
+## 输出要求
+返回JSON格式：
+{{
+    "object": "对象名称",
+    "object_type": "对象类型",
+    "stcd": "站点编码（如果有）",
+    "confidence": 0.9,
+    "source": "类型来源：db/rag/infer",
+    "reason": "判断依据"
+}}
+
+## 对象类型选项
+- 站点类：水库水文站、河道水文站、雨量站、闸站监测、AI监测站点、工程安全监测、取水监测、墒情站
+- 工程类：水库、河道、蓄滞洪区、闸站
+- 业务类：洪水预报、洪水预演、预案生成、灾损评估
+- 区域类：流域、行政区
+- 其他：unknown（如果无法确定）
+
+## 判断规则
+1. 优先使用数据库查询结果中的station_type字段
+2. 如果数据库无结果，根据知识库检索内容推断
+3. 如果名称中包含"水库"且无其他信息，推断为"水库水文站"
+4. 如果名称中包含"站"但无法确定类型，设为"unknown"
+5. 对于"洪水预报"、"预演"等业务名词，直接设置对应业务类型
 """
 
 
@@ -402,6 +505,10 @@ class Planner:
         # 工作流模板化LLM（复用workflow配置）
         self.workflow_template_prompt = ChatPromptTemplate.from_template(WORKFLOW_TEMPLATE_PROMPT)
         self.workflow_template_chain = self.workflow_template_prompt | workflow_llm | self.json_parser
+
+        # 对象类型合成LLM（复用意图识别配置，保持一致性）
+        self.object_type_prompt = ChatPromptTemplate.from_template(OBJECT_TYPE_SYNTHESIS_PROMPT)
+        self.object_type_chain = self.object_type_prompt | intent_llm | self.json_parser
 
         logger.info("Planner初始化完成")
 
@@ -505,7 +612,146 @@ class Planner:
                 "intent_confidence": 0.0,
                 "error": f"意图分析失败: {str(e)}"
             }
-    
+
+    async def _resolve_object_type(self, entities: Dict[str, Any], target_kbs: List[str], user_message: str) -> Dict[str, Any]:
+        """
+        解析并补全对象类型
+
+        流程：
+        1. 检查 entities 中的 object_type 是否已有值
+        2. 如果没有，调用 lookup_station_code 工具查询数据库
+        3. 如果数据库查不到，进行 RAG 知识库检索
+        4. 调用 LLM 合成对象和对象类型
+
+        Args:
+            entities: 意图识别提取的实体
+            target_kbs: 目标知识库列表
+            user_message: 用户原始消息
+
+        Returns:
+            增强后的实体字典，包含 object_type 和可能的 stcd
+        """
+        enhanced_entities = dict(entities)
+        object_name = entities.get('object')
+        object_type = entities.get('object_type')
+
+        # 如果已经有 object_type，直接返回
+        if object_type and object_type != 'null' and object_type.lower() != 'null':
+            logger.info(f"对象类型已存在: {object_name} -> {object_type}")
+            return enhanced_entities
+
+        # 如果没有对象名称，无法查询
+        if not object_name:
+            logger.info("无对象名称，跳过类型解析")
+            return enhanced_entities
+
+        logger.info(f"开始解析对象类型: {object_name}")
+
+        db_result = "未查询到数据库记录"
+        rag_context = "未检索到相关知识"
+
+        # 步骤1: 尝试数据库查询
+        try:
+            from ..tools.registry import get_tool_registry
+            registry = get_tool_registry()
+            lookup_tool = registry.get_tool('lookup_station_code')
+
+            if lookup_tool:
+                result = await lookup_tool.execute(
+                    station_name=object_name,
+                    exact_match=False
+                )
+                if result.success and result.data:
+                    stations = result.data.get('stations', [])
+                    if stations:
+                        # 找到站点，直接使用数据库结果
+                        first_station = stations[0]
+                        enhanced_entities['object_type'] = first_station.get('type')
+                        enhanced_entities['stcd'] = first_station.get('stcd')
+                        logger.info(f"数据库查询成功: {object_name} -> {first_station.get('type')} (stcd: {first_station.get('stcd')})")
+                        return enhanced_entities
+                    else:
+                        db_result = f"数据库中未找到名为'{object_name}'的站点"
+                else:
+                    db_result = f"数据库查询无结果: {result.data.get('message', '未知')}" if result.data else "查询失败"
+        except Exception as e:
+            logger.warning(f"数据库查询站点类型失败: {e}")
+            db_result = f"数据库查询异常: {str(e)}"
+
+        logger.info(f"数据库查询结果: {db_result}")
+
+        # 步骤2: RAG知识库检索
+        try:
+            from ..rag.retriever import get_rag_retriever
+            rag_retriever = get_rag_retriever()
+
+            # 使用 monitor_site 知识库优先，如果 target_kbs 中有的话
+            search_kbs = ['monitor_site']
+            if target_kbs:
+                # 添加用户指定的知识库
+                for kb in target_kbs:
+                    if kb not in search_kbs:
+                        search_kbs.append(kb)
+
+            rag_result = await rag_retriever.get_relevant_context(
+                user_message=f"{object_name}是什么类型？属于什么站点或工程？",
+                intent="identify_object_type",
+                max_length=1000,
+                target_kbs=search_kbs[:3]  # 最多检索3个知识库
+            )
+            rag_context = rag_result.get('context', '未检索到相关知识')
+            doc_count = rag_result.get('document_count', 0)
+            logger.info(f"RAG检索完成，获取到 {doc_count} 条相关文档")
+        except Exception as e:
+            logger.warning(f"RAG检索对象类型失败: {e}")
+            rag_context = f"知识库检索异常: {str(e)}"
+
+        # 步骤3: 调用LLM合成对象类型
+        try:
+            import time
+            context_vars = {
+                "user_message": user_message,
+                "object_name": object_name,
+                "db_result": db_result,
+                "rag_context": rag_context
+            }
+
+            _start = time.time()
+            result = await self.object_type_chain.ainvoke(context_vars)
+            _elapsed = time.time() - _start
+
+            # 记录LLM调用日志
+            full_prompt = OBJECT_TYPE_SYNTHESIS_PROMPT.format(**context_vars)
+            log_llm_call(
+                step_name="对象类型合成",
+                module_name="Planner._resolve_object_type",
+                prompt_template_name="OBJECT_TYPE_SYNTHESIS_PROMPT",
+                context_variables=context_vars,
+                full_prompt=full_prompt,
+                response=str(result),
+                elapsed_time=_elapsed
+            )
+
+            logger.info(f"LLM对象类型合成结果: {result}")
+
+            # 更新实体
+            if result.get('object_type') and result.get('object_type') != 'unknown':
+                enhanced_entities['object_type'] = result.get('object_type')
+            if result.get('stcd'):
+                enhanced_entities['stcd'] = result.get('stcd')
+
+            logger.info(f"对象类型解析完成: {object_name} -> {enhanced_entities.get('object_type', 'unknown')}")
+
+        except Exception as e:
+            logger.error(f"LLM合成对象类型失败: {e}")
+            # 尝试简单推断
+            if '水库' in object_name:
+                enhanced_entities['object_type'] = '水库水文站'
+            elif '河' in object_name or '站' in object_name:
+                enhanced_entities['object_type'] = 'unknown'
+
+        return enhanced_entities
+
     async def check_workflow_match(self, state: AgentState) -> Dict[str, Any]:
         """
         检查是否匹配预定义工作流（用于第3类业务场景）
@@ -527,13 +773,27 @@ class Planner:
             return {"matched_workflow": None, "workflow_from_template": False}
 
         try:
+            # 【新增】先解析对象类型（如果未知的话）
+            entities = state.get('entities', {})
+            target_kbs = state.get('target_kbs', [])
+            user_message = state['user_message']
+
+            # 检查是否需要解析对象类型
+            object_type = entities.get('object_type')
+            if not object_type or object_type == 'null' or (isinstance(object_type, str) and object_type.lower() == 'null'):
+                logger.info("对象类型未知，开始解析...")
+                enhanced_entities = await self._resolve_object_type(entities, target_kbs, user_message)
+            else:
+                enhanced_entities = entities
+                logger.info(f"对象类型已知: {object_type}")
+
             # 获取已保存的动态工作流列表
             saved_workflows_desc = self._get_saved_workflows_description()
 
-            # 使用LLM选择工作流
+            # 使用LLM选择工作流（使用增强后的实体）
             context_vars = {
-                "user_message": state['user_message'],
-                "entities": json.dumps(state.get('entities', {}), ensure_ascii=False),
+                "user_message": user_message,
+                "entities": json.dumps(enhanced_entities, ensure_ascii=False),
                 "saved_workflows": saved_workflows_desc
             }
 
@@ -573,6 +833,7 @@ class Planner:
                         "business_sub_intent": sub_intent,
                         "intent": sub_intent,
                         "output_type": output_type,
+                        "entities": enhanced_entities,  # 返回增强后的实体
                         "next_action": "execute"
                     }
                 else:
@@ -582,14 +843,15 @@ class Planner:
             if saved_workflow_id:
                 saved_result = self._load_saved_workflow(
                     saved_workflow_id,
-                    entities=state.get('entities', {}),
-                    user_message=state['user_message']
+                    entities=enhanced_entities,  # 使用增强后的实体
+                    user_message=user_message
                 )
                 if saved_result:
                     logger.info(f"匹配到已保存工作流: {saved_workflow_id}")
                     saved_result.update({
                         "business_sub_intent": sub_intent,
                         "intent": sub_intent,
+                        "entities": enhanced_entities,  # 返回增强后的实体
                     })
                     return saved_result
 
@@ -601,6 +863,7 @@ class Planner:
                 "business_sub_intent": sub_intent,
                 "intent": sub_intent,
                 "output_type": output_type,
+                "entities": enhanced_entities,  # 返回增强后的实体
                 "next_action": "dynamic_plan"
             }
 
@@ -880,10 +1143,10 @@ class Planner:
         """
         填充工作流模板中的占位符参数
 
-        支持的占位符格式：{{实体名}}、{实体名}（单双花括号均支持）
+        支持的占位符格式：
+        - {{实体名}}、{实体名}：从实体中获取值
+        - $$step_N.xxx$$：引用前一步骤的结果（保持不变，由executor解析）
         """
-        import re
-
         # 构建替换映射（同时支持单花括号和双花括号）
         replacements = {}
         for key, value in entities.items():
@@ -913,14 +1176,20 @@ class Planner:
                 new_args = {}
                 for arg_key, arg_value in tool_args.items():
                     if isinstance(arg_value, str):
-                        # 替换占位符
-                        new_value = arg_value
-                        for placeholder, replacement in replacements.items():
-                            new_value = new_value.replace(placeholder, replacement)
-                        # 如果仍然是占位符格式且未被替换，尝试用用户消息填充
-                        if re.match(r"^\{\{.*\}\}$", new_value) or re.match(r"^\{[^{}]+\}$", new_value):
-                            new_value = user_message
-                        new_args[arg_key] = new_value
+                        # 如果是 $$step_N.xxx$$ 格式的步骤间引用，保持不变
+                        if arg_value.startswith("$$") and arg_value.endswith("$$"):
+                            new_args[arg_key] = arg_value
+                        else:
+                            # 替换实体占位符
+                            new_value = arg_value
+                            for placeholder, replacement in replacements.items():
+                                new_value = new_value.replace(placeholder, replacement)
+                            # 如果仍是未替换的占位符，设为None（避免传入无效值）
+                            if (new_value.startswith("{{") and new_value.endswith("}}")) or \
+                               (new_value.startswith("{") and new_value.endswith("}") and len(new_value) > 2):
+                                new_args[arg_key] = None
+                            else:
+                                new_args[arg_key] = new_value
                     else:
                         new_args[arg_key] = arg_value
                 new_step["tool_args"] = new_args
