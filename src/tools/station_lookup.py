@@ -86,22 +86,22 @@ class StationLookupTool(BaseTool):
                 sql = "SELECT stcd, stnm, station_type FROM monitor_stations WHERE stnm = %s"
                 params = [station_name]
             else:
-                # 模糊匹配：站点名称包含查询词，或查询词包含站点名称
+                # 智能模糊匹配：去除常见后缀
+                clean_name = station_name
+                for suffix in ['节制闸', '退水闸', '水文站', '水位站', '雨量站', '无人机', '机场', '水库', '闸', '站']:
+                    clean_name = clean_name.rstrip(suffix)
+
                 sql = """
                     SELECT stcd, stnm, station_type
                     FROM monitor_stations
-                    WHERE stnm LIKE %s OR %s LIKE CONCAT('%%', stnm, '%%')
+                    WHERE stnm LIKE %s
+                       OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                          stnm, '节制闸', ''), '退水闸', ''), '水文站', ''), '水位站', ''),
+                          '雨量站', ''), '无人机', ''), '机场', ''), '水库', ''), '闸', ''), '站', '') LIKE %s
+                       OR stnm LIKE %s
+                    ORDER BY CASE WHEN stnm = %s THEN 0 ELSE 1 END, LENGTH(stnm) LIMIT 20
                 """
-                params = [f"%{station_name}%", station_name]
-
-            # 类型过滤
-            if station_type:
-                sql += " AND station_type = %s"
-                params.append(station_type)
-
-            # 排序：优先精确匹配，其次按名称长度（短的优先）
-            sql += " ORDER BY CASE WHEN stnm = %s THEN 0 ELSE 1 END, LENGTH(stnm) LIMIT 20"
-            params.append(station_name)
+                params = [f"%{station_name}%", f"%{clean_name}%", f"%{clean_name}%", station_name]
 
             cursor.execute(sql, params)
             rows = cursor.fetchall()
@@ -122,12 +122,18 @@ class StationLookupTool(BaseTool):
                 for row in rows
             ]
 
+            # 如果有多条结果且指定了类型，优先返回匹配类型的站点
+            if len(results) > 1 and station_type:
+                type_matched = [r for r in results if r["type"] == station_type]
+                if type_matched:
+                    results = type_matched + [r for r in results if r["type"] != station_type]
+
             return ToolResult(
                 success=True,
                 data={
-                    "stcd": results[0]["stcd"],  # 第一个匹配的站点编码，方便直接引用
-                    "stnm": results[0]["stnm"],  # 第一个匹配的站点名称
-                    "stations": results          # 完整匹配列表
+                    "stcd": results[0]["stcd"],
+                    "stnm": results[0]["stnm"],
+                    "stations": results
                 },
                 metadata={"query": station_name, "count": len(results)}
             )

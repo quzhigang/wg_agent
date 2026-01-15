@@ -1,31 +1,31 @@
-2026-01-15 09:03:11.010 | INFO     | src.agents.graph:run_agent_stream:546 | 流式运行智能体 - 会话: 0a82501b-5882-4307-b4e2-ccf3bcc0c119
-2026-01-15 09:03:11.010 | INFO     | src.agents.graph:create_agent_graph:349 | 创建智能体状态图...
-2026-01-15 09:03:11.013 | INFO     | src.agents.graph:create_agent_graph:406 | 智能体状态图创建完成
-2026-01-15 09:03:11.022 | INFO     | src.agents.graph:get_agent_graph:433 | 智能体图编译完成
-2026-01-15 09:03:11.255 | INFO     | src.agents.controller:__init__:102 | Controller初始化完成
-2026-01-15 09:03:11.274 | INFO     | src.agents.planner:__init__:513 | Planner初始化完成
-2026-01-15 09:03:11.275 | INFO     | src.agents.planner:analyze_intent:525 | 开始分析用户意图: 修武站当前水位流量？...
-2026-01-15 09:03:13.101 | INFO     | src.agents.planner:analyze_intent:556 | 意图分析结果: {'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '修武站', 'object_type': '河道水文站', 'action': '查询水位流量', 'time': '当前'}, 'target_kbs': ['monitor_site']}
-2026-01-15 09:03:13.101 | INFO     | src.agents.planner:planner_node:1366 | 意图类别: business，进入第2阶段工作流选择
-2026-01-15 09:03:13.101 | INFO     | src.agents.planner:check_workflow_match:767 | 执行第2阶段：业务工作流选择...
-2026-01-15 09:03:13.101 | INFO     | src.agents.planner:check_workflow_match:788 | 对象类型已知: 河道水文站
-2026-01-15 09:03:15.633 | INFO     | src.agents.planner:check_workflow_match:817 | 工作流选择结果: {'object_type_check': '修武站是河道水文站，query_reservoir_realtime_water_level是水库工作流，类型不匹配，排除', 'sub_requirements': ['查询修武站当前水位流量[API调用]'], 'coverage_analysis': '没有匹配河道水文站的已保存工作流', 'is_fully_covered': False, 'business_sub_intent': 'data_query', 'matched_workflow': None, 'saved_workflow_id': None, 'output_type': 'web_page', 'reason': '对象类型为河道水文站，无匹配的河道查询工作流，需动态规划'}
-2026-01-15 09:03:15.633 | INFO     | src.agents.planner:check_workflow_match:859 | 未匹配到工作流，子意图: data_query，将进行动态规划
-2026-01-15 09:03:15.633 | INFO     | src.agents.planner:planner_node:1382 | 未匹配工作流，子意图: data_query，进行动态规划
-2026-01-15 09:03:15.633 | INFO     | src.agents.planner:generate_plan:891 | 开始生成执行计划...
-2026-01-15 09:03:15.634 | INFO     | src.agents.planner:generate_plan:899 | 计划生成阶段目标知识库: ['business_workflow']（仅检索业务流程参考）
-2026-01-15 09:03:15.634 | INFO     | src.rag.retriever:_init_vector_index:55 | PageIndex多知识库索引连接成功: 10 个知识库 ['catchment_basin', 'water_project', 'monitor_site', 'history_flood', 'flood_preplan', 'system_function', 'hydro_model', 'business_workflow', 'catchment_planning', 'project_designplan']
-2026-01-15 09:03:15.634 | INFO     | src.rag.retriever:__init__:47 | RAG检索器初始化完成（对接PageIndex）
-2026-01-15 09:03:15.634 | INFO     | src.rag.retriever:retrieve:114 | RAG检索: 修武站当前水位流量？...
-2026-01-15 09:03:15.634 | INFO     | src.rag.retriever:retrieve:116 | 目标知识库: ['business_workflow']
-2026-01-15 09:03:15.635 | INFO     | src.rag.retriever:retrieve:141 | 搜索知识库: ['business_workflow']
-2026-01-15 09:03:17.688 | INFO     | src.rag.retriever:retrieve:178 | 检索到 5 条相关文档
-2026-01-15 09:03:17.689 | INFO     | src.agents.planner:generate_plan:915 | 计划生成RAG检索完成（知识库: ['business_workflow']），获取到 5 条业务流程参考
-2026-01-15 09:03:41.890 | ERROR    | src.agents.planner:generate_plan:996 | 计划生成失败: Error code: 500 - {'error': {'message': '正在加号稍等（traceid: 676fda0af1c18a1858f0c27851e4ffb4）', 'type': 'invalid_request_error', 'param': '', 'code': None}}
-2026-01-15 09:03:41.893 | INFO     | src.agents.executor:__init__:47 | Executor初始化完成
-2026-01-15 09:03:41.893 | INFO     | src.agents.executor:execute_step:78 | 执行步骤 1: 直接回答用户问题
-2026-01-15 09:03:42.580 | INFO     | src.agents.executor:execute_step:96 | 步骤 1 执行成功，耗时 687ms
-2026-01-15 09:03:42.580 | INFO     | src.agents.executor:execute_step:97 | 步骤 1 执行结果: 目前没有获取到修武站当前水位流量的具体数据。建议您稍后再次查询或联系相关水利管理部门获取最新信息。
-2026-01-15 09:03:42.580 | INFO     | src.agents.executor:execute_step:98 | 
-2026-01-15 09:03:42.582 | INFO     | src.agents.controller:synthesize_response:114 | 开始合成最终响应...
-2026-01-15 09:03:48.559 | ERROR    | src.agents.controller:synthesize_response:185 | 响应合成失败: Error code: 500 - {'error': {'message': '正在加号稍等（traceid: 0ef1b47cf2c18a181ef3c27805f7e7f2）', 'type': 'invalid_request_error', 'param': '', 'code': None}}
+2026-01-15 09:54:56.119 | INFO     | src.config.logging_config:setup_logging:88 | 日志系统初始化完成
+2026-01-15 09:54:56.119 | INFO     | src.config.logging_config:setup_logging:89 | 日志级别: INFO
+2026-01-15 09:54:56.119 | INFO     | src.config.logging_config:setup_logging:90 | 日志文件: ./logs/wg_agent.log
+2026-01-15 09:54:56.131 | INFO     | src.main:lifespan:29 | ==================================================
+2026-01-15 09:54:56.132 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2026-01-15 09:54:56.132 | INFO     | src.main:lifespan:31 | ==================================================
+2026-01-15 09:54:56.194 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2026-01-15 09:54:56.194 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2026-01-15 09:54:56.194 | INFO     | src.tools.registry:init_default_tools:343 | 初始化默认工具...
+2026-01-15 09:54:56.195 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2026-01-15 09:54:56.196 | INFO     | src.tools.basin_info:register_basin_info_tools:1100 | 流域基本信息工具注册完成，共注册14个工具
+2026-01-15 09:54:56.197 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1449 | 水雨情监测工具注册完成，共15个工具
+2026-01-15 09:54:56.198 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2026-01-15 09:54:56.199 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2026-01-15 09:54:56.201 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2026-01-15 09:54:56.202 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2026-01-15 09:54:56.203 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2026-01-15 09:54:56.204 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2026-01-15 09:54:56.206 | INFO     | src.tools.registry:init_default_tools:360 | 默认工具加载完成
+2026-01-15 09:54:56.206 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2026-01-15 09:54:56.206 | INFO     | src.tools.registry:init_default_tools:374 | RAG知识库搜索工具注册完成
+2026-01-15 09:54:56.207 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2026-01-15 09:54:56.207 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2026-01-15 09:54:56.207 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2026-01-15 09:54:56.208 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2026-01-15 09:54:56.208 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2026-01-15 09:54:56.209 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2026-01-15 09:54:56.210 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
+2026-01-15 09:54:56.210 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2026-01-15 09:54:56.210 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2026-01-15 09:54:56.211 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成

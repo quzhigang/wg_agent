@@ -1,2 +1,0 @@
-2026-01-15 09:03:41.890 | ERROR    | src.agents.planner:generate_plan:996 | 计划生成失败: Error code: 500 - {'error': {'message': '正在加号稍等（traceid: 676fda0af1c18a1858f0c27851e4ffb4）', 'type': 'invalid_request_error', 'param': '', 'code': None}}
-2026-01-15 09:03:48.559 | ERROR    | src.agents.controller:synthesize_response:185 | 响应合成失败: Error code: 500 - {'error': {'message': '正在加号稍等（traceid: 0ef1b47cf2c18a181ef3c27805f7e7f2）', 'type': 'invalid_request_error', 'param': '', 'code': None}}
