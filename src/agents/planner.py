@@ -251,13 +251,15 @@ WORKFLOW_SELECT_PROMPT = """你是河南省卫共流域数字孪生系统的业�
     "coverage_analysis": "分析每个子需求的覆盖情况",
     "is_fully_covered": true/false,
     "business_sub_intent": "子意图类别",
-    "matched_workflow": null或"工作流名称",
-    "saved_workflow_id": null或"工作流ID",
+    "matched_workflow": null或"预定义工作流名称（仅限上面列出的5个预定义模板）",
+    "saved_workflow_id": null或"已保存工作流的UUID（如xxx-xxx-xxx格式的ID）",
     "output_type": "text 或 web_page",
     "reason": "最终决策理由"
 }}
 
 **关键规则：**
+- matched_workflow字段：只能填预定义工作流模板的名称（如get_auto_forecast_result），不能填已保存工作流的名称
+- saved_workflow_id字段：只能填已保存动态工作流的ID（UUID格式），不能填工作流的name
 - 对象类型不匹配时，必须在object_type_check中说明，并将该工作流排除
 - is_fully_covered=false时，matched_workflow和saved_workflow_id必须都为null
 - 部分匹配=不匹配，宁可动态规划也不能返回只能满足部分需求的工作流
@@ -957,7 +959,8 @@ class Planner:
                     user_message=user_message
                 )
                 if saved_result:
-                    logger.info(f"匹配到已保存工作流: {saved_workflow_id}")
+                    display_name = saved_result.get("saved_workflow_name", saved_workflow_id)
+                    logger.info(f"匹配到已保存工作流: {display_name}")
                     saved_result.update({
                         "business_sub_intent": sub_intent,
                         "intent": sub_intent,
@@ -1497,7 +1500,7 @@ async def planner_node(state: AgentState) -> Dict[str, Any]:
 
         # 如果匹配到工作流（预定义模板或已保存的动态工作流），直接执行
         if workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_id'):
-            matched_name = workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_id')
+            matched_name = workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_name') or workflow_result.get('saved_workflow_id')
             logger.info(f"匹配到工作流: {matched_name}，直接执行")
             return {**intent_result, **workflow_result}
 
