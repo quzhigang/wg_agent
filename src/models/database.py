@@ -92,7 +92,8 @@ class SavedWorkflow(Base):
     __tablename__ = "saved_workflows"
 
     id = Column(String(36), primary_key=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)  # 英文名，如 query_reservoir_realtime_water_level
+    display_name = Column(String(100), nullable=True)  # 中文简称，如 "水库实时水位查询"
     description = Column(Text, nullable=True)
     trigger_pattern = Column(Text, nullable=False)  # 触发模式（用户消息特征）
     intent_category = Column(String(50), nullable=False)

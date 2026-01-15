@@ -38,8 +38,8 @@ class TaskPlan(BaseModel):
     output_type: str = Field(default="text", description="输出类型")
 
 
-# 意图分析提示词（三大类分类，简化版 - 移除business子意图详细分类）
-INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"小卫"，负责分析用户意图。
+# 1、意图分析提示词（三大类分类，简化版 - 移除business子意图详细分类）
+INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智能助手"小卫"，负责分析用户意图。
 
 ## 意图分类体系（三大类）
 
@@ -161,8 +161,8 @@ INTENT_ANALYSIS_PROMPT = """你是卫共流域数字孪生系统的智能助手"
 - 根据问题涉及的内容选择相关知识库，如涉及历史洪水则包含history_flood，涉及水库信息则包含water_project
 """
 
-# 业务工作流选择提示词（第2阶段，仅business类触发）
-WORKFLOW_SELECT_PROMPT = """你是卫共流域数字孪生系统的业务流程选择器。
+# 2、业务工作流选择提示词（第2阶段，仅business类触发）
+WORKFLOW_SELECT_PROMPT = """你是河南省卫共流域数字孪生系统的业务流程选择器。
 
 ## 用户消息
 {user_message}
@@ -299,8 +299,8 @@ WORKFLOW_SELECT_PROMPT = """你是卫共流域数字孪生系统的业务流程�
 }}
 """
 
-# 计划生成提示词
-PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划器，负责制定执行计划。
+# 3、计划生成提示词
+PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任务规划器，负责制定执行计划。
 
 ## 可用工具
 {available_tools}
@@ -361,7 +361,7 @@ PLAN_GENERATION_PROMPT = """你是卫共流域数字孪生系统的任务规划�
 - 例如：查询历史洪水水位需要先search_knowledge检索history_flood，再进行数据处理
 """
 
-# 工作流模板化提示词（将具体执行计划抽象为通用模板）
+# 4、工作流模板化生成提示词（将具体执行计划抽象为通用模板）
 WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将具体的执行计划抽象为通用的业务工作流模板。
 
 ## 原始用户消息
@@ -380,38 +380,42 @@ WORKFLOW_TEMPLATE_PROMPT = """你是一个工作流模板生成器，需要将�
 返回JSON格式：
 {{
     "workflow_name": "简短的工作流名称（英文，如 query_reservoir_realtime_water_level）",
-    "description": "工作流的通用描述（中文，不要包含具体的站点名、水库名等，描述业务场景）",
-    "trigger_pattern": "触发模式描述（中文，用于匹配用户意图，如：查询XX水库/河道的当前/实时水位）",
+    "display_name": "中文简称（4-10字，如"水库实时水位查询"、"河道水情查询"）",
+    "description": "工作流的通用描述（中文，不要包含具体名称，描述对象类型和业务场景）",
+    "trigger_pattern": "触发模式描述（中文，用于匹配用户意图，必须强调适用的对象类型）",
     "template_steps": [
         {{
             "step_id": 1,
-            "description": "步骤的通用描述（用{{实体名}}作为占位符）",
+            "description": "步骤描述",
             "tool_name": "工具名称",
-            "tool_args_template": {{"参数名": "{{实体名}}或固定值"}}
+            "tool_args_template": {{"参数名": "值"}}
         }}
     ],
-    "required_entities": ["需要的实体列表，如：站点名称、时间范围"]
+    "required_entities": ["对象", "对象类型"]
 }}
 
-示例：
-- 原始："查询盘石头水库当前水位"
-- 抽象后的trigger_pattern："查询水库当前水位"、"XX水库实时水位"
-- 抽象后的description："查询指定水库的实时水情数据，包括当前水位、蓄水量等"
+## 占位符规则
 
-参数占位符规则（非常重要）：
-1. 来自用户输入的实体参数：使用 {{实体名}} 格式，如 {{"station_name": "{{站点名称}}"}}
-2. 依赖前一步骤结果的参数：必须使用 $$step_N.字段名$$ 格式引用，如 {{"stcd": "$$step_2.stcd$$"}}
-   - 例如：步骤2通过站点名称查询得到stcd，步骤3需要使用这个stcd，则步骤3的参数应为 {{"stcd": "$$step_2.stcd$$"}}
-   - 绝对不要用 {{站点编码}} 这种格式来引用前一步的输出结果
+**用户输入的实体（使用双花括号）：**
+- {{{{对象}}}}：操作对象名称（站点名、水库名等）
+- {{{{对象类型}}}}：对象的类型
+- {{{{时间}}}}：时间范围
+
+**步骤间数据传递（使用$$符号）：**
+- $$step_N.字段名$$：引用第N步的输出字段
+- 例如：步骤2返回stcd，步骤3使用 {{"stcd": "$$step_2.stcd$$"}}
+
+**示例：**
+- 步骤2：{{"station_name": "{{{{对象}}}}", "station_type": "{{{{对象类型}}}}"}}
+- 步骤3：{{"stcd": "$$step_2.stcd$$"}}
 
 注意：
-1. 去除所有具体的实体值（水库名、具体时间等）
-2. 保留业务流程的通用结构
-3. description 和 trigger_pattern 要足够通用，能匹配同类查询
-4. 区分"用户输入的实体"和"步骤间传递的数据"，使用正确的占位符格式
+1. 去除所有具体值，保留通用结构
+2. 严格区分用户输入占位符和步骤间传递占位符
+3. 强调对象类型匹配
 """
 
-# 对象类型合成提示词（用于RAG检索后合成对象类型）
+# 5、对象类型合成提示词（用于RAG检索后合成对象类型）
 OBJECT_TYPE_SYNTHESIS_PROMPT = """你是卫共流域数字孪生系统的实体识别助手，负责根据检索到的信息确定对象的类型。
 
 ## 用户消息
@@ -509,6 +513,9 @@ class Planner:
         # 对象类型合成LLM（复用意图识别配置，保持一致性）
         self.object_type_prompt = ChatPromptTemplate.from_template(OBJECT_TYPE_SYNTHESIS_PROMPT)
         self.object_type_chain = self.object_type_prompt | intent_llm | self.json_parser
+
+        # 保存intent_llm引用，供多类型站点选择等场景使用
+        self.intent_llm = intent_llm
 
         logger.info("Planner初始化完成")
 
@@ -613,6 +620,83 @@ class Planner:
                 "error": f"意图分析失败: {str(e)}"
             }
 
+    async def _llm_select_station_type(self, object_name: str, user_message: str, candidate_types: List[str]) -> Optional[str]:
+        """
+        当数据库返回多种站点类型时，使用LLM根据对话意图选择最可能的类型
+
+        Args:
+            object_name: 对象名称
+            user_message: 用户原始消息
+            candidate_types: 候选类型列表
+
+        Returns:
+            最可能的类型，如果判断失败返回None
+        """
+        try:
+            import time
+
+            # 构建提示词
+            prompt = f"""根据用户的对话意图，判断"{object_name}"最可能是哪种类型的监测站点。
+
+## 用户消息
+{user_message}
+
+## 候选类型（数据库查询到的）
+{', '.join(candidate_types)}
+
+## 所有监测站点类型参考
+- 水库水文站：监测水库水位、入库流量、出库流量等
+- 河道水文站：监测河道水位、流量等水情信息
+- 雨量站：监测降雨量
+- 闸站监测：监测闸门开度、过闸流量等
+- AI监测站点：AI视频监测
+- 工程安全监测：监测工程结构安全
+- 取水监测：监测取水量
+- 墒情站：监测土壤墒情
+
+## 判断规则
+1. "水情"、"水位"、"流量"相关查询 → 优先选择"河道水文站"或"水库水文站"
+2. "雨量"、"降雨"相关查询 → 选择"雨量站"
+3. "闸门"、"开度"相关查询 → 选择"闸站监测"
+4. "墒情"、"土壤"相关查询 → 选择"墒情站"
+5. 如果用户没有明确指定，根据常见业务场景推断（水情查询最常见的是河道水文站）
+
+请直接返回最可能的类型名称（必须是候选类型之一），不要解释："""
+
+            _start = time.time()
+            response = await self.intent_llm.ainvoke(prompt)
+            _elapsed = time.time() - _start
+
+            result_text = response.content.strip() if hasattr(response, 'content') else str(response).strip()
+
+            # 记录日志
+            log_llm_call(
+                step_name="多类型站点选择",
+                module_name="Planner._llm_select_station_type",
+                prompt_template_name="STATION_TYPE_SELECT_PROMPT",
+                context_variables={
+                    "object_name": object_name,
+                    "user_message": user_message,
+                    "candidate_types": candidate_types
+                },
+                full_prompt=prompt,
+                response=result_text,
+                elapsed_time=_elapsed
+            )
+
+            # 验证返回的类型是否在候选列表中
+            for candidate in candidate_types:
+                if candidate in result_text or result_text in candidate:
+                    logger.info(f"LLM选择站点类型: {result_text} (匹配: {candidate})")
+                    return candidate
+
+            logger.warning(f"LLM返回的类型'{result_text}'不在候选列表中: {candidate_types}")
+            return None
+
+        except Exception as e:
+            logger.error(f"LLM选择站点类型失败: {e}")
+            return None
+
     async def _resolve_object_type(self, entities: Dict[str, Any], target_kbs: List[str], user_message: str) -> Dict[str, Any]:
         """
         解析并补全对象类型
@@ -664,12 +748,38 @@ class Planner:
                 if result.success and result.data:
                     stations = result.data.get('stations', [])
                     if stations:
-                        # 找到站点，直接使用数据库结果
-                        first_station = stations[0]
-                        enhanced_entities['object_type'] = first_station.get('type')
-                        enhanced_entities['stcd'] = first_station.get('stcd')
-                        logger.info(f"数据库查询成功: {object_name} -> {first_station.get('type')} (stcd: {first_station.get('stcd')})")
-                        return enhanced_entities
+                        # 检查是否有多种不同类型
+                        unique_types = list(set(s.get('type') for s in stations if s.get('type')))
+
+                        if len(unique_types) == 1:
+                            # 只有一种类型，直接使用
+                            first_station = stations[0]
+                            enhanced_entities['object_type'] = first_station.get('type')
+                            enhanced_entities['stcd'] = first_station.get('stcd')
+                            logger.info(f"数据库查询成功(单一类型): {object_name} -> {first_station.get('type')} (stcd: {first_station.get('stcd')})")
+                            return enhanced_entities
+                        else:
+                            # 多种类型，需要LLM根据对话意图判断
+                            logger.info(f"数据库返回多种类型: {unique_types}，需要LLM判断")
+                            best_type = await self._llm_select_station_type(
+                                object_name=object_name,
+                                user_message=user_message,
+                                candidate_types=unique_types
+                            )
+                            if best_type:
+                                # 找到匹配类型的站点
+                                matched_station = next((s for s in stations if s.get('type') == best_type), stations[0])
+                                enhanced_entities['object_type'] = best_type
+                                enhanced_entities['stcd'] = matched_station.get('stcd')
+                                logger.info(f"LLM选择类型: {object_name} -> {best_type} (stcd: {matched_station.get('stcd')})")
+                                return enhanced_entities
+                            else:
+                                # LLM判断失败，使用第一个结果
+                                first_station = stations[0]
+                                enhanced_entities['object_type'] = first_station.get('type')
+                                enhanced_entities['stcd'] = first_station.get('stcd')
+                                logger.warning(f"LLM选择失败，使用默认: {object_name} -> {first_station.get('type')}")
+                                return enhanced_entities
                     else:
                         db_result = f"数据库中未找到名为'{object_name}'的站点"
                 else:
@@ -1077,8 +1187,10 @@ class Planner:
                 # 在 Session 关闭前提取所有需要的数据，提供更详细的匹配信息
                 descriptions = []
                 for wf in saved_workflows:
+                    display = wf.display_name or wf.name  # 优先使用中文名
                     desc = f"""- ID: {wf.id}
   名称: {wf.name}
+  中文名: {display}
   描述: {wf.description}
   触发模式: {wf.trigger_pattern}
   子意图: {wf.sub_intent}
@@ -1111,6 +1223,7 @@ class Planner:
 
                 if saved:
                     workflow_name = saved.name
+                    display_name = saved.display_name or saved.name
                     workflow_id = saved.id
                     plan_steps = json.loads(saved.plan_steps)
                     output_type = saved.output_type
@@ -1122,11 +1235,12 @@ class Planner:
                     saved.use_count += 1
                     db.commit()
 
-                    logger.info(f"加载已保存工作流: {workflow_name}")
+                    logger.info(f"加载已保存工作流: {display_name} ({workflow_name})")
                     return {
                         "matched_workflow": None,
                         "workflow_from_template": False,
                         "saved_workflow_id": workflow_id,
+                        "saved_workflow_name": display_name,
                         "plan": plan_steps,
                         "current_step_index": 0,
                         "output_type": output_type,
@@ -1144,28 +1258,32 @@ class Planner:
         填充工作流模板中的占位符参数
 
         支持的占位符格式：
-        - {{实体名}}、{实体名}：从实体中获取值
+        - {{对象}}、{{对象类型}}、{{时间}}等：从entities中获取值
         - $$step_N.xxx$$：引用前一步骤的结果（保持不变，由executor解析）
         """
-        # 构建替换映射（同时支持单花括号和双花括号）
+        # 构建替换映射
         replacements = {}
-        for key, value in entities.items():
-            replacements[f"{{{{{key}}}}}"] = str(value)  # {{key}}
-            replacements[f"{{{key}}}"] = str(value)      # {key}
-            # 常见别名映射
-            if key in ["站点", "水库", "站点名称"]:
-                replacements["{{站点名称}}"] = str(value)
-                replacements["{站点名称}"] = str(value)
-                replacements["{{水库名称}}"] = str(value)
-                replacements["{水库名称}"] = str(value)
-                replacements["{{站点}}"] = str(value)
-                replacements["{站点}"] = str(value)
+
+        # 核心实体映射：object -> {{对象}}, object_type -> {{对象类型}}, time -> {{时间}}, action -> {{操作}}
+        entity_mapping = {
+            "object": "对象",
+            "object_type": "对象类型",
+            "time": "时间",
+            "action": "操作"
+        }
+
+        for eng_key, cn_key in entity_mapping.items():
+            value = entities.get(eng_key)
+            if value and value != 'null' and value is not None:
+                # 同时支持中文和英文占位符
+                replacements[f"{{{{{cn_key}}}}}"] = str(value)   # {{对象}}
+                replacements[f"{{{cn_key}}}"] = str(value)       # {对象}
+                replacements[f"{{{{{eng_key}}}}}"] = str(value)  # {{object}}
+                replacements[f"{{{eng_key}}}"] = str(value)      # {object}
 
         # 用户消息作为默认query
         replacements["{{query}}"] = user_message
         replacements["{query}"] = user_message
-        replacements["{{用户消息}}"] = user_message
-        replacements["{用户消息}"] = user_message
 
         filled_steps = []
         for step in plan_steps:
@@ -1220,6 +1338,7 @@ class Planner:
                     # 在 Session 关闭前提取所有需要的数据
                     workflow_name = saved.name
                     workflow_id = saved.id
+                    display_name = saved.display_name
                     plan_steps = json.loads(saved.plan_steps)
                     output_type = saved.output_type
 
@@ -1227,11 +1346,12 @@ class Planner:
                     saved.use_count += 1
                     db.commit()
 
-                    logger.info(f"匹配到已保存流程: {workflow_name}")
+                    logger.info(f"匹配到已保存流程: {display_name or workflow_name}")
                     return {
                         "matched_workflow": None,
                         "workflow_from_template": False,
                         "saved_workflow_id": workflow_id,
+                        "display_name": display_name,
                         "plan": plan_steps,
                         "current_step_index": 0,
                         "output_type": output_type,
@@ -1270,6 +1390,7 @@ class Planner:
                 logger.info(f"工作流模板化结果: {template_result}")
 
                 workflow_name = template_result.get('workflow_name', f"auto_{sub_intent}_{uuid.uuid4().hex[:6]}")
+                display_name = template_result.get('display_name', f"{sub_intent}工作流")
                 description = template_result.get('description', f"自动保存的{sub_intent}类工作流")
                 trigger_pattern = template_result.get('trigger_pattern', sub_intent)
                 template_steps = template_result.get('template_steps', steps)
@@ -1278,6 +1399,7 @@ class Planner:
             except Exception as llm_error:
                 logger.warning(f"LLM生成工作流模板失败，使用默认值: {llm_error}")
                 workflow_name = f"auto_{sub_intent}_{uuid.uuid4().hex[:6]}"
+                display_name = f"{sub_intent}工作流"
                 description = f"自动保存的{sub_intent}类工作流"
                 trigger_pattern = sub_intent
                 template_steps = steps
@@ -1301,6 +1423,7 @@ class Planner:
                 workflow = SavedWorkflow(
                     id=str(uuid.uuid4()),
                     name=workflow_name,
+                    display_name=display_name,
                     description=description,
                     trigger_pattern=trigger_pattern,
                     intent_category=state.get('intent_category', 'business'),
@@ -1312,7 +1435,7 @@ class Planner:
                 )
                 db.add(workflow)
                 db.commit()
-                logger.info(f"已自动保存通用工作流模板: {workflow_name}")
+                logger.info(f"已自动保存通用工作流模板: {display_name} ({workflow_name})")
             finally:
                 db.close()
         except Exception as e:

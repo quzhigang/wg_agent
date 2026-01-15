@@ -16,7 +16,11 @@ router = APIRouter(prefix="/saved-workflows", tags=["流程管理"])
 
 class WorkflowUpdate(BaseModel):
     name: Optional[str] = None
+    display_name: Optional[str] = None
     description: Optional[str] = None
+    trigger_pattern: Optional[str] = None
+    sub_intent: Optional[str] = None
+    plan_steps: Optional[list] = None
     is_active: Optional[bool] = None
 
 
@@ -44,6 +48,7 @@ def list_workflows(
             "items": [{
                 "id": w.id,
                 "name": w.name,
+                "display_name": w.display_name,
                 "description": w.description,
                 "sub_intent": w.sub_intent,
                 "use_count": w.use_count,
@@ -67,6 +72,7 @@ def get_workflow(workflow_id: str):
         return {
             "id": w.id,
             "name": w.name,
+            "display_name": w.display_name,
             "description": w.description,
             "trigger_pattern": w.trigger_pattern,
             "intent_category": w.intent_category,
@@ -96,8 +102,16 @@ def update_workflow(workflow_id: str, data: WorkflowUpdate):
 
         if data.name is not None:
             w.name = data.name
+        if data.display_name is not None:
+            w.display_name = data.display_name
         if data.description is not None:
             w.description = data.description
+        if data.trigger_pattern is not None:
+            w.trigger_pattern = data.trigger_pattern
+        if data.sub_intent is not None:
+            w.sub_intent = data.sub_intent
+        if data.plan_steps is not None:
+            w.plan_steps = json.dumps(data.plan_steps, ensure_ascii=False)
         if data.is_active is not None:
             w.is_active = data.is_active
 

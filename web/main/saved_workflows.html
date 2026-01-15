@@ -6,37 +6,503 @@
     <title>自动保存流程管理</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 20px; }
-        .container { max-width: 1500px; margin: 0 auto; }
-        h1 { color: #1a365d; margin-bottom: 20px; }
-        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; }
-        .toolbar select, .toolbar input { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; }
-        table { width: 100%; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-collapse: collapse; }
-        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-        th { background: #f8fafc; color: #64748b; font-weight: 600; }
-        tr:hover { background: #f8fafc; }
-        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
-        .btn-view { background: #3b82f6; color: white; }
-        .btn-edit { background: #10b981; color: white; }
-        .btn-del { background: #ef4444; color: white; }
-        .btn-toggle { background: #f59e0b; color: white; }
-        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .status-active { background: #dcfce7; color: #166534; }
-        .status-inactive { background: #fee2e2; color: #991b1b; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #f5f5f5 50%, #e8eaf6 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 4px 24px rgba(33,150,243,0.1);
+            border: 1px solid #e3f2fd;
+        }
+        h1 {
+            color: #1565c0;
+            margin-bottom: 24px;
+            font-size: 26px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+        h1::before {
+            content: '';
+            display: inline-block;
+            width: 5px;
+            height: 26px;
+            background: linear-gradient(180deg, #1976d2, #42a5f5);
+            border-radius: 3px;
+        }
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .toolbar select, .toolbar input {
+            padding: 10px 16px;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            background: #fafafa;
+            color: #37474f;
+        }
+        .toolbar select:focus, .toolbar input:focus {
+            border-color: #1976d2;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(25,118,210,0.12);
+            background: white;
+        }
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid #e3f2fd;
+        }
+        table {
+            width: 100%;
+            background: white;
+            border-collapse: collapse;
+            min-width: 1100px;
+        }
+        th, td {
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid #e3f2fd;
+            white-space: nowrap;
+        }
+        th {
+            background: #f5f9ff;
+            color: #1565c0;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-size: 13px;
+        }
+        tr:hover { background: #f5f9ff; }
+        tr:last-child td { border-bottom: none; }
+
+        /* 序号列样式 */
+        .col-index {
+            width: 70px;
+            text-align: center;
+        }
+        .index-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #1976d2, #42a5f5);
+            color: white;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* 名称列 - 加宽 */
+        .col-name {
+            min-width: 150px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 600;
+            color: #263238;
+        }
+
+        /* 工作流ID列 */
+        .col-workflow-id {
+            min-width: 200px;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            color: #546e7a;
+        }
+
+        /* 描述列 - 加宽 */
+        .col-desc {
+            min-width: 300px;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #546e7a;
+        }
+
+        /* 子意图样式 */
+        .intent-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .intent-data_query { background: #e3f2fd; color: #1565c0; }
+        .intent-flood_forecast { background: #fce4ec; color: #c2185b; }
+        .intent-flood_simulation { background: #ede7f6; color: #5e35b1; }
+        .intent-emergency_plan { background: #fff3e0; color: #e65100; }
+        .intent-damage_assessment { background: #ffebee; color: #c62828; }
+        .intent-other { background: #eceff1; color: #546e7a; }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .btn:active { transform: translateY(0); }
+        .btn-view { background: #1976d2; color: white; }
+        .btn-edit { background: #2e7d32; color: white; }
+        .btn-del { background: #d32f2f; color: white; }
+        .btn-refresh { background: #1565c0; color: white; }
+        .btn-save { background: #1976d2; color: white; padding: 10px 24px; font-size: 14px; }
+        .btn-cancel { background: #eceff1; color: #546e7a; padding: 10px 24px; font-size: 14px; }
+
+        /* 状态开关样式 */
+        .status-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 46px;
+            height: 26px;
+            background: #cfd8dc;
+            border-radius: 13px;
+            transition: all 0.3s;
+        }
+        .toggle-switch.active { background: #1976d2; }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+        .toggle-switch.active::after { left: 23px; }
+        .status-text { font-size: 12px; color: #78909c; }
+        .status-text.active { color: #1976d2; font-weight: 500; }
+
+        /* 操作按钮组 */
+        .action-btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(21,101,192,0.12);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
         .modal.show { display: flex; }
-        .modal-content { background: white; padding: 24px; border-radius: 12px; width: 90%; max-width: 700px; max-height: 80vh; overflow-y: auto; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; }
-        .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; margin-bottom: 6px; color: #374151; font-weight: 500; }
-        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; }
-        .form-group textarea { min-height: 100px; }
-        .steps-list { background: #f8fafc; padding: 12px; border-radius: 6px; }
-        .step-item { padding: 8px; margin-bottom: 8px; background: white; border-radius: 4px; border-left: 3px solid #3b82f6; }
-        .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
-        .pagination button { padding: 8px 16px; border: 1px solid #e2e8f0; background: white; border-radius: 4px; cursor: pointer; }
-        .pagination button.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+        .modal-content {
+            background: white;
+            padding: 0;
+            border-radius: 16px;
+            width: 95%;
+            max-width: 920px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(21,101,192,0.15);
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #1976d2, #42a5f5);
+            color: white;
+        }
+        .modal-header h2 { font-size: 20px; font-weight: 600; }
+        .modal-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            color: white;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.3); }
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            background: #fafafa;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            border-top: 1px solid #e3f2fd;
+        }
+
+        /* 表单样式 */
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #37474f;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            border-color: #1976d2;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(25,118,210,0.12);
+            background: white;
+        }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* 步骤列表样式 */
+        .steps-section {
+            background: #f5f9ff;
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid #bbdefb;
+        }
+        .steps-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .steps-header h3 {
+            font-size: 15px;
+            color: #1565c0;
+            font-weight: 600;
+        }
+        .btn-add-step {
+            background: #1976d2;
+            color: white;
+            padding: 7px 14px;
+            font-size: 12px;
+        }
+        .steps-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .step-item {
+            padding: 14px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #1976d2;
+            box-shadow: 0 2px 8px rgba(25,118,210,0.06);
+            position: relative;
+        }
+        .step-item.editing {
+            border-left-color: #ff9800;
+            box-shadow: 0 4px 16px rgba(255,152,0,0.12);
+        }
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            background: #1976d2;
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .step-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .step-actions button {
+            padding: 5px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+        }
+        .btn-step-edit { background: #e3f2fd; color: #1565c0; border: none; cursor: pointer; }
+        .btn-step-del { background: #ffebee; color: #c62828; border: none; cursor: pointer; }
+        .btn-step-save { background: #e8f5e9; color: #2e7d32; border: none; cursor: pointer; }
+        .btn-step-cancel { background: #eceff1; color: #546e7a; border: none; cursor: pointer; }
+        .step-content { color: #37474f; font-size: 14px; line-height: 1.5; }
+        .step-tool {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #78909c;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .step-tool-name {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        /* 步骤编辑表单 */
+        .step-edit-form {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed #bbdefb;
+        }
+        .step-edit-form .form-group {
+            margin-bottom: 12px;
+        }
+        .step-edit-form label {
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: #546e7a;
+        }
+        .step-edit-form input, .step-edit-form textarea {
+            padding: 10px 12px;
+            font-size: 13px;
+        }
+        .step-edit-form textarea {
+            min-height: 60px;
+        }
+
+        /* 分页样式 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 24px;
+        }
+        .pagination button {
+            padding: 10px 16px;
+            border: 1px solid #bbdefb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #546e7a;
+        }
+        .pagination button:hover { border-color: #1976d2; color: #1976d2; }
+        .pagination button.active {
+            background: #1976d2;
+            color: white;
+            border-color: #1976d2;
+        }
+
+        /* 详情视图样式 */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .detail-item {
+            padding: 14px;
+            background: #f5f9ff;
+            border-radius: 8px;
+            border: 1px solid #e3f2fd;
+        }
+        .detail-item.full-width {
+            grid-column: 1 / -1;
+        }
+        .detail-label {
+            font-size: 12px;
+            color: #78909c;
+            margin-bottom: 6px;
+        }
+        .detail-value {
+            font-size: 14px;
+            color: #263238;
+            font-weight: 500;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #90a4ae;
+        }
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 16px;
+            opacity: 0.4;
+            stroke: #1976d2;
+        }
+        .empty-state p {
+            font-size: 15px;
+        }
+
+        /* 使用次数 */
+        .use-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #546e7a;
+            font-weight: 500;
+        }
+        .use-count svg {
+            width: 14px;
+            height: 14px;
+            stroke: #1976d2;
+        }
     </style>
 </head>
 <body>
@@ -45,174 +511,527 @@
         <div class="toolbar">
             <select id="filterIntent">
                 <option value="">全部子意图</option>
-                <option value="data_query">数据查询</option>
-                <option value="flood_forecast">洪水预报</option>
-                <option value="flood_simulation">洪水预演</option>
-                <option value="emergency_plan">应急预案</option>
-                <option value="damage_assessment">灾损评估</option>
-                <option value="other">其他</option>
+                <option value="data_query">数据查询 (data_query)</option>
+                <option value="flood_forecast">洪水预报 (flood_forecast)</option>
+                <option value="flood_simulation">洪水预演 (flood_simulation)</option>
+                <option value="emergency_plan">应急预案 (emergency_plan)</option>
+                <option value="damage_assessment">灾损评估 (damage_assessment)</option>
+                <option value="other">其他 (other)</option>
             </select>
-            <button class="btn btn-view" onclick="loadData()">刷新</button>
+            <button class="btn btn-refresh" onclick="loadData()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                </svg>
+                刷新
+            </button>
         </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>名称</th>
-                    <th>描述</th>
-                    <th>子意图</th>
-                    <th>使用次数</th>
-                    <th>状态</th>
-                    <th>创建时间</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-        </table>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-index">序号</th>
+                        <th>名称</th>
+                        <th>工作流ID</th>
+                        <th>描述</th>
+                        <th>子意图</th>
+                        <th>使用次数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
         <div class="pagination" id="pagination"></div>
     </div>
 
+    <!-- 详情模态框 -->
     <div class="modal" id="detailModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>流程详情</h2>
                 <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
             </div>
-            <div id="detailContent"></div>
+            <div class="modal-body" id="detailContent"></div>
         </div>
     </div>
 
+    <!-- 编辑模态框 -->
     <div class="modal" id="editModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>编辑流程</h2>
                 <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
             </div>
-            <form id="editForm">
-                <input type="hidden" id="editId">
-                <div class="form-group">
-                    <label>名称</label>
-                    <input type="text" id="editName" required>
-                </div>
-                <div class="form-group">
-                    <label>描述</label>
-                    <textarea id="editDesc"></textarea>
-                </div>
-                <div class="form-group">
-                    <label><input type="checkbox" id="editActive"> 启用</label>
-                </div>
-                <button type="submit" class="btn btn-edit">保存</button>
-            </form>
+            <div class="modal-body">
+                <form id="editForm">
+                    <input type="hidden" id="editId">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>中文名称</label>
+                            <input type="text" id="editDisplayName" placeholder="如：实时水位查询">
+                        </div>
+                        <div class="form-group">
+                            <label>工作流ID</label>
+                            <input type="text" id="editName" required placeholder="如：query_realtime_water_level">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="editDesc"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>触发模式</label>
+                            <textarea id="editTrigger" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>意图类别</label>
+                            <select id="editSubIntent">
+                                <option value="data_query">数据查询 (data_query)</option>
+                                <option value="flood_forecast">洪水预报 (flood_forecast)</option>
+                                <option value="flood_simulation">洪水预演 (flood_simulation)</option>
+                                <option value="emergency_plan">应急预案 (emergency_plan)</option>
+                                <option value="damage_assessment">灾损评估 (damage_assessment)</option>
+                                <option value="other">其他 (other)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="steps-section">
+                            <div class="steps-header">
+                                <h3>执行步骤</h3>
+                                <button type="button" class="btn btn-add-step" onclick="addStep()">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    添加步骤
+                                </button>
+                            </div>
+                            <div class="steps-list" id="editStepsList"></div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel" onclick="closeModal('editModal')">取消</button>
+                <button type="button" class="btn btn-save" onclick="saveEdit()">保存</button>
+            </div>
         </div>
     </div>
 
     <script>
         const API = '/saved-workflows';
         let currentPage = 1;
+        let pageSize = 10;
+        let currentEditSteps = [];
+        let editingStepIndex = -1;
+
+        // 子意图中英文映射
+        const SUB_INTENT_MAP = {
+            'data_query': '数据查询',
+            'flood_forecast': '洪水预报',
+            'flood_simulation': '洪水预演',
+            'emergency_plan': '应急预案',
+            'damage_assessment': '灾损评估',
+            'other': '其他'
+        };
 
         async function loadData() {
             const intent = document.getElementById('filterIntent').value;
-            const url = `${API}?page=${currentPage}&size=10${intent ? '&sub_intent=' + intent : ''}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            renderTable(data.items);
-            renderPagination(data.total, data.page, data.size);
+            const url = `${API}?page=${currentPage}&size=${pageSize}${intent ? '&sub_intent=' + intent : ''}`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                renderTable(data.items);
+                renderPagination(data.total, data.page, data.size);
+            } catch (err) {
+                console.error('加载数据失败:', err);
+            }
         }
 
         function renderTable(items) {
             const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = items.map(w => `
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                                <p>暂无工作流数据</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = items.map((w, index) => {
+                const rowIndex = (currentPage - 1) * pageSize + index + 1;
+                const intentCode = w.sub_intent || 'other';
+                const intentName = SUB_INTENT_MAP[intentCode] || '其他';
+                const displayName = w.display_name || w.name;
+
+                return `
                 <tr>
-                    <td>${w.name}</td>
-                    <td>${w.description || '-'}</td>
-                    <td>${w.sub_intent || '-'}</td>
-                    <td>${w.use_count}</td>
-                    <td><span class="status ${w.is_active ? 'status-active' : 'status-inactive'}">${w.is_active ? '启用' : '禁用'}</span></td>
-                    <td>${w.created_at ? new Date(w.created_at).toLocaleString() : '-'}</td>
+                    <td class="col-index"><span class="index-badge">${rowIndex}</span></td>
+                    <td class="col-name" title="${displayName}">${displayName}</td>
+                    <td class="col-workflow-id" title="${w.name}">${w.name}</td>
+                    <td class="col-desc" title="${w.description || ''}">${w.description || '-'}</td>
                     <td>
-                        <button class="btn btn-view" onclick="viewDetail('${w.id}')">详情</button>
-                        <button class="btn btn-edit" onclick="openEdit('${w.id}')">编辑</button>
-                        <button class="btn btn-toggle" onclick="toggleStatus('${w.id}')">${w.is_active ? '禁用' : '启用'}</button>
-                        <button class="btn btn-del" onclick="deleteWorkflow('${w.id}')">删除</button>
+                        <span class="intent-badge intent-${intentCode}">${intentName}</span>
+                    </td>
+                    <td>
+                        <span class="use-count">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 20V10M18 20V4M6 20v-4"/>
+                            </svg>
+                            ${w.use_count}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn btn-view" onclick="viewDetail('${w.id}')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                详情
+                            </button>
+                            <button class="btn btn-edit" onclick="openEdit('${w.id}')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                                编辑
+                            </button>
+                            <button class="btn btn-del" onclick="deleteWorkflow('${w.id}')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                </svg>
+                                删除
+                            </button>
+                        </div>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         function renderPagination(total, page, size) {
             const pages = Math.ceil(total / size);
             const div = document.getElementById('pagination');
-            let html = '';
-            for (let i = 1; i <= pages; i++) {
-                html += `<button class="${i === page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+            if (pages <= 1) {
+                div.innerHTML = '';
+                return;
             }
+            let html = '';
+
+            // 上一页
+            if (page > 1) {
+                html += `<button onclick="goPage(${page - 1})">« 上一页</button>`;
+            }
+
+            // 页码
+            for (let i = 1; i <= pages; i++) {
+                if (i === 1 || i === pages || (i >= page - 2 && i <= page + 2)) {
+                    html += `<button class="${i === page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+                } else if (i === page - 3 || i === page + 3) {
+                    html += `<button disabled>...</button>`;
+                }
+            }
+
+            // 下一页
+            if (page < pages) {
+                html += `<button onclick="goPage(${page + 1})">下一页 »</button>`;
+            }
+
             div.innerHTML = html;
         }
 
         function goPage(p) { currentPage = p; loadData(); }
 
         async function viewDetail(id) {
-            const res = await fetch(`${API}/${id}`);
-            const w = await res.json();
-            document.getElementById('detailContent').innerHTML = `
-                <div class="form-group"><label>名称</label><p>${w.name}</p></div>
-                <div class="form-group"><label>描述</label><p>${w.description || '-'}</p></div>
-                <div class="form-group"><label>触发模式</label><p>${w.trigger_pattern}</p></div>
-                <div class="form-group"><label>意图类别</label><p>${w.intent_category} / ${w.sub_intent}</p></div>
-                <div class="form-group"><label>输出类型</label><p>${w.output_type}</p></div>
-                <div class="form-group"><label>使用/成功次数</label><p>${w.use_count} / ${w.success_count}</p></div>
-                <div class="form-group">
-                    <label>执行步骤</label>
-                    <div class="steps-list">
-                        ${w.plan_steps.map((s, i) => `
-                            <div class="step-item">
-                                <strong>步骤${s.step_id || i+1}:</strong> ${s.description || '-'}<br>
-                                <small>工具: ${s.tool_name || '无'}</small>
+            try {
+                const res = await fetch(`${API}/${id}`);
+                const w = await res.json();
+                const intentCode = w.sub_intent || 'other';
+                const intentName = SUB_INTENT_MAP[intentCode] || '其他';
+
+                document.getElementById('detailContent').innerHTML = `
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">工作流ID</div>
+                            <div class="detail-value">${w.name}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">中文名称</div>
+                            <div class="detail-value">${w.display_name || '-'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">意图类别</div>
+                            <div class="detail-value">
+                                <span class="intent-badge intent-${intentCode}">${intentName} (${intentCode})</span>
                             </div>
-                        `).join('')}
+                        </div>
+                        <div class="detail-item full-width">
+                            <div class="detail-label">描述</div>
+                            <div class="detail-value">${w.description || '-'}</div>
+                        </div>
+                        <div class="detail-item full-width">
+                            <div class="detail-label">触发模式</div>
+                            <div class="detail-value">${w.trigger_pattern || '-'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">输出类型</div>
+                            <div class="detail-value">${w.output_type || 'text'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">使用/成功次数</div>
+                            <div class="detail-value">${w.use_count} / ${w.success_count}</div>
+                        </div>
+                        <div class="detail-item full-width">
+                            <div class="detail-label">执行步骤</div>
+                            <div class="steps-list" style="margin-top: 10px;">
+                                ${(w.plan_steps || []).map((s, i) => `
+                                    <div class="step-item">
+                                        <div class="step-header">
+                                            <span class="step-number">${s.step_id || i+1}</span>
+                                        </div>
+                                        <div class="step-content">${s.description || '-'}</div>
+                                        <div class="step-tool">
+                                            工具: ${s.tool_name ? `<span class="step-tool-name">${s.tool_name}</span>` : '无'}
+                                            ${s.tool_args ? `<span style="margin-left: 10px; color: #90a4ae; font-size: 11px;">参数: ${JSON.stringify(s.tool_args)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            `;
-            document.getElementById('detailModal').classList.add('show');
+                `;
+                document.getElementById('detailModal').classList.add('show');
+            } catch (err) {
+                console.error('获取详情失败:', err);
+                alert('获取详情失败');
+            }
         }
 
         async function openEdit(id) {
-            const res = await fetch(`${API}/${id}`);
-            const w = await res.json();
-            document.getElementById('editId').value = w.id;
-            document.getElementById('editName').value = w.name;
-            document.getElementById('editDesc').value = w.description || '';
-            document.getElementById('editActive').checked = w.is_active;
-            document.getElementById('editModal').classList.add('show');
+            try {
+                const res = await fetch(`${API}/${id}`);
+                const w = await res.json();
+                document.getElementById('editId').value = w.id;
+                document.getElementById('editDisplayName').value = w.display_name || '';
+                document.getElementById('editName').value = w.name;
+                document.getElementById('editDesc').value = w.description || '';
+                document.getElementById('editTrigger').value = w.trigger_pattern || '';
+                document.getElementById('editSubIntent').value = w.sub_intent || 'other';
+
+                // 加载步骤
+                currentEditSteps = w.plan_steps || [];
+                editingStepIndex = -1;
+                renderEditSteps();
+
+                document.getElementById('editModal').classList.add('show');
+            } catch (err) {
+                console.error('获取数据失败:', err);
+                alert('获取数据失败');
+            }
         }
 
-        document.getElementById('editForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('editId').value;
-            await fetch(`${API}/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: document.getElementById('editName').value,
-                    description: document.getElementById('editDesc').value,
-                    is_active: document.getElementById('editActive').checked
-                })
+        function renderEditSteps() {
+            const container = document.getElementById('editStepsList');
+            if (currentEditSteps.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #90a4ae; padding: 24px;">暂无步骤，点击上方按钮添加</p>';
+                return;
+            }
+
+            container.innerHTML = currentEditSteps.map((step, index) => {
+                const isEditing = editingStepIndex === index;
+                const stepId = step.step_id || index + 1;
+
+                if (isEditing) {
+                    return `
+                        <div class="step-item editing">
+                            <div class="step-header">
+                                <span class="step-number">${stepId}</span>
+                                <div class="step-actions">
+                                    <button type="button" class="btn-step-save" onclick="saveStepEdit(${index})">保存</button>
+                                    <button type="button" class="btn-step-cancel" onclick="cancelStepEdit()">取消</button>
+                                </div>
+                            </div>
+                            <div class="step-edit-form">
+                                <div class="form-group">
+                                    <label>步骤描述</label>
+                                    <textarea id="stepEditDesc_${index}">${step.description || ''}</textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>工具名称</label>
+                                    <input type="text" id="stepEditTool_${index}" value="${step.tool_name || ''}" placeholder="如: search_knowledge">
+                                </div>
+                                <div class="form-group">
+                                    <label>工具参数 (JSON格式)</label>
+                                    <textarea id="stepEditArgs_${index}" placeholder='如: {"query": "xxx"}'>${step.tool_args ? JSON.stringify(step.tool_args, null, 2) : ''}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="step-item">
+                        <div class="step-header">
+                            <span class="step-number">${stepId}</span>
+                            <div class="step-actions">
+                                <button type="button" class="btn-step-edit" onclick="editStep(${index})">编辑</button>
+                                <button type="button" class="btn-step-del" onclick="deleteStep(${index})">删除</button>
+                            </div>
+                        </div>
+                        <div class="step-content">${step.description || '-'}</div>
+                        <div class="step-tool">
+                            工具: ${step.tool_name ? `<span class="step-tool-name">${step.tool_name}</span>` : '无'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addStep() {
+            const newStep = {
+                step_id: currentEditSteps.length + 1,
+                description: '',
+                tool_name: '',
+                tool_args: {}
+            };
+            currentEditSteps.push(newStep);
+            editingStepIndex = currentEditSteps.length - 1;
+            renderEditSteps();
+        }
+
+        function editStep(index) {
+            editingStepIndex = index;
+            renderEditSteps();
+        }
+
+        function cancelStepEdit() {
+            // 如果是新添加的空步骤，则删除
+            if (editingStepIndex >= 0) {
+                const step = currentEditSteps[editingStepIndex];
+                if (!step.description && !step.tool_name) {
+                    currentEditSteps.splice(editingStepIndex, 1);
+                }
+            }
+            editingStepIndex = -1;
+            renderEditSteps();
+        }
+
+        function saveStepEdit(index) {
+            const desc = document.getElementById(`stepEditDesc_${index}`).value;
+            const tool = document.getElementById(`stepEditTool_${index}`).value;
+            const argsStr = document.getElementById(`stepEditArgs_${index}`).value;
+
+            let args = {};
+            if (argsStr.trim()) {
+                try {
+                    args = JSON.parse(argsStr);
+                } catch (e) {
+                    alert('工具参数JSON格式错误');
+                    return;
+                }
+            }
+
+            currentEditSteps[index] = {
+                step_id: index + 1,
+                description: desc,
+                tool_name: tool || null,
+                tool_args: Object.keys(args).length > 0 ? args : null
+            };
+
+            editingStepIndex = -1;
+            renderEditSteps();
+        }
+
+        function deleteStep(index) {
+            if (!confirm('确定删除此步骤?')) return;
+            currentEditSteps.splice(index, 1);
+            // 重新编号
+            currentEditSteps.forEach((step, i) => {
+                step.step_id = i + 1;
             });
-            closeModal('editModal');
-            loadData();
-        };
+            renderEditSteps();
+        }
+
+        async function saveEdit() {
+            const id = document.getElementById('editId').value;
+            const data = {
+                display_name: document.getElementById('editDisplayName').value,
+                name: document.getElementById('editName').value,
+                description: document.getElementById('editDesc').value,
+                trigger_pattern: document.getElementById('editTrigger').value,
+                sub_intent: document.getElementById('editSubIntent').value,
+                plan_steps: currentEditSteps
+            };
+
+            try {
+                await fetch(`${API}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                closeModal('editModal');
+                loadData();
+            } catch (err) {
+                console.error('保存失败:', err);
+                alert('保存失败');
+            }
+        }
 
         async function toggleStatus(id) {
-            await fetch(`${API}/${id}/toggle`, { method: 'PATCH' });
-            loadData();
+            try {
+                await fetch(`${API}/${id}/toggle`, { method: 'PATCH' });
+                loadData();
+            } catch (err) {
+                console.error('切换状态失败:', err);
+            }
         }
 
         async function deleteWorkflow(id) {
-            if (!confirm('确定删除此流程?')) return;
-            await fetch(`${API}/${id}`, { method: 'DELETE' });
-            loadData();
+            if (!confirm('确定删除此流程? 此操作不可恢复!')) return;
+            try {
+                await fetch(`${API}/${id}`, { method: 'DELETE' });
+                loadData();
+            } catch (err) {
+                console.error('删除失败:', err);
+                alert('删除失败');
+            }
         }
 
-        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+            if (id === 'editModal') {
+                currentEditSteps = [];
+                editingStepIndex = -1;
+            }
+        }
+
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal(modal.id);
+                }
+            });
+        });
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal.show').forEach(modal => {
+                    closeModal(modal.id);
+                });
+            }
+        });
 
         document.getElementById('filterIntent').onchange = () => { currentPage = 1; loadData(); };
 
