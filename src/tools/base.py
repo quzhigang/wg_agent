@@ -43,6 +43,13 @@ class ToolResult(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="附加元数据")
 
 
+class ToolSummary(BaseModel):
+    """工具摘要（用于第一阶段筛选）"""
+    name: str = Field(..., description="工具名称")
+    description: str = Field(..., description="工具描述（完整保留，不截断）")
+    category: 'ToolCategory' = Field(..., description="工具类别")
+
+
 class ToolDefinition(BaseModel):
     """工具定义"""
     name: str = Field(..., description="工具名称")
@@ -111,6 +118,19 @@ class BaseTool(ABC):
                 timeout_seconds=self.timeout_seconds
             )
         return self._definition
+
+    def get_summary(self) -> ToolSummary:
+        """
+        获取工具摘要（用于第一阶段筛选）
+
+        Returns:
+            工具摘要对象
+        """
+        return ToolSummary(
+            name=self.name,
+            description=self.description,
+            category=self.category
+        )
     
     def validate_params(self, params: Dict[str, Any]) -> tuple[bool, Optional[str]]:
         """

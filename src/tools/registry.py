@@ -217,22 +217,74 @@ class ToolRegistry:
     def get_tools_description(self, category: Optional[ToolCategory] = None) -> str:
         """
         获取工具描述文本（用于提示词）
-        
+
         Args:
             category: 可选的类别过滤
-            
+
         Returns:
             格式化的工具描述
         """
         tools = self._tools.values()
         if category:
             tools = [t for t in tools if t.category == category]
-        
+
         descriptions = []
         for i, tool in enumerate(tools, 1):
             descriptions.append(f"{i}. {tool.get_prompt_description()}")
-        
+
         return "\n".join(descriptions)
+
+    def get_tools_summary(self, category: Optional[ToolCategory] = None) -> str:
+        """
+        获取工具摘要列表（用于第一阶段筛选）
+
+        摘要格式保留完整描述，便于LLM准确判断工具相关性
+
+        Args:
+            category: 可选的类别过滤
+
+        Returns:
+            格式化的工具摘要文本
+        """
+        tools = list(self._tools.values())
+        if category:
+            tools = [t for t in tools if t.category == category]
+
+        summaries = []
+        for tool in tools:
+            summary = tool.get_summary()
+            summaries.append(
+                f"- {summary.name} [{summary.category.value}]: {summary.description}"
+            )
+
+        # 添加函数工具（如 search_knowledge）
+        for name in self._tool_functions:
+            if name not in self._tools:
+                # 函数工具没有完整的摘要信息，使用简单格式
+                summaries.append(f"- {name} [function]: 函数工具")
+
+        return "\n".join(summaries) if summaries else "无可用工具"
+
+    def get_tools_description_by_names(self, tool_names: List[str]) -> str:
+        """
+        根据工具名称列表获取详细描述（用于第二阶段）
+
+        Args:
+            tool_names: 需要加载的工具名称列表
+
+        Returns:
+            格式化的工具详细描述
+        """
+        descriptions = []
+        for i, name in enumerate(tool_names, 1):
+            tool = self._tools.get(name)
+            if tool:
+                descriptions.append(f"{i}. {tool.get_prompt_description()}")
+            elif name in self._tool_functions:
+                # 函数工具使用简化描述
+                descriptions.append(f"{i}. 工具名称: {name}\n描述: 函数工具\n类别: function\n参数:\n  无详细参数信息")
+
+        return "\n".join(descriptions) if descriptions else "无可用工具"
     
     def get_tool_names_and_descriptions(self) -> Dict[str, str]:
         """

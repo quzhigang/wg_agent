@@ -1,7 +1,2 @@
-2026-01-15 19:41:14.828 | INFO     | src.agents.graph:run_agent_stream:546 | 流式运行智能体 - 会话: 1ec24e0b-4ac5-480e-abf7-7bc16f768e48
-2026-01-15 19:41:14.829 | INFO     | src.agents.graph:create_agent_graph:349 | 创建智能体状态图...
-2026-01-15 19:41:14.831 | INFO     | src.agents.graph:create_agent_graph:406 | 智能体状态图创建完成
-2026-01-15 19:41:14.840 | INFO     | src.agents.graph:get_agent_graph:433 | 智能体图编译完成
-2026-01-15 19:41:15.057 | INFO     | src.agents.controller:__init__:112 | Controller初始化完成
-2026-01-15 19:41:15.075 | INFO     | src.agents.planner:__init__:534 | Planner初始化完成
-2026-01-15 19:41:15.075 | INFO     | src.agents.planner:analyze_intent:546 | 开始分析用户意图: 修武站当前水位超过汛限水位了吗？...
+2026-01-16 16:14:35.947 | INFO     | src.agents.graph:run_agent_stream:546 | 流式运行智能体 - 会话: cf663a5f-a4e2-4c20-9eab-a21db3b89271
+2026-01-16 16:14:35.948 | INFO     | src.agents.planner:analyze_intent:592 | 开始分析用户意图: 盘石头水库当前水位超过21.7洪水期间的最高水位了吗？...

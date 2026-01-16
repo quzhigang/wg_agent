@@ -288,7 +288,7 @@ WORKFLOW_SELECT_PROMPT = """你是河南省卫共流域数字孪生系统的业�
 1. **data_query子意图必须严格匹配数据来源**
    - 数据来源由entities中的object_type字段确定
    - 工作流的数据来源必须与object_type完全对应
-   - 如：object_type为"水库水文站"，只能匹配水库水文站相关工作流
+   - 如：object_type为"水库水文站"，只能匹配水库水文站数据来源的工作流
 
 2. **工作流必须完全覆盖用户需求**
    - 只有完全满足用户需求才能匹配
@@ -355,8 +355,7 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 2. 正确设置步骤间的依赖关系
 3. 耗时操作（如模型调用）应标记为异步
 4. 最后一步不需要指定工具，系统会自动生成响应
-5. 只使用可用工具列表中存在的工具名称，不要使用不存在的工具如"generate_response"
-6. 参考"业务流程参考"中的信息，了解类似业务的处理模式
+5. 参考"业务流程参考"中的信息
 
 **知识库检索规划（重要）：**
 - 如果用户问题需要知识库中的信息（如历史洪水数据、水库特征参数、防洪标准等），必须在计划中添加"search_knowledge"工具调用步骤
@@ -467,6 +466,44 @@ OBJECT_TYPE_SYNTHESIS_PROMPT = """你是卫共流域数字孪生系统的实体�
 5. 对于"洪水预报"、"预演"等业务名词，直接设置对应业务类型
 """
 
+# 8、工具筛选提示词（第一阶段，根据摘要筛选需要的工具）
+TOOL_SELECTION_PROMPT = """你是河南省卫共流域数字孪生系统的工具选择助手，负责根据用户需求筛选需要的工具。
+
+## 用户消息
+{user_message}
+
+## 业务子意图
+{business_sub_intent}
+
+## 提取的实体
+{entities}
+
+## 可用工具摘要
+{tools_summary}
+
+## 任务
+从上述工具中选择完成任务所需的工具。
+
+## 输出要求
+返回JSON格式：
+{{
+    "selected_tools": ["工具名称1", "工具名称2", ...],
+    "reason": "选择理由（简短说明为什么选择这些工具）"
+}}
+
+## 选择原则
+1. 根据用户意图和实体信息，选择最相关的工具
+2. 通常选择2-6个工具即可完成任务，不要贪多
+3. 如果需要查询站点编码，必须包含 lookup_station_code
+4. 如果需要知识库检索，必须包含 search_knowledge
+5. 根据数据类型选择对应的查询工具：
+   - 水库水情 → query_reservoir_last, query_reservoir_process
+   - 河道水情 → query_river_last, query_river_process
+   - 雨量数据 → query_rain_process, query_rain_statistics, query_rain_sum
+   - AI监测 → query_ai_water_last, query_ai_rain_last 等
+6. 如果不确定需要哪个工具，可以多选几个相关的
+"""
+
 class Planner:
     """规划调度器"""
 
@@ -524,6 +561,18 @@ class Planner:
         # 业务子意图分类LLM（复用意图识别配置，保持一致性）
         self.sub_intent_prompt = ChatPromptTemplate.from_template(BUSINESS_SUB_INTENT_PROMPT)
         self.sub_intent_chain = self.sub_intent_prompt | intent_llm | self.json_parser
+
+        # 工具筛选LLM（独立配置）
+        tool_select_cfg = settings.get_tool_select_config()
+        tool_select_llm = ChatOpenAI(
+            api_key=tool_select_cfg["api_key"],
+            base_url=tool_select_cfg["api_base"],
+            model=tool_select_cfg["model"],
+            temperature=tool_select_cfg["temperature"],
+            model_kwargs={"extra_body": extra_body}
+        )
+        self.tool_select_prompt = ChatPromptTemplate.from_template(TOOL_SELECTION_PROMPT)
+        self.tool_select_chain = self.tool_select_prompt | tool_select_llm | self.json_parser
 
         # 保存intent_llm引用，供多类型站点选择等场景使用
         self.intent_llm = intent_llm
@@ -874,6 +923,70 @@ class Planner:
 
         return enhanced_entities
 
+    async def _select_relevant_tools(
+        self,
+        user_message: str,
+        business_sub_intent: str,
+        entities: Dict[str, Any]
+    ) -> List[str]:
+        """
+        第一阶段：根据任务筛选需要的工具
+
+        Args:
+            user_message: 用户消息
+            business_sub_intent: 业务子意图
+            entities: 提取的实体
+
+        Returns:
+            需要的工具名称列表
+        """
+        from ..tools.registry import get_tool_registry
+        registry = get_tool_registry()
+
+        # 获取工具摘要
+        tools_summary = registry.get_tools_summary()
+
+        context_vars = {
+            "user_message": user_message,
+            "business_sub_intent": business_sub_intent,
+            "entities": json.dumps(entities, ensure_ascii=False),
+            "tools_summary": tools_summary
+        }
+
+        try:
+            import time
+            _start = time.time()
+            result = await self.tool_select_chain.ainvoke(context_vars)
+            _elapsed = time.time() - _start
+
+            # 记录LLM调用日志
+            full_prompt = TOOL_SELECTION_PROMPT.format(**context_vars)
+            log_llm_call(
+                step_name="工具筛选",
+                module_name="Planner._select_relevant_tools",
+                prompt_template_name="TOOL_SELECTION_PROMPT",
+                context_variables=context_vars,
+                full_prompt=full_prompt,
+                response=str(result),
+                elapsed_time=_elapsed
+            )
+
+            selected_tools = result.get("selected_tools", [])
+            logger.info(f"工具筛选结果: {selected_tools}，理由: {result.get('reason', '')}")
+
+            # 确保基础工具被包含
+            if entities.get('object') and "lookup_station_code" not in selected_tools:
+                # 如果有对象名称但没有选择站点查询工具，添加它
+                selected_tools.insert(0, "lookup_station_code")
+                logger.info("自动添加 lookup_station_code 工具")
+
+            return selected_tools
+
+        except Exception as e:
+            logger.warning(f"工具筛选失败，使用全量工具: {e}")
+            # 降级：返回所有工具名称
+            return registry.list_tools()
+
     async def classify_business_sub_intent(self, state: AgentState) -> Dict[str, Any]:
         """
         对业务类意图进行子意图分类
@@ -1119,8 +1232,19 @@ class Planner:
             else:
                 logger.info(f"子意图 {business_sub_intent} 不需要固定知识库检索，跳过RAG检索")
 
-            # 2. 获取可用工具描述
-            available_tools = self._get_available_tools_description()
+            # 2. 两阶段工具加载
+            # 第一阶段：根据任务筛选需要的工具
+            selected_tools = await self._select_relevant_tools(
+                user_message=state['user_message'],
+                business_sub_intent=business_sub_intent,
+                entities=state.get('entities', {})
+            )
+            logger.info(f"筛选出 {len(selected_tools)} 个相关工具: {selected_tools}")
+
+            # 第二阶段：只加载选中工具的详细描述
+            from ..tools.registry import get_tool_registry
+            registry = get_tool_registry()
+            available_tools = registry.get_tools_description_by_names(selected_tools)
 
             # 3. 准备上下文变量
             # 从意图识别阶段获取目标知识库列表，供计划生成时参考

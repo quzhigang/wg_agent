@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     executor_model_name: Optional[str] = None
     executor_temperature: float = 0.7
 
+    # 工具筛选节点
+    tool_select_api_key: Optional[str] = None
+    tool_select_api_base: Optional[str] = None
+    tool_select_model_name: Optional[str] = None
+    tool_select_temperature: float = 0.3
+
     # 获取各节点配置的辅助方法（未配置时使用默认值）
     def get_intent_config(self) -> dict:
         return {
@@ -117,6 +123,14 @@ class Settings(BaseSettings):
             "api_base": self.executor_api_base or self.openai_api_base,
             "model": self.executor_model_name or self.openai_model_name,
             "temperature": self.executor_temperature
+        }
+
+    def get_tool_select_config(self) -> dict:
+        return {
+            "api_key": self.tool_select_api_key or self.openai_api_key,
+            "api_base": self.tool_select_api_base or self.openai_api_base,
+            "model": self.tool_select_model_name or self.openai_model_name,
+            "temperature": self.tool_select_temperature
         }
     
     # Embedding Model
