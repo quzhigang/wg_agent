@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     intent_model_name: Optional[str] = None
     intent_temperature: float = 0.3
 
+    # 业务子意图分类节点
+    sub_intent_api_key: Optional[str] = None
+    sub_intent_api_base: Optional[str] = None
+    sub_intent_model_name: Optional[str] = None
+    sub_intent_temperature: float = 0.3
+
     # 工作流匹配节点
     workflow_api_key: Optional[str] = None
     workflow_api_base: Optional[str] = None
@@ -83,6 +89,15 @@ class Settings(BaseSettings):
             "api_base": self.intent_api_base or self.openai_api_base,
             "model": self.intent_model_name or self.openai_model_name,
             "temperature": self.intent_temperature
+        }
+
+    def get_sub_intent_config(self) -> dict:
+        """获取业务子意图分类节点配置（未配置时回退到意图识别配置）"""
+        return {
+            "api_key": self.sub_intent_api_key or self.intent_api_key or self.openai_api_key,
+            "api_base": self.sub_intent_api_base or self.intent_api_base or self.openai_api_base,
+            "model": self.sub_intent_model_name or self.intent_model_name or self.openai_model_name,
+            "temperature": self.sub_intent_temperature
         }
 
     def get_workflow_config(self) -> dict:

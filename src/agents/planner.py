@@ -568,9 +568,17 @@ class Planner:
         self.object_type_prompt = ChatPromptTemplate.from_template(OBJECT_TYPE_SYNTHESIS_PROMPT)
         self.object_type_chain = self.object_type_prompt | intent_llm | self.json_parser
 
-        # 业务子意图分类LLM（复用意图识别配置，保持一致性）
+        # 业务子意图分类LLM（独立配置）
+        sub_intent_cfg = settings.get_sub_intent_config()
+        sub_intent_llm = ChatOpenAI(
+            api_key=sub_intent_cfg["api_key"],
+            base_url=sub_intent_cfg["api_base"],
+            model=sub_intent_cfg["model"],
+            temperature=sub_intent_cfg["temperature"],
+            model_kwargs={"extra_body": extra_body}
+        )
         self.sub_intent_prompt = ChatPromptTemplate.from_template(BUSINESS_SUB_INTENT_PROMPT)
-        self.sub_intent_chain = self.sub_intent_prompt | intent_llm | self.json_parser
+        self.sub_intent_chain = self.sub_intent_prompt | sub_intent_llm | self.json_parser
 
         # 工具筛选LLM（独立配置）
         tool_select_cfg = settings.get_tool_select_config()
