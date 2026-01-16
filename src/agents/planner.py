@@ -313,9 +313,6 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 ## 可用工具
 {available_tools}
 
-## 可用工作流
-{available_workflows}
-
 ## 业务流程参考（仅供规划参考）
 {rag_context}
 
@@ -1089,38 +1086,43 @@ class Planner:
         logger.info("开始生成执行计划...")
 
         try:
-            # 1. 计划生成阶段只检索业务流程知识库，用于了解可用的业务流程模式
-            # 具体的业务知识（如历史洪水数据、水库参数等）应在计划执行阶段按需检索
-            # 这样避免：1) 重复检索 2) 无关知识稀释规划注意力
-            plan_target_kbs = ["business_workflow"]
+            # 获取业务子意图
+            business_sub_intent = state.get('business_sub_intent', 'other')
 
-            logger.info(f"计划生成阶段目标知识库: {plan_target_kbs}（仅检索业务流程参考）")
+            # 1. 仅对特定子意图检索业务流程知识库
+            # 洪水预报、洪水预演、预案生成、灾损评估需要业务流程参考
+            # 其他子意图（如data_query、other）不需要固定知识库检索
+            sub_intents_need_kb = ['flood_forecast', 'flood_simulation', 'emergency_plan', 'damage_assessment']
 
-            # 2. 执行RAG检索，仅获取业务流程参考
             rag_context = "无相关业务流程参考"
             rag_doc_count = 0
-            try:
-                from ..rag.retriever import get_rag_retriever
-                rag_retriever = get_rag_retriever()
-                rag_result = await rag_retriever.get_relevant_context(
-                    user_message=state['user_message'],
-                    intent=state.get('intent'),
-                    max_length=2000,
-                    target_kbs=plan_target_kbs
-                )
-                rag_context = rag_result.get('context', '无相关业务流程参考')
-                rag_doc_count = rag_result.get('document_count', 0)
-                logger.info(f"计划生成RAG检索完成（知识库: {plan_target_kbs}），获取到 {rag_doc_count} 条业务流程参考")
-            except Exception as rag_error:
-                logger.warning(f"计划生成RAG检索失败: {rag_error}")
 
-            # 3. 获取可用工具描述
+            if business_sub_intent in sub_intents_need_kb:
+                plan_target_kbs = ["business_workflow"]
+                logger.info(f"子意图 {business_sub_intent} 需要业务流程参考，目标知识库: {plan_target_kbs}")
+
+                # 执行RAG检索，获取业务流程参考
+                try:
+                    from ..rag.retriever import get_rag_retriever
+                    rag_retriever = get_rag_retriever()
+                    rag_result = await rag_retriever.get_relevant_context(
+                        user_message=state['user_message'],
+                        intent=state.get('intent'),
+                        max_length=2000,
+                        target_kbs=plan_target_kbs
+                    )
+                    rag_context = rag_result.get('context', '无相关业务流程参考')
+                    rag_doc_count = rag_result.get('document_count', 0)
+                    logger.info(f"计划生成RAG检索完成（知识库: {plan_target_kbs}），获取到 {rag_doc_count} 条业务流程参考")
+                except Exception as rag_error:
+                    logger.warning(f"计划生成RAG检索失败: {rag_error}")
+            else:
+                logger.info(f"子意图 {business_sub_intent} 不需要固定知识库检索，跳过RAG检索")
+
+            # 2. 获取可用工具描述
             available_tools = self._get_available_tools_description()
 
-            # 4. 获取可用工作流描述
-            available_workflows = self._get_available_workflows_description()
-
-            # 5. 准备上下文变量
+            # 3. 准备上下文变量
             # 从意图识别阶段获取目标知识库列表，供计划生成时参考
             target_kbs = state.get('target_kbs', [])
             if not target_kbs:
@@ -1128,7 +1130,6 @@ class Planner:
 
             plan_context_vars = {
                 "available_tools": available_tools,
-                "available_workflows": available_workflows,
                 "rag_context": rag_context,
                 "intent": state.get('intent', 'unknown'),
                 "entities": state.get('entities', {}),
@@ -1241,23 +1242,6 @@ class Planner:
         return """
 1. search_knowledge - 搜索知识库，查询流域相关的背景知识、专业知识等信息
    参数: query(查询内容), top_k(返回数量，默认5)
-"""
-    
-    def _get_available_workflows_description(self) -> str:
-        """获取可用工作流的描述"""
-        # TODO: 从workflows模块动态获取
-        return """
-1. flood_forecast_workflow - 洪水预报工作流
-   触发条件: 用户询问洪水预报相关问题
-
-2. flood_simulation_workflow - 洪水预演工作流
-   触发条件: 用户要求进行洪水模拟
-
-3. emergency_plan_workflow - 应急预案工作流
-   触发条件: 用户需要生成防洪预案
-
-4. latest_flood_forecast_query - 最新洪水预报结果查询
-   触发条件: 用户询问最新预报结果
 """
 
     def _get_saved_workflows_description(self, sub_intent: str = None) -> str:
