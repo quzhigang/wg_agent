@@ -525,7 +525,7 @@ class QueryRiverLastTool(BaseTool):
     
     @property
     def description(self) -> str:
-        return "获取河道测站的最新实时水情数据，可以指定河道测站编码，包括水位、流量、水势、告警级别等信息"
+        return "获取河道测站的当前、最新、实时水情数据，可以指定河道测站编码，包括水位、流量、水势、告警级别等信息"
     
     @property
     def category(self) -> ToolCategory:
@@ -606,7 +606,7 @@ class QueryRiverProcessTool(BaseTool):
     
     @property
     def description(self) -> str:
-        return "根据测站编码和时间范围查询河道水情历史过程数据，返回水位、流量、水势等时序数据"
+        return "根据测站编码和时间范围查询河道水情历史过程数据，返回水位、流量、水势等时序数据，当前河道水情查询请用query_river_last工具"
     
     @property
     def category(self) -> ToolCategory:

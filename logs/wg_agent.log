@@ -1,31 +1,7 @@
-2026-01-16 17:57:40.024 | INFO     | src.config.logging_config:setup_logging:88 | 日志系统初始化完成
-2026-01-16 17:57:40.024 | INFO     | src.config.logging_config:setup_logging:89 | 日志级别: INFO
-2026-01-16 17:57:40.025 | INFO     | src.config.logging_config:setup_logging:90 | 日志文件: ./logs/wg_agent.log
-2026-01-16 17:57:40.038 | INFO     | src.main:lifespan:29 | ==================================================
-2026-01-16 17:57:40.038 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
-2026-01-16 17:57:40.038 | INFO     | src.main:lifespan:31 | ==================================================
-2026-01-16 17:57:40.072 | INFO     | src.main:lifespan:36 | 数据库初始化完成
-2026-01-16 17:57:40.073 | INFO     | src.main:lifespan:45 | 目录结构检查完成
-2026-01-16 17:57:40.073 | INFO     | src.tools.registry:init_default_tools:395 | 初始化默认工具...
-2026-01-16 17:57:40.074 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
-2026-01-16 17:57:40.075 | INFO     | src.tools.basin_info:register_basin_info_tools:1100 | 流域基本信息工具注册完成，共注册14个工具
-2026-01-16 17:57:40.076 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1449 | 水雨情监测工具注册完成，共15个工具
-2026-01-16 17:57:40.076 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
-2026-01-16 17:57:40.078 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
-2026-01-16 17:57:40.080 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
-2026-01-16 17:57:40.081 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
-2026-01-16 17:57:40.081 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
-2026-01-16 17:57:40.082 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
-2026-01-16 17:57:40.083 | INFO     | src.tools.registry:init_default_tools:412 | 默认工具加载完成
-2026-01-16 17:57:40.083 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
-2026-01-16 17:57:40.083 | INFO     | src.tools.registry:init_default_tools:426 | RAG知识库搜索工具注册完成
-2026-01-16 17:57:40.083 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
-2026-01-16 17:57:40.083 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
-2026-01-16 17:57:40.084 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
-2026-01-16 17:57:40.084 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
-2026-01-16 17:57:40.084 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
-2026-01-16 17:57:40.085 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
-2026-01-16 17:57:40.086 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
-2026-01-16 17:57:40.086 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
-2026-01-16 17:57:40.086 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
-2026-01-16 17:57:40.087 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2026-01-16 18:57:06.268 | INFO     | src.agents.graph:run_agent_stream:538 | 流式运行智能体 - 会话: dddc9578-9dd8-4d2e-a9df-f22d7c76b1a2
+2026-01-16 18:57:06.269 | INFO     | src.agents.graph:create_agent_graph:341 | 创建智能体状态图...
+2026-01-16 18:57:06.271 | INFO     | src.agents.graph:create_agent_graph:398 | 智能体状态图创建完成
+2026-01-16 18:57:06.280 | INFO     | src.agents.graph:get_agent_graph:425 | 智能体图编译完成
+2026-01-16 18:57:06.495 | INFO     | src.agents.controller:__init__:112 | Controller初始化完成
+2026-01-16 18:57:06.513 | INFO     | src.agents.planner:__init__:598 | Planner初始化完成
+2026-01-16 18:57:06.514 | INFO     | src.agents.planner:analyze_intent:610 | 开始分析用户意图: 告诉我21.7洪水期间，合河站完整的洪水过程，不要截断...

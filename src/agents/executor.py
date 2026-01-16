@@ -94,7 +94,11 @@ class Executor:
             execution_time = int((time.time() - start_time) * 1000)
             
             logger.info(f"步骤 {step_id} 执行成功，耗时 {execution_time}ms")
-            logger.info(f"步骤 {step_id} 执行结果: {output}")
+            # 只对知识库检索结果进行截断，其他工具输出完整显示
+            if tool_name == 'search_knowledge':
+                logger.info(f"步骤 {step_id} 执行结果: {self._truncate_output(output)}")
+            else:
+                logger.info(f"步骤 {step_id} 执行结果: {output}")
             logger.info("")  # 空行分隔
             
             return ExecutionResult(
@@ -369,14 +373,34 @@ class Executor:
         """格式化检索到的文档"""
         if not documents:
             return ""
-        
+
         formatted = []
         for i, doc in enumerate(documents[:5], 1):  # 最多5个
             content = doc.get('content', '')[:500]  # 截断
             source = doc.get('source', '未知来源')
             formatted.append(f"[{i}] {source}: {content}")
-        
+
         return "".join(formatted)
+
+    def _truncate_output(self, output: Any, max_length: int = 500) -> str:
+        """
+        截断输出内容用于日志显示
+
+        Args:
+            output: 输出内容
+            max_length: 最大长度
+
+        Returns:
+            截断后的字符串
+        """
+        if output is None:
+            return "None"
+
+        output_str = str(output)
+        if len(output_str) <= max_length:
+            return output_str
+
+        return output_str[:max_length] + f"... (共{len(output_str)}字符，已截断)"
 
     def _resolve_variables(self, args: Any, state: AgentState) -> Any:
         """

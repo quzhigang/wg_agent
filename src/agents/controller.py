@@ -543,7 +543,8 @@ class Controller:
 
         formatted = []
         for i, doc in enumerate(documents[:5], 1):
-            content = doc.get('content', '')[:2000]
+            # 不截断内容，保留完整的知识库检索结果
+            content = doc.get('content', '')
             metadata = doc.get('metadata', {})
 
             # 获取来源信息

@@ -76,44 +76,6 @@ class LLMPromptLogger:
         else:
             return str(self._step_counter + 1)
 
-    def _truncate_kb_content_in_prompt(self, prompt: str, max_kb_length: int = 100) -> str:
-        """
-        截断提示词中的知识库内容部分
-
-        Args:
-            prompt: 完整提示词
-            max_kb_length: 知识库内容最大长度
-
-        Returns:
-            截断后的提示词
-        """
-        import re
-
-        # 匹配知识库内容的模式
-        # 模式1: ## 业务流程参考（仅供规划参考）\n{内容}\n\n##
-        # 模式2: ## 知识库检索结果\n{内容}\n\n##
-        # 模式3: ## 检索到的相关知识\n{内容}\n\n##
-        patterns = [
-            (r'(## 业务流程参考[^\n]*\n)(.*?)(\n\n##)', r'\1'),
-            (r'(## 知识库检索结果[^\n]*\n)(.*?)(\n\n##)', r'\1'),
-            (r'(## 检索到的相关知识[^\n]*\n)(.*?)(\n\n##)', r'\1'),
-            (r'(以下是相关的知识库内容：\n)(.*?)(\n\n\[)', r'\1'),
-        ]
-
-        result = prompt
-        for pattern, _ in patterns:
-            def truncate_match(match):
-                header = match.group(1)
-                content = match.group(2)
-                footer = match.group(3)
-                if len(content) > max_kb_length:
-                    content = content[:max_kb_length] + "...(知识库内容已截断)"
-                return header + content + footer
-
-            result = re.sub(pattern, truncate_match, result, flags=re.DOTALL)
-
-        return result
-
     def log_llm_call(
         self,
         step_name: str,
@@ -156,25 +118,18 @@ class LLMPromptLogger:
             
             # 写入上下文变量
             f.write("**上下文变量**:\n")
-            # 知识库检索相关的变量，只保留前100字符
-            kb_related_keys = ['rag_context', 'retrieved_documents', 'context', 'docs_summary']
             for key, value in context_variables.items():
-                # 截断过长的值
+                # 截断过长的值（但保留知识库内容完整）
                 value_str = str(value)
-                if key in kb_related_keys:
-                    # 知识库内容只保留前100字符
-                    if len(value_str) > 100:
-                        value_str = value_str[:100] + "...(知识库内容已截断)"
-                elif len(value_str) > 500:
-                    value_str = value_str[:500] + "...(已截断)"
+                if len(value_str) > 2000:
+                    value_str = value_str[:2000] + "...(已截断)"
                 f.write(f"- {key}: {value_str}\n")
             f.write("\n")
             
-            # 写入完整提示词（截断知识库内容部分）
+            # 写入完整提示词
             f.write("**完整提示词**:\n")
             f.write("```\n")
-            truncated_prompt = self._truncate_kb_content_in_prompt(full_prompt)
-            f.write(truncated_prompt)
+            f.write(full_prompt)
             f.write("\n```\n")
             
             # 写入响应（如果有）
