@@ -117,8 +117,6 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
 
     根据意图分析结果决定是否进行知识库检索和网络搜索
     """
-    logger.info("执行知识库检索（knowledge场景）...")
-
     user_message = state.get('user_message', '')
     # 优先使用补全后的查询，如果没有则使用原始消息
     search_query = state.get('rewritten_query') or user_message
@@ -128,10 +126,7 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
     retrieved_docs = []
     retrieval_source = None
 
-    logger.info(f"检索策略: 知识库={needs_kb_search}, 网络搜索={needs_web_search}")
-    logger.info(f"检索查询: {search_query}")
-    if target_kbs:
-        logger.info(f"目标知识库: {target_kbs}")
+    logger.info(f"知识库检索: {search_query[:30]}... (KB={needs_kb_search}, Web={needs_web_search})")
 
     try:
         # 1. 知识库检索（如果需要）
@@ -142,10 +137,7 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
                 top_k=5,
                 target_kbs=target_kbs
             )
-            logger.info(f"知识库检索完成，获取到 {len(retrieved_docs)} 条结果")
             if retrieved_docs:
-                max_score = max(doc.get('score', 0) for doc in retrieved_docs)
-                logger.info(f"知识库检索最高匹配度: {max_score}")
                 retrieval_source = "rag"
 
         # 2. 网络搜索（如果需要）

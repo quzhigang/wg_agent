@@ -111,9 +111,7 @@ class RAGRetriever:
         Returns:
             相关文档列表
         """
-        logger.info(f"RAG检索: {query[:50]}...")
-        if target_kbs:
-            logger.info(f"目标知识库: {target_kbs}")
+        logger.info(f"RAG检索: {query[:30]}... -> 知识库: {target_kbs or '全部'}")
 
         if self._multi_kb_index is None or self._kb_manager is None:
             logger.warning("多知识库索引未初始化")
@@ -137,8 +135,6 @@ class RAGRetriever:
             if not kb_configs:
                 logger.warning(f"未找到有效的知识库: {search_kb_ids}")
                 return []
-
-            logger.info(f"搜索知识库: {[c['kb_id'] for c in kb_configs]}")
 
             # 使用多知识库检索
             search_results = self._multi_kb_index.search_multi_kb(kb_configs, query, top_k=k, use_rerank=False)
@@ -175,7 +171,10 @@ class RAGRetriever:
                     'score': score
                 })
 
-            logger.info(f"检索到 {len(results)} 条相关文档")
+            # 简化输出：只显示检索结果数量和最高分
+            if results:
+                max_score = max(r.get('score', 0) for r in results)
+                logger.info(f"检索到 {len(results)} 条文档，最高匹配度: {max_score:.3f}")
             return results
 
         except Exception as e:
