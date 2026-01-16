@@ -1096,9 +1096,12 @@ class Planner:
             )
             logger.info(f"根据子意图 {business_sub_intent} 筛选预定义工作流")
 
-            # 根据子意图获取已保存的动态工作流列表
-            saved_workflows_desc = self._get_saved_workflows_description(sub_intent=business_sub_intent)
-            logger.info(f"根据子意图 {business_sub_intent} 筛选已保存工作流")
+            # 根据子意图获取已保存的动态工作流列表（使用向量检索）
+            saved_workflows_desc = self._get_saved_workflows_description(
+                sub_intent=business_sub_intent,
+                user_message=user_message
+            )
+            logger.info(f"根据子意图 {business_sub_intent} 和用户消息进行工作流检索")
 
             # 使用LLM选择工作流（使用增强后的实体和已分类的子意图，以及筛选后的工作流）
             context_vars = {
@@ -1368,14 +1371,56 @@ class Planner:
    参数: query(查询内容), top_k(返回数量，默认5)
 """
 
-    def _get_saved_workflows_description(self, sub_intent: str = None) -> str:
+    def _get_saved_workflows_description(self, sub_intent: str = None, user_message: str = None) -> str:
         """
         获取已保存的动态工作流描述（用于提示词）
 
+        采用两阶段检索策略：
+        1. 如果提供了 user_message，先使用向量检索粗筛 Top-K 个候选
+        2. 否则按子意图从数据库查询
+
         Args:
             sub_intent: 业务子意图，如果提供则只返回该子意图相关的工作流
+            user_message: 用户消息，用于向量检索
         """
         try:
+            # 第一阶段：向量检索粗筛（如果提供了用户消息）
+            if user_message:
+                try:
+                    from ..workflows.workflow_vector_index import get_workflow_vector_index
+                    workflow_index = get_workflow_vector_index()
+
+                    # 向量检索，按子意图过滤
+                    vector_results = workflow_index.search(
+                        query=user_message,
+                        sub_intent=sub_intent,
+                        top_k=5  # 使用默认的 Top-K 值
+                    )
+
+                    if vector_results:
+                        logger.info(f"向量检索返回 {len(vector_results)} 个候选工作流")
+
+                        # 格式化向量检索结果
+                        descriptions = []
+                        for result in vector_results:
+                            display = result.get('display_name') or result.get('name')
+                            score = result.get('score', 0)
+                            desc = f"""- ID: {result.get('id')}
+  名称: {result.get('name')}
+  中文名: {display}
+  描述: {result.get('description')}
+  触发模式: {result.get('trigger_pattern')}
+  相似度: {score:.3f}"""
+                            descriptions.append(desc)
+
+                        return "\n".join(descriptions)
+                    else:
+                        logger.info("向量检索无结果，回退到数据库查询")
+
+                except Exception as vector_error:
+                    logger.warning(f"向量检索失败，回退到数据库查询: {vector_error}")
+
+            # 第二阶段：数据库查询（向量检索无结果或未提供用户消息时）
             db = SessionLocal()
             try:
                 # 构建查询
@@ -1648,6 +1693,22 @@ class Planner:
                 db.add(workflow)
                 db.commit()
                 logger.info(f"已自动保存通用工作流模板: {display_name} ({workflow_name})")
+
+                # 自动索引到向量库
+                try:
+                    from ..workflows.workflow_vector_index import get_workflow_vector_index
+                    workflow_index = get_workflow_vector_index()
+                    workflow_data = {
+                        "name": workflow_name,
+                        "display_name": display_name,
+                        "description": description,
+                        "trigger_pattern": trigger_pattern,
+                        "sub_intent": sub_intent
+                    }
+                    workflow_index.index_workflow(workflow.id, workflow_data)
+                    logger.info(f"已将工作流 {display_name} 索引到向量库")
+                except Exception as index_error:
+                    logger.warning(f"工作流向量索引失败（不影响保存）: {index_error}")
             finally:
                 db.close()
         except Exception as e:
