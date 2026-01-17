@@ -4,6 +4,12 @@ import re
 import json
 import asyncio
 from datetime import datetime
+
+# 自动加载 .env 配置文件
+from dotenv import load_dotenv
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path, override=True)
 from pageindex import page_index_main, config
 from pageindex.page_index_md import md_to_tree
 from pageindex.page_index import set_api_max_concurrent
@@ -140,6 +146,13 @@ def load_document_structure(doc_name: str, results_dir: str):
 
 # 侧边栏配置
 st.sidebar.header("模型配置")
+
+# 显示 .env 配置加载状态
+if os.path.exists(_env_path):
+    st.sidebar.success("✅ 已从 .env 加载配置")
+else:
+    st.sidebar.info("💡 可创建 .env 文件自动加载配置")
+
 # 统一使用本项目的配置（兼容两种环境变量名）
 api_key = st.sidebar.text_input("API 密钥", value=os.getenv("OPENAI_API_KEY") or os.getenv("CHATGPT_API_KEY", ""), type="password")
 api_base = st.sidebar.text_input("API 基础地址", value=os.getenv("OPENAI_API_BASE") or os.getenv("CHATGPT_API_BASE", "https://api.openai.com/v1"))

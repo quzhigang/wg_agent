@@ -26,9 +26,9 @@ pip install -r requirements.txt
 
 ```bash
 # 大模型 API 配置
-CHATGPT_API_KEY=your-api-key
-CHATGPT_API_BASE=https://api.openai.com/v1
-CHATGPT_MODEL=gpt-4o  # 大模型名称
+CHATGPT_API_KEY=sk-9JMYkWWXziidMbCTiePVvgfxsCobO0wldI5hLYSNBxTwlt4o
+CHATGPT_API_BASE=https://newapi.xiaochuang.cc/v1
+CHATGPT_MODEL=gemini-3-flash-preview  # 大模型名称
 
 # Embedding 模型配置 (用于向量检索)
 EMBEDDING_MODEL_NAME=bge-m3:latest
