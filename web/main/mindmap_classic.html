@@ -238,6 +238,404 @@
             padding: 25px;
             text-align: center;
             border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.2);
+            border-color: #6366f1;
+        }
+
+        .stat-card:active {
+            transform: translateY(-2px);
+        }
+
+        /* 模态弹窗样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 95%;
+            max-width: 1100px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.3em;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: calc(90vh - 150px);
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 15px 25px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95em;
+            transition: all 0.3s;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .modal-btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .modal-btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        /* 工具列表项样式 */
+        .tool-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .tool-item {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            transition: all 0.3s;
+        }
+
+        .tool-item:hover {
+            border-color: #6366f1;
+            background: #f0f9ff;
+        }
+
+        .tool-name {
+            font-weight: 600;
+            color: #1e293b;
+            font-family: 'Consolas', monospace;
+            font-size: 0.95em;
+            margin-bottom: 6px;
+        }
+
+        .tool-desc {
+            color: #64748b;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .tool-category {
+            display: inline-block;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            margin-bottom: 8px;
+        }
+
+        /* 工作流列表项样式 */
+        .workflow-item {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #86efac;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 12px;
+        }
+
+        .workflow-name {
+            font-weight: 600;
+            color: #166534;
+            font-size: 1em;
+            margin-bottom: 8px;
+        }
+
+        .workflow-desc {
+            color: #15803d;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        /* 意图分类弹窗样式 */
+        .intent-section {
+            margin-bottom: 25px;
+        }
+
+        .intent-section h4 {
+            color: #1e293b;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .intent-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .intent-item {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .intent-item.chat {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+            border: 1px solid #10b981;
+        }
+
+        .intent-item.knowledge {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%);
+            border: 1px solid #3b82f6;
+        }
+
+        .intent-item.business {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+            border: 1px solid #ef4444;
+        }
+
+        .intent-item.sub-intent {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%);
+            border: 1px solid #f59e0b;
+        }
+
+        .intent-item .intent-name {
+            font-weight: 600;
+            font-size: 0.95em;
+            margin-bottom: 5px;
+        }
+
+        .intent-item .intent-desc {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        /* LLM配置表单样式 */
+        .llm-config-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .llm-config-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .llm-config-card h4 {
+            color: #6366f1;
+            margin-bottom: 15px;
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .config-field {
+            margin-bottom: 12px;
+        }
+
+        .config-field label {
+            display: block;
+            color: #475569;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .config-field input, .config-field select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: border-color 0.3s;
+        }
+
+        .config-field input:focus, .config-field select:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .config-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        /* 搜索框样式 */
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        /* 分类筛选标签 */
+        .category-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .category-tab {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+
+        .category-tab:hover, .category-tab.active {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        /* 加载动画 */
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 工具统计柱状图 */
+        .tool-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .tool-stat-item {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .tool-stat-count {
+            font-size: 1.8em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tool-stat-name {
+            font-size: 0.85em;
+            color: #64748b;
+            margin-top: 5px;
         }
 
         .stat-number {
@@ -253,6 +651,419 @@
             color: #64748b;
             margin-top: 8px;
             font-size: 0.95em;
+        }
+
+        /* 思维导图树状结构样式 */
+        .flow-tree {
+            padding: 20px 0;
+        }
+
+        .tree-level {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+        }
+
+        .tree-level.three-branch {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tree-connector {
+            width: 2px;
+            height: 30px;
+            background: rgba(255,255,255,0.4);
+            margin: 0 auto;
+        }
+
+        .tree-connector.triple {
+            width: 60%;
+            height: 2px;
+            position: relative;
+        }
+
+        .tree-connector.triple::before,
+        .tree-connector.triple::after,
+        .tree-connector.triple::before {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: rgba(255,255,255,0.4);
+            top: 0;
+        }
+
+        .tree-node {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 10px;
+            padding: 12px 18px;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .tree-node.root-tree-node {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            padding: 15px 25px;
+        }
+
+        .tree-node.stage-node {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
+            border-color: #6366f1;
+        }
+
+        .tree-node.highlight-stage {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.3) 100%);
+            border-color: #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+        }
+
+        .tree-node.category-node {
+            padding: 15px 20px;
+            min-width: 180px;
+        }
+
+        .tree-node.chat-node {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.3) 100%);
+            border-color: #10b981;
+        }
+
+        .tree-node.knowledge-node {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(37, 99, 235, 0.3) 100%);
+            border-color: #3b82f6;
+        }
+
+        .tree-node.business-node {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(220, 38, 38, 0.3) 100%);
+            border-color: #ef4444;
+        }
+
+        .tree-node.process-node {
+            background: rgba(255,255,255,0.1);
+            font-size: 0.9em;
+        }
+
+        .tree-node.leaf-node {
+            background: rgba(255,255,255,0.08);
+            font-size: 0.85em;
+        }
+
+        .tree-node.end-node {
+            background: linear-gradient(135deg, rgba(107, 114, 128, 0.3) 0%, rgba(75, 85, 99, 0.3) 100%);
+            border-color: #6b7280;
+            padding: 8px 20px;
+            font-weight: bold;
+        }
+
+        .node-title {
+            font-weight: bold;
+            font-size: 1em;
+            margin-bottom: 4px;
+        }
+
+        .node-desc {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .node-detail {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-top: 6px;
+            font-family: 'Consolas', monospace;
+        }
+
+        .node-detail ul {
+            text-align: left;
+            margin: 5px 0 0 15px;
+            padding: 0;
+            list-style: disc;
+        }
+
+        .node-detail li {
+            margin: 2px 0;
+        }
+
+        .branch-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            min-width: 280px;
+            max-width: 500px;
+        }
+
+        .sub-tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            width: 100%;
+        }
+
+        .business-sub {
+            background: rgba(239, 68, 68, 0.1);
+            padding: 20px;
+        }
+
+        /* 子意图网格 */
+        .sub-intent-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+            width: 100%;
+        }
+
+        .sub-intent-item {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 10px 8px;
+            font-size: 0.8em;
+            text-align: center;
+        }
+
+        .sub-intent-item.active {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.3) 100%);
+            border-color: #f59e0b;
+        }
+
+        .sub-intent-item small {
+            display: block;
+            opacity: 0.7;
+            font-size: 0.85em;
+            margin-top: 3px;
+        }
+
+        /* 3步合成流程 */
+        .three-step-flow {
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .step-item {
+            display: flex;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(245, 158, 11, 0.5);
+            border-radius: 10px;
+            padding: 12px;
+            min-width: 140px;
+            flex: 1;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+            text-align: left;
+        }
+
+        .step-title {
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-bottom: 3px;
+        }
+
+        .step-desc {
+            font-size: 0.75em;
+            opacity: 0.8;
+            font-family: 'Consolas', monospace;
+        }
+
+        .step-detail {
+            font-size: 0.7em;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .step-detail ul {
+            margin: 3px 0 0 12px;
+            padding: 0;
+        }
+
+        .step-detail li {
+            margin: 1px 0;
+        }
+
+        .step-arrow {
+            display: flex;
+            align-items: center;
+            font-size: 1.5em;
+            color: rgba(245, 158, 11, 0.8);
+        }
+
+        /* 工作流匹配流程 */
+        .workflow-match-flow {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .match-branch {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px 15px;
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .match-branch.highlight-match {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(124, 58, 237, 0.3) 100%);
+            border-color: #8b5cf6;
+        }
+
+        .match-title {
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+
+        .match-desc {
+            font-size: 0.75em;
+            opacity: 0.8;
+        }
+
+        /* 动态规划流程 */
+        .dynamic-plan-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            padding: 15px;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 10px;
+        }
+
+        .plan-step {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            border-radius: 8px;
+            padding: 10px 12px;
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .plan-step-title {
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+
+        .plan-step-desc {
+            font-size: 0.7em;
+            opacity: 0.8;
+        }
+
+        .plan-arrow {
+            font-size: 1.2em;
+            color: rgba(139, 92, 246, 0.8);
+        }
+
+        /* 执行器流程 */
+        .executor-flow, .controller-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .exec-step, .ctrl-step {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            padding: 10px 15px;
+            text-align: center;
+        }
+
+        .exec-title, .ctrl-title {
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-bottom: 3px;
+        }
+
+        .exec-desc, .ctrl-desc {
+            font-size: 0.75em;
+            opacity: 0.8;
+            font-family: 'Consolas', monospace;
+        }
+
+        .exec-arrow, .ctrl-arrow {
+            font-size: 1.2em;
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* LLM节点部分 */
+        .llm-nodes-section {
+            margin-top: 40px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-radius: 16px;
+            padding: 25px;
+        }
+
+        .llm-nodes-section h3 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        .llm-nodes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .llm-node-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .llm-node-name {
+            font-family: 'Consolas', monospace;
+            font-size: 0.85em;
+            color: #a5b4fc;
+            margin-bottom: 5px;
+        }
+
+        .llm-node-desc {
+            font-size: 0.9em;
+            color: white;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -276,25 +1087,29 @@
 
             <!-- 统计卡片 -->
             <div class="stats-section">
-                <div class="stat-card">
-                    <div class="stat-number">175+</div>
-                    <div class="stat-label">工具数量</div>
+                <div class="stat-card" id="card-tools" onclick="showToolsModal()" title="点击查看工具清单">
+                    <div class="stat-number" id="tools-count">175+</div>
+                    <div class="stat-label">🔧 工具数量</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" id="card-knowledge" onclick="openKnowledgeBase()" title="点击打开知识库管理">
                     <div class="stat-number">10</div>
-                    <div class="stat-label">知识库</div>
+                    <div class="stat-label">📚 知识库</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" id="card-predefined-workflows" onclick="showPredefinedWorkflowsModal()" title="点击查看预定义工作流">
                     <div class="stat-number">5</div>
-                    <div class="stat-label">预定义工作流</div>
+                    <div class="stat-label">📋 预定义工作流</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-number">6</div>
-                    <div class="stat-label">LLM配置节点</div>
+                <div class="stat-card" id="card-dynamic-workflows" onclick="openDynamicWorkflows()" title="点击管理动态工作流">
+                    <div class="stat-number" id="dynamic-workflow-count">-</div>
+                    <div class="stat-label">🔄 动态工作流</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" id="card-llm-config" onclick="showLLMConfigModal()" title="点击配置LLM节点">
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">🤖 LLM配置节点</div>
+                </div>
+                <div class="stat-card" id="card-intent" onclick="showIntentModal()" title="点击查看意图分类">
                     <div class="stat-number">3</div>
-                    <div class="stat-label">意图分类</div>
+                    <div class="stat-label">🎯 意图分类</div>
                 </div>
             </div>
 
@@ -565,24 +1380,927 @@
                 </div>
             </div>
 
-            <!-- 流程图 -->
+            <!-- 详细流程图 - 思维导图分叉结构 -->
             <div class="flow-section">
-                <h3>📊 请求处理流程</h3>
-                <div class="flow-diagram">
-                    <div class="flow-node">用户请求</div>
-                    <span class="flow-arrow">→</span>
-                    <div class="flow-node highlight-node">Planner<br><small>意图分析</small></div>
-                    <span class="flow-arrow">→</span>
-                    <div class="flow-node">路由判断</div>
-                    <span class="flow-arrow">→</span>
-                    <div class="flow-node highlight-node">Executor<br><small>工具执行</small></div>
-                    <span class="flow-arrow">→</span>
-                    <div class="flow-node highlight-node">Controller<br><small>结果合成</small></div>
-                    <span class="flow-arrow">→</span>
-                    <div class="flow-node">响应输出</div>
+                <h3>📊 请求处理流程（详细思维导图）</h3>
+
+                <!-- 第一层：入口 -->
+                <div class="flow-tree">
+                    <div class="tree-level level-0">
+                        <div class="tree-node root-tree-node">
+                            <div class="node-title">用户请求</div>
+                            <div class="node-desc">POST /chat 或 /chat/stream</div>
+                        </div>
+                    </div>
+
+                    <!-- 第二层：第1阶段意图分析 -->
+                    <div class="tree-connector"></div>
+                    <div class="tree-level level-1">
+                        <div class="tree-node stage-node">
+                            <div class="node-title">第1阶段：意图分析</div>
+                            <div class="node-desc">Planner.analyze_intent()</div>
+                            <div class="node-detail">INTENT_ANALYSIS_PROMPT</div>
+                        </div>
+                    </div>
+
+                    <!-- 第三层：三大类分支 -->
+                    <div class="tree-connector triple"></div>
+                    <div class="tree-level level-2 three-branch">
+                        <!-- Chat分支 -->
+                        <div class="branch-group chat-branch">
+                            <div class="tree-node category-node chat-node">
+                                <div class="node-title">第1类：Chat</div>
+                                <div class="node-desc">一般对话/闲聊</div>
+                            </div>
+                            <div class="sub-tree">
+                                <div class="tree-node leaf-node">
+                                    <div class="node-title">quick_chat_node</div>
+                                    <div class="node-desc">直接返回direct_response</div>
+                                </div>
+                                <div class="tree-node end-node">
+                                    <div class="node-title">END</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Knowledge分支 -->
+                        <div class="branch-group knowledge-branch">
+                            <div class="tree-node category-node knowledge-node">
+                                <div class="node-title">第2类：Knowledge</div>
+                                <div class="node-desc">固有知识查询</div>
+                            </div>
+                            <div class="sub-tree">
+                                <div class="tree-node process-node">
+                                    <div class="node-title">knowledge_rag_node</div>
+                                    <div class="node-desc">知识库检索</div>
+                                    <div class="node-detail">
+                                        <ul>
+                                            <li>target_kbs: 目标知识库</li>
+                                            <li>rewritten_query: 补全查询</li>
+                                            <li>needs_web_search: 网络搜索</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="tree-node process-node">
+                                    <div class="node-title">controller_node</div>
+                                    <div class="node-desc">结果合成+来源引用</div>
+                                </div>
+                                <div class="tree-node end-node">
+                                    <div class="node-title">END</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Business分支 -->
+                        <div class="branch-group business-branch">
+                            <div class="tree-node category-node business-node">
+                                <div class="node-title">第3类：Business</div>
+                                <div class="node-desc">业务操作</div>
+                            </div>
+
+                            <!-- Business子流程 -->
+                            <div class="sub-tree business-sub">
+                                <!-- 第2阶段：子意图分类 -->
+                                <div class="tree-node stage-node">
+                                    <div class="node-title">第2阶段：子意图分类</div>
+                                    <div class="node-desc">classify_business_sub_intent()</div>
+                                    <div class="node-detail">BUSINESS_SUB_INTENT_PROMPT</div>
+                                </div>
+
+                                <!-- 6个子意图 -->
+                                <div class="sub-intent-grid">
+                                    <div class="sub-intent-item active">data_query<br><small>监测数据查询</small></div>
+                                    <div class="sub-intent-item">flood_forecast<br><small>洪水预报</small></div>
+                                    <div class="sub-intent-item">flood_simulation<br><small>洪水预演</small></div>
+                                    <div class="sub-intent-item">emergency_plan<br><small>预案生成</small></div>
+                                    <div class="sub-intent-item">damage_assessment<br><small>灾损评估</small></div>
+                                    <div class="sub-intent-item">other<br><small>其他业务</small></div>
+                                </div>
+
+                                <!-- 第3阶段：对象类型解析（data_query专属） -->
+                                <div class="tree-node stage-node highlight-stage">
+                                    <div class="node-title">第3阶段：对象类型3步合成</div>
+                                    <div class="node-desc">_resolve_object_type() [data_query强制执行]</div>
+                                </div>
+
+                                <!-- 3步合成详细流程 -->
+                                <div class="three-step-flow">
+                                    <div class="step-item">
+                                        <div class="step-number">1</div>
+                                        <div class="step-content">
+                                            <div class="step-title">数据库查询</div>
+                                            <div class="step-desc">lookup_station_code</div>
+                                            <div class="step-detail">
+                                                <ul>
+                                                    <li>模糊匹配站点名称</li>
+                                                    <li>返回stcd、type</li>
+                                                    <li>多类型时LLM选择</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="step-arrow">→</div>
+                                    <div class="step-item">
+                                        <div class="step-number">2</div>
+                                        <div class="step-content">
+                                            <div class="step-title">RAG知识库检索</div>
+                                            <div class="step-desc">monitor_site优先</div>
+                                            <div class="step-detail">
+                                                <ul>
+                                                    <li>检索站点类型信息</li>
+                                                    <li>补充工程属性</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="step-arrow">→</div>
+                                    <div class="step-item">
+                                        <div class="step-number">3</div>
+                                        <div class="step-content">
+                                            <div class="step-title">LLM合成</div>
+                                            <div class="step-desc">OBJECT_TYPE_SYNTHESIS_PROMPT</div>
+                                            <div class="step-detail">
+                                                <ul>
+                                                    <li>综合DB+RAG结果</li>
+                                                    <li>输出object_type</li>
+                                                    <li>输出stcd编码</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 第4阶段：工作流选择 -->
+                                <div class="tree-node stage-node">
+                                    <div class="node-title">第4阶段：工作流选择</div>
+                                    <div class="node-desc">check_workflow_match()</div>
+                                    <div class="node-detail">WORKFLOW_SELECT_PROMPT</div>
+                                </div>
+
+                                <!-- 工作流匹配分支 -->
+                                <div class="workflow-match-flow">
+                                    <div class="match-branch">
+                                        <div class="match-title">优先级1：预定义模板</div>
+                                        <div class="match-desc">5个洪水预报工作流</div>
+                                    </div>
+                                    <div class="match-branch">
+                                        <div class="match-title">优先级2：已保存动态流程</div>
+                                        <div class="match-desc">向量检索 + 数据库查询</div>
+                                    </div>
+                                    <div class="match-branch highlight-match">
+                                        <div class="match-title">优先级3：动态规划</div>
+                                        <div class="match-desc">generate_plan()</div>
+                                    </div>
+                                </div>
+
+                                <!-- 动态规划详细流程 -->
+                                <div class="dynamic-plan-flow">
+                                    <div class="plan-step">
+                                        <div class="plan-step-title">工具筛选</div>
+                                        <div class="plan-step-desc">TOOL_SELECTION_PROMPT<br>从175+工具中筛选2-6个</div>
+                                    </div>
+                                    <div class="plan-arrow">→</div>
+                                    <div class="plan-step">
+                                        <div class="plan-step-title">RAG检索</div>
+                                        <div class="plan-step-desc">business_workflow知识库<br>获取业务流程参考</div>
+                                    </div>
+                                    <div class="plan-arrow">→</div>
+                                    <div class="plan-step">
+                                        <div class="plan-step-title">计划生成</div>
+                                        <div class="plan-step-desc">PLAN_GENERATION_PROMPT<br>生成执行步骤</div>
+                                    </div>
+                                    <div class="plan-arrow">→</div>
+                                    <div class="plan-step">
+                                        <div class="plan-step-title">自动保存</div>
+                                        <div class="plan-step-desc">WORKFLOW_TEMPLATE_PROMPT<br>模板化+向量索引</div>
+                                    </div>
+                                </div>
+
+                                <!-- 执行阶段 -->
+                                <div class="tree-node stage-node">
+                                    <div class="node-title">第5阶段：任务执行</div>
+                                    <div class="node-desc">executor_node</div>
+                                </div>
+
+                                <div class="executor-flow">
+                                    <div class="exec-step">
+                                        <div class="exec-title">参数变量替换</div>
+                                        <div class="exec-desc">$$step_N.field$$ 格式</div>
+                                    </div>
+                                    <div class="exec-arrow">→</div>
+                                    <div class="exec-step">
+                                        <div class="exec-title">工具调用</div>
+                                        <div class="exec-desc">ToolRegistry.execute()</div>
+                                    </div>
+                                    <div class="exec-arrow">→</div>
+                                    <div class="exec-step">
+                                        <div class="exec-title">结果收集</div>
+                                        <div class="exec-desc">execution_results累积</div>
+                                    </div>
+                                </div>
+
+                                <!-- 响应阶段 -->
+                                <div class="tree-node stage-node">
+                                    <div class="node-title">第6阶段：结果合成</div>
+                                    <div class="node-desc">controller_node</div>
+                                </div>
+
+                                <div class="controller-flow">
+                                    <div class="ctrl-step">
+                                        <div class="ctrl-title">响应生成</div>
+                                        <div class="ctrl-desc">SYNTHESIS_PROMPT</div>
+                                    </div>
+                                    <div class="ctrl-arrow">→</div>
+                                    <div class="ctrl-step">
+                                        <div class="ctrl-title">输出类型判断</div>
+                                        <div class="ctrl-desc">text / web_page</div>
+                                    </div>
+                                    <div class="ctrl-arrow">→</div>
+                                    <div class="ctrl-step">
+                                        <div class="ctrl-title">页面生成</div>
+                                        <div class="ctrl-desc">async_page_agent (可选)</div>
+                                    </div>
+                                </div>
+
+                                <div class="tree-node end-node">
+                                    <div class="node-title">END</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <!-- LLM调用节点统计 -->
+            <div class="llm-nodes-section">
+                <h3>🤖 LLM调用节点（8个独立配置）</h3>
+                <div class="llm-nodes-grid">
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">intent_config</div>
+                        <div class="llm-node-desc">意图识别</div>
+                    </div>
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">sub_intent_config</div>
+                        <div class="llm-node-desc">子意图分类</div>
+                    </div>
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">workflow_config</div>
+                        <div class="llm-node-desc">工作流匹配</div>
+                    </div>
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">tool_select_config</div>
+                        <div class="llm-node-desc">工具筛选</div>
+                    </div>
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">plan_config</div>
+                        <div class="llm-node-desc">计划生成</div>
+                    </div>
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">synthesis_config</div>
+                        <div class="llm-node-desc">结果合成</div>
+                    </div>
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">page_gen_config</div>
+                        <div class="llm-node-desc">页面生成</div>
+                    </div>
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">executor_config</div>
+                        <div class="llm-node-desc">执行器LLM</div>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <!-- 模态弹窗容器 -->
+    <div id="modal-overlay" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modal-title">标题</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- 动态内容 -->
+            </div>
+            <div class="modal-footer" id="modal-footer" style="display: none;">
+                <!-- 动态按钮 -->
             </div>
         </div>
     </div>
+
+    <script>
+        // ============================================================================
+        // 全局变量和工具数据缓存
+        // ============================================================================
+        let toolsData = null;           // 缓存工具列表数据
+        let llmConfigData = null;       // 缓存LLM配置数据
+
+        // 预定义工作流数据（静态定义，与后端保持一致）
+        const predefinedWorkflows = [
+            {
+                name: 'get_auto_forecast_result',
+                displayName: '查询最新自动预报结果',
+                description: '自动获取系统中最新的洪水自动预报计算结果，包含水位、流量等预报数据。适用于"查询最新预报"、"获取自动预报结果"等场景。'
+            },
+            {
+                name: 'get_history_autoforecast_result',
+                displayName: '查询历史自动预报结果',
+                description: '根据时间范围查询历史的自动预报记录和结果数据。适用于"查看历史预报"、"过去某时段的预报"等场景。'
+            },
+            {
+                name: 'flood_autoforecast_getresult',
+                displayName: '启动自动洪水预报',
+                description: '触发新的自动洪水预报计算流程，系统自动获取降雨数据并运行预报模型。适用于"开始预报"、"运行自动预报"等场景。'
+            },
+            {
+                name: 'get_manual_forecast_result',
+                displayName: '查询人工预报结果',
+                description: '获取人工设置参数的洪水预报计算结果。适用于"查询人工预报"、"获取手动预报结果"等场景。'
+            },
+            {
+                name: 'flood_manualforecast_getresult',
+                displayName: '启动人工洪水预报',
+                description: '创建并运行人工参数设定的洪水预报方案，支持自定义降雨等输入条件。适用于"人工预报"、"自定义预报"等场景。'
+            }
+        ];
+
+        // 意图分类数据（根据系统设计）
+        const intentCategories = {
+            main: [
+                { name: 'Chat', desc: '一般对话/闲聊', className: 'chat' },
+                { name: 'Knowledge', desc: '固有知识查询', className: 'knowledge' },
+                { name: 'Business', desc: '业务操作', className: 'business' }
+            ],
+            sub: [
+                { name: 'data_query', desc: '监测数据查询' },
+                { name: 'flood_forecast', desc: '洪水预报' },
+                { name: 'flood_simulation', desc: '洪水预演' },
+                { name: 'emergency_plan', desc: '预案生成' },
+                { name: 'damage_assessment', desc: '灾损评估' },
+                { name: 'other', desc: '其他业务' }
+            ]
+        };
+
+        // LLM配置节点定义
+        const llmNodes = [
+            { key: 'intent', name: 'intent_config', desc: '意图识别', icon: '🎯' },
+            { key: 'sub_intent', name: 'sub_intent_config', desc: '子意图分类', icon: '📊' },
+            { key: 'workflow', name: 'workflow_config', desc: '工作流匹配', icon: '🔄' },
+            { key: 'tool_select', name: 'tool_select_config', desc: '工具筛选', icon: '🔧' },
+            { key: 'plan', name: 'plan_config', desc: '计划生成', icon: '📝' },
+            { key: 'synthesis', name: 'synthesis_config', desc: '结果合成', icon: '✨' },
+            { key: 'page_gen', name: 'page_gen_config', desc: '页面生成', icon: '🎨' },
+            { key: 'executor', name: 'executor_config', desc: '执行器LLM', icon: '⚡' }
+        ];
+
+        // ============================================================================
+        // 弹窗通用函数
+        // ============================================================================
+        
+        /**
+         * 打开模态弹窗
+         * @param {string} title - 弹窗标题
+         * @param {string} content - 弹窗HTML内容
+         * @param {boolean} showFooter - 是否显示底部按钮区
+         * @param {string} footerContent - 底部按钮HTML
+         */
+        function openModal(title, content, showFooter = false, footerContent = '') {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').innerHTML = content;
+            
+            const footer = document.getElementById('modal-footer');
+            if (showFooter && footerContent) {
+                footer.innerHTML = footerContent;
+                footer.style.display = 'flex';
+            } else {
+                footer.style.display = 'none';
+            }
+            
+            document.getElementById('modal-overlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        /**
+         * 关闭模态弹窗
+         * @param {Event} event - 可选事件对象，用于判断是否点击遮罩层
+         */
+        function closeModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('modal-overlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // ============================================================================
+        // 1. 工具列表弹窗
+        // ============================================================================
+        
+        /**
+         * 显示工具列表弹窗
+         * 从后端API获取所有工具的名称和描述
+         */
+        async function showToolsModal() {
+            // 先显示加载动画
+            openModal('🔧 系统工具清单', `
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+                <p style="text-align: center; color: #64748b;">正在加载工具列表...</p>
+            `);
+
+            try {
+                // 如果有缓存数据则直接使用
+                if (!toolsData) {
+                    const response = await fetch('/api/tools');
+                    if (!response.ok) throw new Error('获取工具列表失败');
+                    toolsData = await response.json();
+                }
+
+                renderToolsModal(toolsData);
+            } catch (error) {
+                console.error('加载工具列表失败:', error);
+                // 使用本地预定义数据作为备选
+                renderToolsModalFallback();
+            }
+        }
+
+        /**
+         * 渲染工具列表弹窗内容
+         * @param {Object} data - 工具数据
+         */
+        function renderToolsModal(data) {
+            const tools = data.tools || [];
+            const categories = data.categories || {};
+
+            // 按分类统计
+            const categoryStats = {};
+            tools.forEach(tool => {
+                const cat = tool.category || 'other';
+                categoryStats[cat] = (categoryStats[cat] || 0) + 1;
+            });
+
+            let statsHtml = '<div class="tool-stats">';
+            for (const [cat, count] of Object.entries(categoryStats)) {
+                statsHtml += `
+                    <div class="tool-stat-item">
+                        <div class="tool-stat-count">${count}</div>
+                        <div class="tool-stat-name">${categories[cat] || cat}</div>
+                    </div>
+                `;
+            }
+            statsHtml += '</div>';
+
+            // 搜索框和分类筛选
+            let filterHtml = `
+                <div class="search-box">
+                    <input type="text" id="tool-search" placeholder="🔍 搜索工具名称或描述..." oninput="filterTools()">
+                </div>
+                <div class="category-tabs">
+                    <span class="category-tab active" onclick="filterToolsByCategory('all')">全部</span>
+            `;
+            for (const [cat, name] of Object.entries(categories)) {
+                filterHtml += `<span class="category-tab" onclick="filterToolsByCategory('${cat}')">${name}</span>`;
+            }
+            filterHtml += '</div>';
+
+            // 工具列表
+            let toolsHtml = '<div class="tool-list" id="tool-list">';
+            tools.forEach(tool => {
+                toolsHtml += `
+                    <div class="tool-item" data-category="${tool.category}" data-name="${tool.name}" data-desc="${tool.description}">
+                        <span class="tool-category">${categories[tool.category] || tool.category}</span>
+                        <div class="tool-name">${tool.name}</div>
+                        <div class="tool-desc">${tool.description}</div>
+                    </div>
+                `;
+            });
+            toolsHtml += '</div>';
+
+            // 更新工具计数
+            document.getElementById('tools-count').textContent = tools.length;
+
+            openModal(`🔧 系统工具清单 (${tools.length}个)`, statsHtml + filterHtml + toolsHtml);
+        }
+
+        /**
+         * 备用方案：使用本地预定义的工具分类数据
+         */
+        function renderToolsModalFallback() {
+            const toolCategories = [
+                { name: 'basin_info', desc: '流域基本信息', count: 14 },
+                { name: 'hydro_monitor', desc: '水雨情监测', count: 15 },
+                { name: 'modelplan_control', desc: '方案管理', count: 20 },
+                { name: 'rain_control', desc: '降雨处理', count: 33 },
+                { name: 'flood_otherbusiness', desc: '防洪业务', count: 29 },
+                { name: 'hydromodel_set', desc: '水利模型设置', count: 16 },
+                { name: 'hydromodel_run', desc: '水利模型运行', count: 19 },
+                { name: 'hydromodel_result', desc: '水利模型结果', count: 26 },
+                { name: 'damage_assess', desc: '灾损评估', count: 3 }
+            ];
+
+            let statsHtml = '<div class="tool-stats">';
+            let total = 0;
+            toolCategories.forEach(cat => {
+                total += cat.count;
+                statsHtml += `
+                    <div class="tool-stat-item">
+                        <div class="tool-stat-count">${cat.count}</div>
+                        <div class="tool-stat-name">${cat.desc}</div>
+                    </div>
+                `;
+            });
+            statsHtml += '</div>';
+
+            const infoHtml = `
+                <div style="padding: 20px; background: #fef3c7; border-radius: 10px; margin-top: 20px;">
+                    <p style="color: #92400e; margin: 0;">
+                        <strong>📢 提示：</strong> 无法从服务器获取详细工具列表。以上是系统预估的工具分布情况。
+                        <br>请确保后端服务正常运行后刷新页面重试。
+                    </p>
+                </div>
+            `;
+
+            document.getElementById('tools-count').textContent = total + '+';
+            openModal(`🔧 系统工具清单 (${total}+个)`, statsHtml + infoHtml);
+        }
+
+        /**
+         * 工具搜索过滤
+         */
+        function filterTools() {
+            const keyword = document.getElementById('tool-search').value.toLowerCase();
+            const items = document.querySelectorAll('.tool-item');
+            
+            items.forEach(item => {
+                const name = item.dataset.name.toLowerCase();
+                const desc = item.dataset.desc.toLowerCase();
+                const visible = name.includes(keyword) || desc.includes(keyword);
+                item.style.display = visible ? 'block' : 'none';
+            });
+        }
+
+        /**
+         * 按分类筛选工具
+         * @param {string} category - 分类名称，'all'表示全部
+         */
+        function filterToolsByCategory(category) {
+            // 更新标签激活状态
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if ((category === 'all' && tab.textContent === '全部') || 
+                    tab.textContent.includes(category)) {
+                    tab.classList.add('active');
+                }
+            });
+
+            // 过滤工具
+            const items = document.querySelectorAll('.tool-item');
+            items.forEach(item => {
+                const itemCat = item.dataset.category;
+                item.style.display = (category === 'all' || itemCat === category) ? 'block' : 'none';
+            });
+        }
+
+        // ============================================================================
+        // 2. 知识库跳转
+        // ============================================================================
+        
+        /**
+         * 打开知识库管理页面
+         * 在新标签页中打开PageIndex系统
+         */
+        function openKnowledgeBase() {
+            // 获取当前页面的host，保持一致性
+            const currentHost = window.location.hostname;
+            const knowledgeUrl = `http://${currentHost}:8501`;
+            window.open(knowledgeUrl, '_blank');
+        }
+
+        // ============================================================================
+        // 3. 预定义工作流弹窗
+        // ============================================================================
+        
+        /**
+         * 显示预定义工作流弹窗
+         */
+        function showPredefinedWorkflowsModal() {
+            let content = '<div style="margin-bottom: 15px; color: #64748b;">以下是系统内置的5个预定义工作流模板，用于处理常见的洪水预报业务场景：</div>';
+            
+            predefinedWorkflows.forEach((wf, index) => {
+                content += `
+                    <div class="workflow-item">
+                        <div class="workflow-name">${index + 1}. ${wf.displayName}</div>
+                        <div class="workflow-desc">${wf.description}</div>
+                        <div style="margin-top: 10px; font-family: 'Consolas', monospace; font-size: 0.85em; color: #6b7280;">
+                            工作流ID: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">${wf.name}</code>
+                        </div>
+                    </div>
+                `;
+            });
+
+            content += `
+                <div style="margin-top: 20px; padding: 15px; background: #f0fdf4; border-radius: 10px; border: 1px solid #86efac;">
+                    <strong style="color: #166534;">💡 使用说明：</strong>
+                    <p style="margin: 10px 0 0; color: #15803d; font-size: 0.9em;">
+                        当用户提问匹配到预定义工作流时，系统会自动选择对应模板执行。
+                        预定义工作流优先级高于动态生成的执行计划。
+                    </p>
+                </div>
+            `;
+
+            openModal('📋 预定义工作流模板', content);
+        }
+
+        // ============================================================================
+        // 4. 动态工作流跳转
+        // ============================================================================
+        
+        /**
+         * 打开动态工作流管理页面
+         */
+        function openDynamicWorkflows() {
+            const currentHost = window.location.hostname;
+            const port = window.location.port || '8000';
+            const workflowUrl = `http://${currentHost}:${port}/ui/saved_workflows.html`;
+            window.open(workflowUrl, '_blank');
+        }
+
+        // ============================================================================
+        // 5. LLM配置弹窗
+        // ============================================================================
+        
+        /**
+         * 显示LLM配置弹窗
+         * 支持查看和编辑各节点配置
+         */
+        async function showLLMConfigModal() {
+            openModal('🤖 LLM节点配置', `
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+                <p style="text-align: center; color: #64748b;">正在加载配置信息...</p>
+            `);
+
+            try {
+                const response = await fetch('/api/llm-config');
+                if (!response.ok) throw new Error('获取配置失败');
+                llmConfigData = await response.json();
+                renderLLMConfigModal(llmConfigData);
+            } catch (error) {
+                console.error('加载LLM配置失败:', error);
+                renderLLMConfigModalFallback();
+            }
+        }
+
+        /**
+         * 渲染LLM配置表单
+         * @param {Object} config - 配置数据
+         */
+        function renderLLMConfigModal(config) {
+            let content = `
+                <div style="margin-bottom: 20px; padding: 15px; background: #f0f9ff; border-radius: 10px; border: 1px solid #bae6fd;">
+                    <strong style="color: #0369a1;">📌 默认配置</strong>
+                    <div class="config-row" style="margin-top: 10px;">
+                        <div><strong>API Base:</strong> ${config.default?.api_base || '-'}</div>
+                        <div><strong>Model:</strong> ${config.default?.model || '-'}</div>
+                    </div>
+                </div>
+                <div class="llm-config-grid">
+            `;
+
+            llmNodes.forEach(node => {
+                const nodeConfig = config[node.key] || {};
+                content += `
+                    <div class="llm-config-card" id="config-card-${node.key}">
+                        <h4>${node.icon} ${node.desc} (${node.name})</h4>
+                        <div class="config-row">
+                            <div class="config-field">
+                                <label>API Base URL</label>
+                                <input type="text" id="cfg-${node.key}-api_base" 
+                                       value="${nodeConfig.api_base || ''}" 
+                                       placeholder="使用默认配置">
+                            </div>
+                            <div class="config-field">
+                                <label>Model Name</label>
+                                <input type="text" id="cfg-${node.key}-model" 
+                                       value="${nodeConfig.model || ''}" 
+                                       placeholder="使用默认配置">
+                            </div>
+                        </div>
+                        <div class="config-row">
+                            <div class="config-field">
+                                <label>Temperature</label>
+                                <input type="number" id="cfg-${node.key}-temperature" 
+                                       value="${nodeConfig.temperature ?? ''}" 
+                                       min="0" max="2" step="0.1" placeholder="0.7">
+                            </div>
+                            <div class="config-field">
+                                <label>API Key</label>
+                                <input type="password" id="cfg-${node.key}-api_key" 
+                                       value="${nodeConfig.api_key ? '********' : ''}" 
+                                       placeholder="使用默认API Key">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            content += '</div>';
+
+            const footerContent = `
+                <button class="modal-btn modal-btn-secondary" onclick="closeModal()">取消</button>
+                <button class="modal-btn modal-btn-primary" onclick="saveLLMConfig()">💾 保存配置</button>
+            `;
+
+            openModal('🤖 LLM节点配置 (8个独立配置节点)', content, true, footerContent);
+        }
+
+        /**
+         * 备用方案：显示静态配置信息
+         */
+        function renderLLMConfigModalFallback() {
+            let content = `
+                <div style="margin-bottom: 20px; padding: 15px; background: #fef3c7; border-radius: 10px;">
+                    <strong style="color: #92400e;">⚠️ 无法从服务器获取配置</strong>
+                    <p style="margin: 10px 0 0; color: #92400e; font-size: 0.9em;">
+                        请确保后端服务正常运行。以下是系统的8个LLM配置节点说明：
+                    </p>
+                </div>
+                <div class="llm-config-grid">
+            `;
+
+            llmNodes.forEach(node => {
+                content += `
+                    <div class="llm-config-card">
+                        <h4>${node.icon} ${node.desc}</h4>
+                        <div style="font-family: 'Consolas', monospace; font-size: 0.9em; color: #6366f1;">
+                            ${node.name}
+                        </div>
+                        <p style="margin-top: 10px; color: #64748b; font-size: 0.85em;">
+                            支持独立配置API地址、模型名称和温度参数
+                        </p>
+                    </div>
+                `;
+            });
+
+            content += '</div>';
+            openModal('🤖 LLM节点配置 (8个独立配置节点)', content);
+        }
+
+        /**
+         * 保存LLM配置
+         */
+        async function saveLLMConfig() {
+            const configData = {};
+
+            llmNodes.forEach(node => {
+                const api_base = document.getElementById(`cfg-${node.key}-api_base`).value;
+                const model = document.getElementById(`cfg-${node.key}-model`).value;
+                const temperature = document.getElementById(`cfg-${node.key}-temperature`).value;
+                const api_key = document.getElementById(`cfg-${node.key}-api_key`).value;
+
+                if (api_base || model || temperature || (api_key && api_key !== '********')) {
+                    configData[node.key] = {};
+                    if (api_base) configData[node.key].api_base = api_base;
+                    if (model) configData[node.key].model = model;
+                    if (temperature) configData[node.key].temperature = parseFloat(temperature);
+                    if (api_key && api_key !== '********') configData[node.key].api_key = api_key;
+                }
+            });
+
+            try {
+                const response = await fetch('/api/llm-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(configData)
+                });
+
+                if (response.ok) {
+                    alert('✅ 配置保存成功！');
+                    closeModal();
+                } else {
+                    throw new Error('保存失败');
+                }
+            } catch (error) {
+                console.error('保存配置失败:', error);
+                alert('❌ 配置保存失败，请检查后端服务是否正常运行。\n\n注意：当前版本配置保存功能可能需要后端API支持。');
+            }
+        }
+
+        // ============================================================================
+        // 6. 意图分类弹窗
+        // ============================================================================
+        
+        /**
+         * 显示意图分类弹窗
+         */
+        function showIntentModal() {
+            let content = `
+                <div class="intent-section">
+                    <h4>🎯 第一阶段：三大类意图分类</h4>
+                    <p style="color: #64748b; margin-bottom: 15px; font-size: 0.9em;">
+                        系统首先将用户请求分类为以下三种基本意图类型：
+                    </p>
+                    <div class="intent-grid">
+            `;
+
+            intentCategories.main.forEach(intent => {
+                content += `
+                    <div class="intent-item ${intent.className}">
+                        <div class="intent-name">${intent.name}</div>
+                        <div class="intent-desc">${intent.desc}</div>
+                    </div>
+                `;
+            });
+
+            content += `
+                    </div>
+                </div>
+
+                <div class="intent-section">
+                    <h4>📊 第二阶段：Business子意图分类（6类）</h4>
+                    <p style="color: #64748b; margin-bottom: 15px; font-size: 0.9em;">
+                        当第一阶段识别为 Business 意图时，进一步细分为以下6类业务子意图：
+                    </p>
+                    <div class="intent-grid">
+            `;
+
+            intentCategories.sub.forEach(intent => {
+                content += `
+                    <div class="intent-item sub-intent">
+                        <div class="intent-name">${intent.name}</div>
+                        <div class="intent-desc">${intent.desc}</div>
+                    </div>
+                `;
+            });
+
+            content += `
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 10px; border: 1px solid #7dd3fc;">
+                    <strong style="color: #0369a1;">💡 意图分类流程说明：</strong>
+                    <ul style="margin: 10px 0 0 20px; color: #0284c7; font-size: 0.9em; line-height: 1.8;">
+                        <li><strong>Chat</strong> → 直接由quick_chat_node生成响应 → END</li>
+                        <li><strong>Knowledge</strong> → knowledge_rag_node检索 → controller_node合成 → END</li>
+                        <li><strong>Business</strong> → 子意图分类 → 工作流匹配/动态规划 → 执行 → 合成 → END</li>
+                    </ul>
+                </div>
+            `;
+
+            openModal('🎯 意图分类系统', content);
+        }
+
+        // ============================================================================
+        // 初始化和数据加载
+        // ============================================================================
+        
+        /**
+         * 动态获取工作流数量
+         */
+        async function loadDynamicWorkflowCount() {
+            try {
+                const response = await fetch('/saved-workflows?page=1&size=1');
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = data.total || 0;
+                    document.getElementById('dynamic-workflow-count').textContent = count;
+                } else {
+                    document.getElementById('dynamic-workflow-count').textContent = '0';
+                }
+            } catch (error) {
+                console.error('获取动态工作流数量失败:', error);
+                document.getElementById('dynamic-workflow-count').textContent = '-';
+            }
+        }
+
+        /**
+         * 动态获取工具数量
+         */
+        async function loadToolsCount() {
+            try {
+                const response = await fetch('/api/tools');
+                if (response.ok) {
+                    const data = await response.json();
+                    toolsData = data;  // 缓存数据
+                    const count = data.tools?.length || 0;
+                    if (count > 0) {
+                        document.getElementById('tools-count').textContent = count;
+                    }
+                }
+            } catch (error) {
+                console.error('获取工具数量失败:', error);
+            }
+        }
+
+        // 页面加载时初始化数据
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDynamicWorkflowCount();
+            loadToolsCount();
+        });
+    </script>
 </body>
 </html>

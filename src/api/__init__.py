@@ -8,11 +8,14 @@ from .chat import router as chat_router
 from .pages import router as pages_router
 from .knowledge import router as knowledge_router
 from .saved_workflows import router as saved_workflows_router
+from .system_info import router as system_info_router
 
 __all__ = [
     "health_router",
     "chat_router",
     "pages_router",
     "knowledge_router",
-    "saved_workflows_router"
+    "saved_workflows_router",
+    "system_info_router"
 ]
+

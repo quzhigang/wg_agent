@@ -5,29 +5,51 @@
 ## 功能特性
 
 - **一般对话**：日常对话和流域相关知识问答
-- **固有知识查询**：查询流域固有知识
-- **流域业务**：水雨情查询、预报预演等
-
+- **固有知识查询**：查询流域固有知识（9个知识库）
+- **流域业务**：水雨情查询、洪水预报、洪水模拟、应急预案、灾损评估等
 
 ## 技术架构
 
 ### Plan-and-Execute架构
 
-- **Planner（规划调度器）**：分析用户意图，制定执行计划
+- **Planner（规划调度器）**：分析用户意图（三大类分类），匹配工作流，制定执行计划
 - **Executor（任务执行器）**：执行工具调用，处理异步任务
-- **Controller（结果合成器）**：整合结果，生成最终响应
+- **Controller（结果合成器）**：整合结果，生成最终响应，决定输出类型
 
+### 三大类意图分类
+
+1. **chat（一般对话）**：问候、感谢、告别、闲聊、询问助手信息
+2. **knowledge（固有知识查询）**：9个知识库的查询
+   - catchment_basin（流域概况）、water_project（水利工程）、monitor_site（监测站点）
+   - history_flood（历史洪水）、flood_preplan（防洪预案）、system_function（系统功能）
+   - hydro_model（水文模型）、catchment_planning（流域规划）、project_designplan（工程设计）
+3. **business（业务相关）**：data_query、flood_forecast、flood_simulation、emergency_plan、damage_assessment、other
 
 ### 核心模块
 
-- `agents/` - 智能体核心（Planner, Executor, Controller, Graph）
-- `tools/` - 工具模块（5类API工具）
-- `workflows/` - 固定工作流
-- `rag/` - RAG知识库
-- `output/` - Web页面生成
-- `api/` - RESTful API接口
-- `models/` - 数据模型
-- `config/` - 配置管理
+```
+src/
+├── agents/          # 智能体核心（state, planner, executor, controller, graph）
+├── api/             # RESTful API接口（chat, pages, knowledge, saved_workflows, health）
+├── config/          # 配置管理（settings, logging_config, llm_prompt_logger）
+├── models/          # 数据模型（database, schemas）
+├── tools/           # 工具模块（12个工具模块，175+个工具）
+├── workflows/       # 工作流模块（预定义工作流、向量化索引）
+├── rag/             # RAG知识库（knowledge_base, retriever）
+└── output/          # Web页面生成（templates, page_generator, async_page_agent）
+```
+
+### 其他目录
+
+```
+wg_agent/
+├── web/             # Web前端资源（web_templates, main, generated_pages）
+├── PageIndex/       # 知识库系统（独立模块，可选启动）
+├── workflow_vectors/# 工作流向量化存储
+├── logs/            # 日志目录（wg_agent.log, llm_prompt.md）
+├── scripts/         # 脚本工具
+└── 开发资料/         # 开发文档资料
+```
 
 ## 安装
 
@@ -71,17 +93,22 @@ API_PORT=8000
 ### 启动服务
 
 ```bash
+# 启动主程序
 python -m src.main
-python PageIndex/api.py
 
-- 
-#注意：不需要启动PageIndex里的api.py和app.py，主程序也可运行，彼此独立
+# 可选：启动PageIndex知识库服务（独立运行，非必需）
+python PageIndex/api.py
 ```
 
-### 停止服务
-taskkill /F /IM python.exe
+> 注意：PageIndex是独立的知识库模块，主程序可以独立运行。
 
-### 访问API文档
+### 停止服务
+
+```bash
+taskkill /F /IM python.exe
+```
+
+### 访问地址
 
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
@@ -143,7 +170,7 @@ GET /pages
 GET /pages/{filename}
 ```
 
-### 自动保存流程管理
+### 动态流程管理
 
 ```http
 # 获取流程清单（分页）
@@ -169,7 +196,7 @@ PATCH /saved-workflows/{id}/toggle
 
 管理页面：`/ui/saved_workflows.html`
 
-## 工具系统（共7类模块，175个工具）
+## 工具系统（共12个模块，175+个工具）
 
 ### 工具注册机制
 
@@ -182,63 +209,64 @@ PATCH /saved-workflows/{id}/toggle
 
 ### 工具分类（按功能）
 
-1. **流域基本信息工具** (14个接口)
-   - 地图数据源查询（地理要素的空间坐标）
-   - 水库基础信息及防洪特征值
-   - 水闸堰基础信息
-   - 蓄滞洪区信息
-   - 河道防洪特征值
-   - 测站列表
-   - 视频监控及无人机
-   - 遥感任务管理
+1. **流域基本信息工具** (`basin_info.py`, 14个)
+   - 地图数据源查询、水库基础信息、水闸堰信息、蓄滞洪区、河道防洪特征值、测站列表、视频监控、遥感任务
 
-2. **水雨情监测工具** (15个接口)
-   - 雨量监测（过程、统计、累计）
-   - 水库水情（最新、历史过程）
-   - 河道水情（最新、历史过程）
-   - AI智能监测（水情、雨量）
-   - 视频监控预览
-   - 传感器数据
-   - 无人机设备状态
-   - 告警短信发送
+2. **水雨情监测工具** (`hydro_monitor.py`, 15个)
+   - 雨量监测、水库水情、河道水情、AI智能监测、视频预览、传感器数据、无人机状态、告警短信
 
-3. **模型及方案管理业务工具** (20个)
-   - 模拟方案管理(12个)
-   - 基础模型管理(3个)
-   - 模型实例管理（2个）
-   - 业务模型管理（3个）
+3. **模型及方案管理工具** (`modelplan_control.py`, 20个)
+   - 模拟方案管理、基础模型管理、模型实例管理、业务模型管理
 
-4. **降雨获取设置相关工具** (33个)
-   - 格网降雨预报（流域平均、各子流域、矩形区域）(5个)
-   - 降雨等值面（当日、任意时段、方案、图片）(7个)
-   - 降雨监测更新(2个)
-   - 设计/典型暴雨雨型管理(7个)
-   - 方案降雨查询（各流域、统计、等值面）(7个)
-   - 方案降雨设置（手动、中心区域、导入）(5个)
+4. **降雨获取设置工具** (`rain_control.py`, 33个)
+   - 格网降雨预报、降雨等值面、降雨监测更新、设计暴雨、方案降雨查询、方案降雨设置
 
-5. **其他洪水业务工具** (29个)
-   - 子流域产流洪水结果查询
-   - 洪水淹没分析（新增、计算、查询GIS结果）
-   - 防汛预案管理（列表、新增、删除、查看）
-   - 水雨情态势研判（实时水情、形势统计、纳蓄能力）
-   - 闸站工情
-   - MIKE模型辅助工具（产流、水库、控制建筑物、库容曲线、计算Pa值等）
+5. **其他洪水业务工具** (`flood_otherbusiness.py`, 29个)
+   - 产流洪水结果、淹没分析、防汛预案、水雨情态势、闸站工情、MIKE模型辅助
 
-6. **水利专业模型工具** (4个模块61个接口)
-   - 模型参数设置和方案新建(16个)
-   - 模型相关基础信息获取(13个)
-   - 模型参数及边界条件获取(8个)
-   - 模型方案及结果数据获取(24个)
+6. **水利专业模型工具** (4个模块，61个)
+   - `hydromodel_set.py` - 模型参数设置和方案新建（16个）
+   - `hydromodel_baseinfo.py` - 模型基础信息获取（13个）
+   - `hydromodel_parget.py` - 模型参数及边界条件获取（8个）
+   - `hydromodel_resultget.py` - 模型方案及结果数据获取（24个）
 
-7. **灾损评估避险转移工具**(3个接口)
-   - 洪涝灾害损失计算
-   - 避险安置点列表查询
-   - 转移路线列表查询
+7. **灾损评估避险转移工具** (`damage_assess.py`, 3个)
+   - 洪涝灾害损失计算、避险安置点、转移路线
 
-## 预定义工作流
+8. **其他工具**
+   - `auth.py` - 认证工具
+   - `station_lookup.py` - 测站查询工具
+   - `mcp_websearch.py` - 网络搜索工具
 
-- **洪水预报工作流** (flood_forecast)：完整的洪水预报流程
-- **应急预案工作流** (emergency_plan)：应急响应预案生成
+## 工作流系统
+
+### 预定义工作流
+
+位于 `src/workflows/` 目录：
+
+- `flood_autoforecast_getresult.py` - 自动预报结果获取
+- `flood_manualforecast_getresult.py` - 手动预报结果获取
+- `get_autoforecast_result.py` - 获取自动预报结果
+- `get_history_autoforecast_result.py` - 获取历史预报结果
+- `get_manualforecast_result.py` - 获取手动预报结果
+
+### 工作流向量化索引
+
+`workflow_vector_index.py` 实现工作流的向量化存储和检索，支持：
+- 工作流向量化保存
+- 向量检索匹配（置信度阈值≥0.75）
+- 动态工作流自动保存
+
+### 动态流程自动保存机制
+
+触发条件：
+- 动态规划成功生成计划
+- 计划步骤数 >= 2
+- 意图类别为 business
+
+保存内容：
+- 流程名称、触发模式、意图类别、子意图
+- 实体提取模式、完整执行步骤、输出类型
 
 ## 项目结构
 
@@ -246,58 +274,76 @@ PATCH /saved-workflows/{id}/toggle
 wg_agent/
 ├── src/
 │   ├── __init__.py
-│   ├── main.py                 # FastAPI主入口
-│   ├── agents/                 # 智能体核心
-│   │   ├── state.py           # 状态定义
-│   │   ├── planner.py         # 规划器
-│   │   ├── executor.py        # 执行器
-│   │   ├── controller.py      # 控制器
-│   │   └── graph.py           # LangGraph图
-│   ├── api/                    # API接口
-│   │   ├── health.py          # 健康检查
-│   │   ├── chat.py            # 对话接口
-│   │   ├── pages.py           # 页面服务
-│   │   ├── knowledge.py       # 知识库管理
-│   │   └── saved_workflows.py # 自动保存流程管理
-│   ├── config/                 # 配置
-│   │   ├── settings.py        # 配置管理
-│   │   └── logging_config.py  # 日志配置
-│   ├── models/                 # 数据模型
-│   │   ├── database.py        # 数据库模型
-│   │   └── schemas.py         # Pydantic模型
-│   ├── tools/                  # 工具模块（10个工具模块，100+个工具）
-│   │   ├── base.py            # 工具基类和工具类别定义
-│   │   ├── registry.py        # 工具注册表（单例模式）
-│   │   ├── basin_info.py      # 流域基本信息工具（14个）
-│   │   ├── hydro_monitor.py   # 水雨情监测工具（15个）
-│   │   ├── rain_control.py    # 降雨相关业务工具（32个）
+│   ├── main.py                       # FastAPI主入口
+│   ├── agents/                       # 智能体核心
+│   │   ├── state.py                 # 状态定义（AgentState, IntentCategory, PlanStep等）
+│   │   ├── planner.py               # 规划调度器（意图分析、工作流匹配、计划生成）
+│   │   ├── executor.py              # 任务执行器（工具调用、异步处理）
+│   │   ├── controller.py            # 结果合成器（响应生成、页面输出）
+│   │   └── graph.py                 # LangGraph状态图（工作流编排）
+│   ├── api/                          # API接口
+│   │   ├── health.py                # 健康检查
+│   │   ├── chat.py                  # 对话接口（/chat, /chat/stream）
+│   │   ├── pages.py                 # 页面服务
+│   │   ├── knowledge.py             # 知识库管理
+│   │   └── saved_workflows.py       # 动态流程管理
+│   ├── config/                       # 配置
+│   │   ├── settings.py              # 配置管理
+│   │   ├── logging_config.py        # 日志配置
+│   │   └── llm_prompt_logger.py     # LLM调用日志记录
+│   ├── models/                       # 数据模型
+│   │   ├── database.py              # SQLAlchemy数据库模型
+│   │   └── schemas.py               # Pydantic验证模型
+│   ├── tools/                        # 工具模块（12个模块，175+个工具）
+│   │   ├── base.py                  # 工具基类和类别定义
+│   │   ├── registry.py              # 工具注册表（单例模式）
+│   │   ├── basin_info.py            # 流域基本信息工具
+│   │   ├── hydro_monitor.py         # 水雨情监测工具
+│   │   ├── rain_control.py          # 降雨相关业务工具
 │   │   ├── modelplan_control.py     # 模型及方案管理工具
-│   │   ├── flood_otherbusiness.py   # 防洪业务其他工具（29个）
-│   │   ├── damage_assess.py   # 灾损评估工具
-│   │   ├── hydromodel_set.py  # 水利模型参数设置工具
-│   │   ├── hydromodel_baseinfo.py   # 水利模型基础信息工具
-│   │   ├── hydromodel_parget.py     # 水利模型参数获取工具
-│   │   └── hydromodel_resultget.py  # 水利模型结果获取工具
-│   ├── workflows/              # 工作流
-│   │   ├── base.py            # 工作流基类
-│   │   ├── registry.py        # 工作流注册表
-│   │   └── flood_forecast.py  # 洪水预报工作流
-│   ├── output/                 # 输出模块
-│   │   ├── templates.py       # 页面模板
-│   │   └── page_generator.py  # 页面生成器
-│   └── rag/                    # RAG模块
-│       ├── knowledge_base.py  # 知识库
-│       └── retriever.py       # 检索器
-├── requirements.txt            # Python依赖
-├── .env.example               # 环境变量示例
-└── README.md                  # 项目说明
+│   │   ├── flood_otherbusiness.py   # 防洪业务其他工具
+│   │   ├── damage_assess.py         # 灾损评估工具
+│   │   ├── hydromodel_set.py        # 水利模型参数设置
+│   │   ├── hydromodel_baseinfo.py   # 水利模型基础信息
+│   │   ├── hydromodel_parget.py     # 水利模型参数获取
+│   │   ├── hydromodel_resultget.py  # 水利模型结果获取
+│   │   ├── station_lookup.py        # 测站查询工具
+│   │   ├── auth.py                  # 认证工具
+│   │   └── mcp_websearch.py         # 网络搜索工具
+│   ├── workflows/                    # 工作流
+│   │   ├── base.py                  # 工作流基类
+│   │   ├── registry.py              # 工作流注册表
+│   │   ├── workflow_vector_index.py # 工作流向量化索引
+│   │   └── *.py                     # 预定义工作流
+│   ├── output/                       # 输出模块
+│   │   ├── templates.py             # 页面模板
+│   │   ├── page_generator.py        # 页面生成器
+│   │   └── async_page_agent.py      # 异步页面生成代理
+│   └── rag/                          # RAG模块
+│       ├── knowledge_base.py        # 知识库管理
+│       └── retriever.py             # 检索器
+├── web/                              # Web前端
+│   ├── web_templates/               # 页面模板和资源
+│   ├── main/                        # 主界面
+│   └── generated_pages/             # 生成的页面
+├── PageIndex/                        # 知识库系统（独立模块）
+│   ├── knowledge_bases/             # 知识库数据
+│   ├── chroma_db/                   # 向量数据库
+│   └── pageindex/                   # PageIndex核心模块
+├── workflow_vectors/                 # 工作流向量化存储
+├── logs/                             # 日志目录
+├── scripts/                          # 脚本工具
+├── requirements.txt                  # Python依赖
+├── .env.example                      # 环境变量示例
+├── work_flow.md                      # 工作流说明文档
+└── README.md                         # 项目说明
 ```
 
 ## 开发说明
 
 ### 添加新工具
 
-1. 在`src/tools/`下创建新的工具文件
+1. 在`src/tools/`下创建新的工具文件或在现有文件中添加
 2. 继承`BaseTool`类实现工具逻辑
 3. 在模块末尾注册工具
 
@@ -309,11 +355,11 @@ class MyNewTool(BaseTool):
     @property
     def name(self) -> str:
         return "my_new_tool"
-    
+
     @property
     def category(self) -> ToolCategory:
         return ToolCategory.BASIN_INFO
-    
+
     async def _execute(self, **kwargs) -> Dict[str, Any]:
         # 实现工具逻辑
         return {"result": "data"}
@@ -336,14 +382,14 @@ class MyWorkflow(BaseWorkflow):
     @property
     def name(self) -> str:
         return "my_workflow"
-    
+
     @property
     def steps(self) -> List[WorkflowStep]:
         return [
             WorkflowStep(step_id=1, name="Step 1", tool_name="tool1"),
             # ...
         ]
-    
+
     async def execute(self, state):
         # 执行逻辑
         pass
