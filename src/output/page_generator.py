@@ -70,6 +70,9 @@ class PageGenerator:
         # 根据报告类型生成内容
         if report_type == 'flood_forecast':
             html_content = self._generate_flood_forecast_page(data, title)
+        elif report_type in ('auto_forecast', 'manual_forecast'):
+            # 自动预报和人工预报结果使用专用模板
+            html_content = self._generate_auto_forecast_page(data, title)
         elif report_type == 'emergency_plan':
             html_content = self._generate_emergency_plan_page(data, title)
         else:
@@ -142,7 +145,306 @@ class PageGenerator:
             generate_time=generate_time,
             scripts=scripts
         )
-    
+
+    def _generate_auto_forecast_page(
+        self,
+        data: Dict[str, Any],
+        title: Optional[str] = None
+    ) -> str:
+        """生成自动预报结果报告页面"""
+
+        # 提取数据 - 工作流返回的数据结构
+        target = data.get('target', {})
+        summary = data.get('summary', '')
+        forecast_data = data.get('data', {})
+
+        target_type = target.get('type', 'basin')
+        target_name = target.get('name', '全流域')
+
+        # 设置标题
+        page_title = title or summary or f"{target_name}洪水预报结果"
+        generate_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 根据目标类型生成不同的内容
+        if target_type == 'reservoir':
+            content = self._generate_reservoir_forecast_content(target_name, forecast_data)
+        elif target_type == 'station':
+            content = self._generate_station_forecast_content(target_name, forecast_data)
+        elif target_type == 'detention_basin':
+            content = self._generate_detention_forecast_content(target_name, forecast_data)
+        else:
+            content = self._generate_basin_forecast_content(forecast_data)
+
+        return self._template_manager.render_base_template(
+            title=page_title,
+            content=content,
+            generate_time=generate_time,
+            scripts=""
+        )
+
+    def _generate_reservoir_forecast_content(
+        self,
+        reservoir_name: str,
+        data: Dict[str, Any]
+    ) -> str:
+        """生成水库预报结果内容"""
+
+        # 检查是否有错误消息
+        if 'message' in data and '未找到' in data.get('message', ''):
+            return f'''
+            <div class="card" style="grid-column: span 2;">
+                <div class="card-title">⚠️ 查询结果</div>
+                <div style="padding: 20px; text-align: center; color: #ff6b6b;">
+                    {data.get('message', '未找到预报数据')}
+                </div>
+            </div>
+            '''
+
+        content = f'''
+        <div class="card" style="grid-column: span 2;">
+            <div class="card-title">🏞️ {reservoir_name} 洪水预报结果</div>
+            <div style="padding: 20px;">
+        '''
+
+        # 基本信息
+        if data:
+            # 入库流量信息 - 支持多种字段名格式
+            inflow_peak = data.get('inflow_peak') or data.get('入库洪峰流量') or data.get('Max_InQ')
+            inflow_peak_time = data.get('inflow_peak_time') or data.get('入库洪峰时间') or data.get('MaxInQ_Time')
+
+            # 出库流量信息
+            outflow_peak = data.get('outflow_peak') or data.get('出库洪峰流量') or data.get('Max_OutQ')
+            outflow_peak_time = data.get('outflow_peak_time') or data.get('出库洪峰时间') or data.get('MaxOutQ_Time')
+
+            # 水位信息
+            max_water_level = data.get('max_water_level') or data.get('最高水位') or data.get('Max_Level')
+            max_water_level_time = data.get('max_water_level_time') or data.get('最高水位时间') or data.get('MaxLevel_Time')
+
+            # 蓄水量信息
+            max_storage = data.get('max_storage') or data.get('最大蓄水量') or data.get('Max_Volumn')
+
+            # 总入库量和总出库量
+            total_inflow = data.get('Total_InVolumn') or data.get('总入库量')
+            total_outflow = data.get('Total_OutVolumn') or data.get('总出库量')
+
+            # 预报结束时水位和蓄水量
+            end_level = data.get('EndTime_Level') or data.get('预报结束水位')
+            end_storage = data.get('EndTime_Volumn') or data.get('预报结束蓄水量')
+
+            info_items = []
+
+            if inflow_peak is not None:
+                info_items.append(('入库洪峰流量', f'{inflow_peak} m³/s'))
+            if inflow_peak_time:
+                info_items.append(('入库洪峰时间', str(inflow_peak_time)))
+            if outflow_peak is not None:
+                info_items.append(('出库洪峰流量', f'{outflow_peak} m³/s'))
+            if outflow_peak_time:
+                info_items.append(('出库洪峰时间', str(outflow_peak_time)))
+            if max_water_level is not None:
+                info_items.append(('最高水位', f'{max_water_level} m'))
+            if max_water_level_time:
+                info_items.append(('最高水位时间', str(max_water_level_time)))
+            if max_storage is not None:
+                info_items.append(('最大蓄水量', f'{max_storage} 万m³'))
+            if total_inflow is not None:
+                info_items.append(('总入库量', f'{total_inflow} 万m³'))
+            if total_outflow is not None:
+                info_items.append(('总出库量', f'{total_outflow} 万m³'))
+            if end_level is not None:
+                info_items.append(('预报结束水位', f'{end_level} m'))
+            if end_storage is not None:
+                info_items.append(('预报结束蓄水量', f'{end_storage} 万m³'))
+
+            for label, value in info_items:
+                content += f'''
+                <div class="info-item">
+                    <span class="info-label">{label}</span>
+                    <span class="info-value">{value}</span>
+                </div>
+                '''
+        else:
+            content += '<p style="color: #888;">暂无预报数据</p>'
+
+        content += '''
+            </div>
+        </div>
+        '''
+
+        return content
+
+    def _generate_station_forecast_content(
+        self,
+        station_name: str,
+        data: Dict[str, Any]
+    ) -> str:
+        """生成站点预报结果内容"""
+
+        if 'message' in data and '未找到' in data.get('message', ''):
+            return f'''
+            <div class="card" style="grid-column: span 2;">
+                <div class="card-title">⚠️ 查询结果</div>
+                <div style="padding: 20px; text-align: center; color: #ff6b6b;">
+                    {data.get('message', '未找到预报数据')}
+                </div>
+            </div>
+            '''
+
+        content = f'''
+        <div class="card" style="grid-column: span 2;">
+            <div class="card-title">📍 {station_name} 洪水预报结果</div>
+            <div style="padding: 20px;">
+        '''
+
+        if data:
+            peak_flow = data.get('peak_flow', data.get('洪峰流量'))
+            peak_time = data.get('peak_time', data.get('洪峰时间'))
+            peak_level = data.get('peak_level', data.get('洪峰水位'))
+
+            info_items = []
+            if peak_flow is not None:
+                info_items.append(('洪峰流量', f'{peak_flow} m³/s'))
+            if peak_time:
+                info_items.append(('洪峰时间', str(peak_time)))
+            if peak_level is not None:
+                info_items.append(('洪峰水位', f'{peak_level} m'))
+
+            if not info_items:
+                for key, value in data.items():
+                    if key not in ['message']:
+                        info_items.append((key, str(value)))
+
+            for label, value in info_items:
+                content += f'''
+                <div class="info-item">
+                    <span class="info-label">{label}</span>
+                    <span class="info-value">{value}</span>
+                </div>
+                '''
+        else:
+            content += '<p style="color: #888;">暂无预报数据</p>'
+
+        content += '''
+            </div>
+        </div>
+        '''
+
+        return content
+
+    def _generate_detention_forecast_content(
+        self,
+        detention_name: str,
+        data: Dict[str, Any]
+    ) -> str:
+        """生成蓄滞洪区预报结果内容"""
+
+        if 'message' in data and '未找到' in data.get('message', ''):
+            return f'''
+            <div class="card" style="grid-column: span 2;">
+                <div class="card-title">⚠️ 查询结果</div>
+                <div style="padding: 20px; text-align: center; color: #ff6b6b;">
+                    {data.get('message', '未找到预报数据')}
+                </div>
+            </div>
+            '''
+
+        content = f'''
+        <div class="card" style="grid-column: span 2;">
+            <div class="card-title">🌊 {detention_name} 洪水预报结果</div>
+            <div style="padding: 20px;">
+        '''
+
+        if data:
+            for key, value in data.items():
+                if key not in ['message']:
+                    content += f'''
+                    <div class="info-item">
+                        <span class="info-label">{key}</span>
+                        <span class="info-value">{value}</span>
+                    </div>
+                    '''
+        else:
+            content += '<p style="color: #888;">暂无预报数据</p>'
+
+        content += '''
+            </div>
+        </div>
+        '''
+
+        return content
+
+    def _generate_basin_forecast_content(self, data: Dict[str, Any]) -> str:
+        """生成全流域预报结果内容"""
+
+        content = '''
+        <div class="card" style="grid-column: span 2;">
+            <div class="card-title">🌍 全流域洪水预报结果</div>
+            <div style="padding: 20px;">
+        '''
+
+        # 处理水库结果
+        reservoir_result = data.get('reservoir_result', {})
+        if reservoir_result:
+            content += '<h4 style="color: #00d4ff; margin: 15px 0 10px;">水库预报结果</h4>'
+            for res_name, res_data in reservoir_result.items():
+                content += f'<div style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">'
+                content += f'<strong style="color: #00d4ff;">{res_name}</strong>'
+                if isinstance(res_data, dict):
+                    for key, value in res_data.items():
+                        content += f'''
+                        <div class="info-item" style="margin-left: 10px;">
+                            <span class="info-label">{key}</span>
+                            <span class="info-value">{value}</span>
+                        </div>
+                        '''
+                content += '</div>'
+
+        # 处理站点结果
+        station_result = data.get('station_result', data.get('stations', []))
+        if station_result:
+            content += '<h4 style="color: #00d4ff; margin: 15px 0 10px;">站点预报结果</h4>'
+            if isinstance(station_result, list):
+                for sta in station_result:
+                    sta_name = sta.get('name', '未知站点')
+                    content += f'<div style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px;">'
+                    content += f'<strong style="color: #00d4ff;">{sta_name}</strong>'
+                    for key, value in sta.items():
+                        if key != 'name':
+                            content += f'''
+                            <div class="info-item" style="margin-left: 10px;">
+                                <span class="info-label">{key}</span>
+                                <span class="info-value">{value}</span>
+                            </div>
+                            '''
+                    content += '</div>'
+
+        if not reservoir_result and not station_result:
+            # 显示原始数据
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    content += f'<h4 style="color: #00d4ff; margin: 15px 0 10px;">{key}</h4>'
+                    for k, v in value.items():
+                        content += f'''
+                        <div class="info-item">
+                            <span class="info-label">{k}</span>
+                            <span class="info-value">{v}</span>
+                        </div>
+                        '''
+                else:
+                    content += f'''
+                    <div class="info-item">
+                        <span class="info-label">{key}</span>
+                        <span class="info-value">{value}</span>
+                    </div>
+                    '''
+
+        content += '''
+            </div>
+        </div>
+        '''
+
+        return content
+
     def _generate_emergency_plan_page(
         self,
         data: Dict[str, Any],
@@ -498,18 +800,21 @@ def get_page_generator() -> PageGenerator:
 async def generate_report_page(
     report_type: str,
     data: Dict[str, Any],
-    title: Optional[str] = None
+    title: Optional[str] = None,
+    template: Optional[str] = None
 ) -> str:
     """
     生成报告页面的便捷函数
-    
+
     Args:
         report_type: 报告类型
         data: 报告数据
         title: 页面标题
-        
+        template: 模板名称（可选，用于指定特定模板）
+
     Returns:
         页面URL
     """
     generator = get_page_generator()
+    # template参数目前保留用于未来扩展，当前根据report_type自动选择模板
     return generator.generate_page(report_type, data, title)

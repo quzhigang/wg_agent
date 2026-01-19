@@ -85,6 +85,7 @@ class AgentState(TypedDict):
     business_sub_intent: Optional[str]  # BusinessSubIntent: 业务子意图
     intent: Optional[str]  # 保留原字段兼容
     intent_confidence: Optional[float]
+    entities: Optional[Dict[str, Any]]  # 意图分析提取的实体信息（如object, object_type, action, time等）
     target_kbs: Optional[List[str]]  # 目标知识库列表（用于knowledge场景）
     needs_kb_search: Optional[bool]  # 是否需要知识库检索
     needs_web_search: Optional[bool]  # 是否需要网络搜索
@@ -98,6 +99,10 @@ class AgentState(TypedDict):
     matched_workflow: Optional[str]
     workflow_params: Optional[Dict[str, Any]]
     workflow_from_template: Optional[bool]  # 是否来自模板匹配
+
+    # 工作流执行结果数据
+    extracted_result: Optional[Dict[str, Any]]  # 工作流提取的结果数据
+    forecast_target: Optional[Dict[str, Any]]  # 预报目标信息（水库/流域等）
 
     # 执行计划
     plan: List[Dict[str, Any]]  # List[PlanStep] 序列化后的形式
@@ -166,6 +171,7 @@ def create_initial_state(
         business_sub_intent=None,
         intent=None,
         intent_confidence=None,
+        entities=None,
         target_kbs=None,
         needs_kb_search=None,
         needs_web_search=None,
@@ -179,6 +185,10 @@ def create_initial_state(
         matched_workflow=None,
         workflow_params=None,
         workflow_from_template=None,
+
+        # 工作流执行结果数据
+        extracted_result=None,
+        forecast_target=None,
 
         # 执行计划
         plan=[],

@@ -184,28 +184,47 @@ async def knowledge_rag_node(state: AgentState) -> Dict[str, Any]:
 async def workflow_executor_node(state: AgentState) -> Dict[str, Any]:
     """
     工作流执行节点
-    
+
     如果匹配到预定义工作流，执行固定工作流
     """
+    from ..workflows.registry import get_workflow_registry
+
     logger.info("检查工作流执行...")
-    
+
     matched_workflow = state.get('matched_workflow')
-    
+
     if not matched_workflow:
         # 没有匹配的工作流，跳过
         return {}
-    
+
     logger.info(f"执行工作流: {matched_workflow}")
-    
-    # TODO: 从workflows模块获取工作流定义并执行
-    # from ..workflows import execute_workflow
-    # result = await execute_workflow(matched_workflow, state)
-    
-    # 工作流执行后，更新计划
-    # 这里返回工作流生成的执行计划
-    return {
-        "next_action": "execute"
-    }
+
+    # 从工作流注册表获取工作流实例
+    workflow_registry = get_workflow_registry()
+    workflow = workflow_registry.get_workflow(matched_workflow)
+
+    if not workflow:
+        logger.error(f"未找到工作流: {matched_workflow}")
+        return {
+            "error": f"未找到工作流: {matched_workflow}",
+            "next_action": "respond"
+        }
+
+    try:
+        # 执行工作流
+        logger.info(f"开始执行工作流: {workflow.name}")
+        result = await workflow.execute(state)
+        logger.info(f"工作流 {workflow.name} 执行完成")
+
+        # 工作流执行结果直接返回，包含 execution_results、output_type 等
+        return result
+
+    except Exception as e:
+        logger.error(f"工作流 {matched_workflow} 执行异常: {e}")
+        return {
+            "error": f"工作流执行异常: {str(e)}",
+            "next_action": "respond"
+        }
 
 
 async def quick_chat_node(state: AgentState) -> Dict[str, Any]:
@@ -373,8 +392,18 @@ def create_agent_graph() -> StateGraph:
     # 知识库检索后直接响应
     workflow.add_edge("knowledge_rag", "respond")
 
-    # 工作流后进入执行
-    workflow.add_edge("workflow", "execute")
+    # 工作流节点的条件路由（工作流执行完成后根据 next_action 决定下一步）
+    workflow.add_conditional_edges(
+        "workflow",
+        should_continue,
+        {
+            "execute": "execute",      # 工作流需要额外执行步骤
+            "wait_async": "wait_async", # 等待异步任务
+            "respond": "respond",       # 工作流执行完成，直接响应
+            "plan": "plan",
+            "end": END
+        }
+    )
 
     # 执行节点的条件路由
     workflow.add_conditional_edges(

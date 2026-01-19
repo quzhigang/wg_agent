@@ -141,6 +141,20 @@ class Controller:
             # 格式化聊天历史（限制最近2轮对话）
             chat_history_str = self._format_chat_history(state.get('chat_history', []))
 
+            # 检查工作流是否已经生成了页面URL
+            workflow_page_url = state.get('generated_page_url')
+            if workflow_page_url:
+                logger.info(f"工作流已生成页面URL: {workflow_page_url}")
+                # 生成文字回复
+                text_response = await self._generate_text_response_for_workflow(state, execution_summary)
+                return {
+                    "output_type": OutputType.WEB_PAGE.value,
+                    "final_response": text_response,
+                    "generated_page_url": workflow_page_url,
+                    "page_generating": False,
+                    "next_action": "end"
+                }
+
             # 检查是否需要生成Web页面
             output_type = state.get('output_type', 'text')
 
@@ -348,7 +362,222 @@ class Controller:
                 "page_generating": False,
                 "page_error": str(e)
             }
-    
+
+    async def _generate_text_response_for_workflow(
+        self,
+        state: AgentState,
+        execution_summary: str
+    ) -> str:
+        """
+        为工作流生成文字回复
+
+        当工作流已经生成了页面URL时，只需要生成文字回复。
+
+        Args:
+            state: 当前状态
+            execution_summary: 执行结果摘要
+
+        Returns:
+            文字回复
+        """
+        # 检查工作流结果中是否有提取的数据
+        extracted_result = state.get('extracted_result', {})
+        forecast_target = state.get('forecast_target', {})
+
+        logger.info(f"生成工作流文字回复 - extracted_result存在: {bool(extracted_result)}, forecast_target: {forecast_target}")
+
+        # 如果有提取的结果，基于结果生成回复
+        if extracted_result:
+            target_name = forecast_target.get('name', '目标')
+            target_type = forecast_target.get('type', 'basin')
+            summary = extracted_result.get('summary', '')
+            data = extracted_result.get('data', {})
+
+            logger.info(f"提取结果 - summary: {summary}, data存在: {bool(data)}, data有message: {data.get('message') if data else None}")
+
+            # 构建格式化的文字回复
+            if data and not data.get('message'):
+                # 有有效数据，生成格式化回复
+                result = self._format_forecast_response(target_name, target_type, summary, data)
+                logger.info(f"生成的文字回复: {result[:100]}...")
+                return result
+            elif data.get('message'):
+                # 有错误消息
+                return data.get('message')
+
+        # 使用LLM生成回复
+        logger.info("extracted_result为空或无有效数据，使用LLM生成回复")
+        try:
+            chat_history_str = self._format_chat_history(state.get('chat_history', []))
+            docs_summary = self._format_documents(state.get('retrieved_documents', []))
+
+            context_vars = {
+                "chat_history": chat_history_str or "无",
+                "user_message": state.get('user_message', ''),
+                "intent": state.get('intent', 'unknown'),
+                "plan_summary": "工作流执行完成",
+                "execution_results": execution_summary or "无执行结果",
+                "retrieved_documents": docs_summary or "无相关知识"
+            }
+
+            import time
+            _start = time.time()
+            response = await self.response_chain.ainvoke(context_vars)
+            _elapsed = time.time() - _start
+
+            full_prompt = RESPONSE_GENERATION_PROMPT.format(**context_vars)
+            log_llm_call(
+                step_name="工作流响应合成",
+                module_name="Controller._generate_text_response_for_workflow",
+                prompt_template_name="RESPONSE_GENERATION_PROMPT",
+                context_variables=context_vars,
+                full_prompt=full_prompt,
+                response=response.content,
+                elapsed_time=_elapsed
+            )
+
+            return response.content
+
+        except Exception as e:
+            logger.warning(f"LLM生成回复失败: {e}")
+            return f"已完成查询，详细结果请查看右侧报告页面。"
+
+    def _format_forecast_response(
+        self,
+        target_name: str,
+        target_type: str,
+        summary: str,
+        data: Dict[str, Any]
+    ) -> str:
+        """
+        格式化预报结果为文字回复
+
+        Args:
+            target_name: 目标名称（如水库名、站点名）
+            target_type: 目标类型（reservoir/station/detention_basin/basin）
+            summary: 摘要信息
+            data: 预报数据
+
+        Returns:
+            格式化的文字回复
+        """
+        lines = [f"**{summary}**\n"]
+
+        if target_type == 'reservoir':
+            # 水库预报结果格式化
+            lines.append(f"📊 **{target_name}预报数据：**\n")
+
+            # 入库流量信息
+            inflow_peak = data.get('Max_InQ') or data.get('inflow_peak') or data.get('入库洪峰流量')
+            inflow_peak_time = data.get('MaxInQ_Time') or data.get('inflow_peak_time') or data.get('入库洪峰时间')
+            if inflow_peak is not None:
+                lines.append(f"- **入库洪峰流量**：{inflow_peak} m³/s")
+                if inflow_peak_time:
+                    lines.append(f"- **入库洪峰时间**：{inflow_peak_time}")
+
+            # 出库流量信息
+            outflow_peak = data.get('Max_OutQ') or data.get('outflow_peak') or data.get('出库洪峰流量')
+            outflow_peak_time = data.get('MaxOutQ_Time') or data.get('outflow_peak_time') or data.get('出库洪峰时间')
+            if outflow_peak is not None:
+                lines.append(f"- **出库洪峰流量**：{outflow_peak} m³/s")
+                if outflow_peak_time:
+                    lines.append(f"- **出库洪峰时间**：{outflow_peak_time}")
+
+            # 水位信息
+            max_level = data.get('Max_Level') or data.get('max_water_level') or data.get('最高水位')
+            max_level_time = data.get('MaxLevel_Time') or data.get('max_water_level_time') or data.get('最高水位时间')
+            if max_level is not None:
+                lines.append(f"- **最高水位**：{max_level} m")
+                if max_level_time:
+                    lines.append(f"- **最高水位时间**：{max_level_time}")
+
+            # 蓄水量信息
+            max_storage = data.get('Max_Volumn') or data.get('max_storage') or data.get('最大蓄水量')
+            if max_storage is not None:
+                lines.append(f"- **最大蓄水量**：{max_storage} 万m³")
+
+            # 总入库量和总出库量
+            total_inflow = data.get('Total_InVolumn') or data.get('总入库量')
+            total_outflow = data.get('Total_OutVolumn') or data.get('总出库量')
+            if total_inflow is not None:
+                lines.append(f"- **总入库量**：{total_inflow} 万m³")
+            if total_outflow is not None:
+                lines.append(f"- **总出库量**：{total_outflow} 万m³")
+
+            # 预报结束时状态
+            end_level = data.get('EndTime_Level') or data.get('预报结束水位')
+            end_storage = data.get('EndTime_Volumn') or data.get('预报结束蓄水量')
+            if end_level is not None or end_storage is not None:
+                lines.append(f"\n📈 **预报结束时状态：**")
+                if end_level is not None:
+                    lines.append(f"- **水位**：{end_level} m")
+                if end_storage is not None:
+                    lines.append(f"- **蓄水量**：{end_storage} 万m³")
+
+        elif target_type == 'station':
+            # 站点预报结果格式化
+            lines.append(f"📊 **{target_name}预报数据：**\n")
+
+            peak_flow = data.get('peak_flow') or data.get('洪峰流量')
+            peak_time = data.get('peak_time') or data.get('洪峰时间')
+            peak_level = data.get('peak_level') or data.get('洪峰水位')
+
+            if peak_flow is not None:
+                lines.append(f"- **洪峰流量**：{peak_flow} m³/s")
+            if peak_time:
+                lines.append(f"- **洪峰时间**：{peak_time}")
+            if peak_level is not None:
+                lines.append(f"- **洪峰水位**：{peak_level} m")
+
+        elif target_type == 'detention_basin':
+            # 蓄滞洪区预报结果格式化
+            lines.append(f"📊 **{target_name}预报数据：**\n")
+
+            # 显示所有非时序数据字段
+            skip_keys = {'message', 'InQ_Dic', 'OutQ_Dic', 'Level_Dic', 'Volumn_Dic',
+                        'YHDOutQ_Dic', 'XHDOutQ_Dic'}
+            for key, value in data.items():
+                if key not in skip_keys and not isinstance(value, dict):
+                    lines.append(f"- **{key}**：{value}")
+
+        else:
+            # 全流域或其他类型
+            lines.append(f"📊 **预报数据：**\n")
+
+            # 处理水库结果
+            reservoir_result = data.get('reservoir_result', {})
+            if reservoir_result:
+                for res_name, res_data in reservoir_result.items():
+                    lines.append(f"\n🏞️ **{res_name}：**")
+                    if isinstance(res_data, dict):
+                        max_level = res_data.get('Max_Level')
+                        max_inq = res_data.get('Max_InQ')
+                        max_outq = res_data.get('Max_OutQ')
+                        if max_level is not None:
+                            lines.append(f"- 最高水位：{max_level} m")
+                        if max_inq is not None:
+                            lines.append(f"- 入库洪峰：{max_inq} m³/s")
+                        if max_outq is not None:
+                            lines.append(f"- 出库洪峰：{max_outq} m³/s")
+
+            # 处理站点结果
+            station_result = data.get('station_result', data.get('stations', []))
+            if station_result:
+                if isinstance(station_result, list):
+                    for sta in station_result:
+                        sta_name = sta.get('name', '未知站点')
+                        lines.append(f"\n📍 **{sta_name}：**")
+                        peak_flow = sta.get('peak_flow') or sta.get('洪峰流量')
+                        peak_level = sta.get('peak_level') or sta.get('洪峰水位')
+                        if peak_flow is not None:
+                            lines.append(f"- 洪峰流量：{peak_flow} m³/s")
+                        if peak_level is not None:
+                            lines.append(f"- 洪峰水位：{peak_level} m")
+
+        lines.append("\n💡 *详细信息和过程曲线请查看左侧报告页面。*")
+
+        return "\n".join(lines)
+
     async def handle_error_response(self, state: AgentState) -> Dict[str, Any]:
         """
         处理错误情况的响应

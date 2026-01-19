@@ -426,3 +426,17 @@ def init_default_tools():
         logger.info("RAG知识库搜索工具注册完成")
     except ImportError as e:
         logger.warning(f"RAG知识库搜索工具注册失败: {e}")
+
+    # 注册页面生成工具
+    try:
+        from ..output.page_generator import generate_report_page
+        registry = get_tool_registry()
+        registry.register_function(
+            name="generate_report_page",
+            func=generate_report_page,
+            description="生成Web报告页面，支持洪水预报、应急预案等多种报告类型",
+            category=ToolCategory.OUTPUT
+        )
+        logger.info("页面生成工具注册完成")
+    except ImportError as e:
+        logger.warning(f"页面生成工具注册失败: {e}")

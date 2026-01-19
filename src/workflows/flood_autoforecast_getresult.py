@@ -165,9 +165,10 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
         # 从状态中提取参数
         params = state.get('extracted_params', {})
         user_message = state.get('user_message', '')
-        
+        entities = state.get('entities', {})  # 获取意图分析提取的实体
+
         # 步骤1: 解析会话参数 - 提取预报对象
-        forecast_target = self._parse_forecast_target(user_message, params)
+        forecast_target = self._parse_forecast_target(user_message, params, entities)
         results['forecast_target'] = forecast_target
         logger.info(f"解析到预报对象: {forecast_target}")
         
@@ -383,14 +384,15 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
                 "next_action": "respond"
             }
     
-    def _parse_forecast_target(self, user_message: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_forecast_target(self, user_message: str, params: Dict[str, Any], entities: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         解析预报对象
-        
+
         Args:
             user_message: 用户消息
-            params: 提取的参数
-            
+            params: 提取的参数（extracted_params）
+            entities: 意图分析提取的实体（entities字段）
+
         Returns:
             预报对象信息
         """
@@ -399,39 +401,74 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             "name": "全流域",
             "id": None
         }
-        
+
+        entities = entities or {}
+
+        # 优先从entities中获取对象信息
+        object_name = entities.get("object", "")
+        object_type = entities.get("object_type", "")
+
         # 检查是否指定了具体的水库
-        reservoir_keywords = ["水库"]
-        for keyword in reservoir_keywords:
-            if keyword in user_message:
-                # 尝试提取水库名称
-                target["type"] = "reservoir"
-                if params.get("reservoir_name"):
-                    target["name"] = params.get("reservoir_name")
-                    target["id"] = params.get("reservoir_id")
-                break
-        
+        if object_type == "水库" or "水库" in user_message:
+            target["type"] = "reservoir"
+            # 优先使用entities中的对象名称
+            if object_name and "水库" in object_name:
+                target["name"] = object_name
+            elif params.get("reservoir_name"):
+                target["name"] = params.get("reservoir_name")
+                target["id"] = params.get("reservoir_id")
+            else:
+                # 尝试从用户消息中提取水库名称
+                extracted_name = self._extract_name_from_message(user_message, "水库")
+                if extracted_name:
+                    target["name"] = extracted_name
+
         # 检查是否指定了具体的站点
-        station_keywords = ["站", "水文站"]
-        for keyword in station_keywords:
-            if keyword in user_message and "蓄滞洪" not in user_message:
-                target["type"] = "station"
-                if params.get("station_name"):
-                    target["name"] = params.get("station_name")
-                    target["id"] = params.get("station_id")
-                break
-        
+        elif object_type in ["站点", "水文站", "站"] or ("站" in user_message and "蓄滞洪" not in user_message):
+            target["type"] = "station"
+            if object_name and "站" in object_name:
+                target["name"] = object_name
+            elif params.get("station_name"):
+                target["name"] = params.get("station_name")
+                target["id"] = params.get("station_id")
+            else:
+                extracted_name = self._extract_name_from_message(user_message, "站")
+                if extracted_name:
+                    target["name"] = extracted_name
+
         # 检查是否指定了蓄滞洪区
-        detention_keywords = ["蓄滞洪区"]
-        for keyword in detention_keywords:
-            if keyword in user_message:
-                target["type"] = "detention_basin"
-                if params.get("detention_name"):
-                    target["name"] = params.get("detention_name")
-                    target["id"] = params.get("detention_id")
-                break
-        
+        elif object_type == "蓄滞洪区" or "蓄滞洪区" in user_message:
+            target["type"] = "detention_basin"
+            if object_name and "蓄滞洪区" in object_name:
+                target["name"] = object_name
+            elif params.get("detention_name"):
+                target["name"] = params.get("detention_name")
+                target["id"] = params.get("detention_id")
+            else:
+                extracted_name = self._extract_name_from_message(user_message, "蓄滞洪区")
+                if extracted_name:
+                    target["name"] = extracted_name
+
         return target
+
+    def _extract_name_from_message(self, message: str, suffix: str) -> str:
+        """
+        从用户消息中提取带有指定后缀的名称
+
+        Args:
+            message: 用户消息
+            suffix: 后缀（如"水库"、"站"、"蓄滞洪区"）
+
+        Returns:
+            提取的名称，如果未找到则返回空字符串
+        """
+        import re
+        # 匹配中文名称+后缀的模式
+        pattern = rf'([\u4e00-\u9fa5]+{suffix})'
+        match = re.search(pattern, message)
+        if match:
+            return match.group(1)
+        return ""
     
     def _extract_forecast_result(
         self, 
@@ -489,10 +526,16 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
     def _extract_reservoir_data(self, forecast_data: Any, reservoir_name: str) -> Dict[str, Any]:
         """提取水库相关数据"""
         if isinstance(forecast_data, dict):
-            reservoirs = forecast_data.get("reservoirs", [])
-            for res in reservoirs:
-                if res.get("name") == reservoir_name or reservoir_name in str(res.get("name", "")):
-                    return res
+            # 数据结构: {'reservoir_result': {'水库名': {...}}}
+            reservoir_result = forecast_data.get("reservoir_result", {})
+            if isinstance(reservoir_result, dict):
+                # 直接按名称查找
+                if reservoir_name in reservoir_result:
+                    return reservoir_result[reservoir_name]
+                # 模糊匹配
+                for name, data in reservoir_result.items():
+                    if reservoir_name in name or name in reservoir_name:
+                        return data
         return {"message": f"未找到{reservoir_name}的预报数据"}
     
     def _extract_station_data(self, forecast_data: Any, station_name: str) -> Dict[str, Any]:
