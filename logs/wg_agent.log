@@ -1,36 +1,79 @@
-2026-01-19 11:46:07.703 | INFO     | src.config.logging_config:setup_logging:88 | 日志系统初始化完成
-2026-01-19 11:46:07.703 | INFO     | src.config.logging_config:setup_logging:89 | 日志级别: INFO
-2026-01-19 11:46:07.703 | INFO     | src.config.logging_config:setup_logging:90 | 日志文件: ./logs/wg_agent.log
-2026-01-19 11:46:07.716 | INFO     | src.main:lifespan:29 | ==================================================
-2026-01-19 11:46:07.716 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
-2026-01-19 11:46:07.716 | INFO     | src.main:lifespan:31 | ==================================================
-2026-01-19 11:46:07.776 | INFO     | src.main:lifespan:36 | 数据库初始化完成
-2026-01-19 11:46:07.776 | INFO     | src.main:lifespan:45 | 目录结构检查完成
-2026-01-19 11:46:07.777 | INFO     | src.tools.registry:init_default_tools:395 | 初始化默认工具...
-2026-01-19 11:46:07.777 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
-2026-01-19 11:46:07.778 | INFO     | src.tools.basin_info:register_basin_info_tools:1100 | 流域基本信息工具注册完成，共注册14个工具
-2026-01-19 11:46:07.779 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1449 | 水雨情监测工具注册完成，共15个工具
-2026-01-19 11:46:07.779 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
-2026-01-19 11:46:07.781 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
-2026-01-19 11:46:07.782 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
-2026-01-19 11:46:07.783 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
-2026-01-19 11:46:07.784 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
-2026-01-19 11:46:07.784 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
-2026-01-19 11:46:07.785 | INFO     | src.tools.registry:init_default_tools:412 | 默认工具加载完成
-2026-01-19 11:46:07.785 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
-2026-01-19 11:46:07.785 | INFO     | src.tools.registry:init_default_tools:426 | RAG知识库搜索工具注册完成
-2026-01-19 11:46:07.785 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
-2026-01-19 11:46:07.785 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
-2026-01-19 11:46:07.786 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
-2026-01-19 11:46:07.786 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
-2026-01-19 11:46:07.786 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
-2026-01-19 11:46:07.787 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
-2026-01-19 11:46:07.788 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manualforecast_result
-2026-01-19 11:46:07.788 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
-2026-01-19 11:46:07.788 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
-2026-01-19 11:46:07.789 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
-2026-01-19 11:46:11.065 | INFO     | src.rag.knowledge_base:_init_vector_db:97 | PageIndex向量索引连接成功: 107 个文档, 37459 个节点
-2026-01-19 11:46:11.066 | INFO     | src.rag.knowledge_base:__init__:82 | 知识库初始化完成（对接PageIndex）
-2026-01-19 11:46:12.874 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 107
-2026-01-19 11:46:12.874 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
-2026-01-19 11:46:12.874 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2026-01-20 17:19:29.934 | INFO     | src.agents.graph:run_agent_stream:567 | 流式运行智能体 - 会话: 594b7286-aacd-46b0-8a41-70b263dad8d7
+2026-01-20 17:19:29.934 | INFO     | src.agents.graph:create_agent_graph:360 | 创建智能体状态图...
+2026-01-20 17:19:29.937 | INFO     | src.agents.graph:create_agent_graph:427 | 智能体状态图创建完成
+2026-01-20 17:19:29.946 | INFO     | src.agents.graph:get_agent_graph:454 | 智能体图编译完成
+2026-01-20 17:19:30.173 | INFO     | src.agents.controller:__init__:112 | Controller初始化完成
+2026-01-20 17:19:30.190 | INFO     | src.agents.planner:__init__:598 | Planner初始化完成
+2026-01-20 17:19:30.191 | INFO     | src.agents.planner:analyze_intent:610 | 开始分析用户意图: 告诉我2025年7月1日那场降雨的洪水预报结果...
+2026-01-20 17:19:32.212 | INFO     | src.agents.planner:analyze_intent:641 | 意图分析结果: {'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '2025年7月1日那场降雨的洪水', 'object_type': None, 'action': '查询洪水预报结果', 'time': '2025年7月1日'}, 'target_kbs': ['history_flood', 'flood_preplan', 'monitor_site', 'hydro_model']}
+2026-01-20 17:19:32.213 | INFO     | src.agents.planner:planner_node:1781 | 意图类别: business，进入第2阶段子意图分类
+2026-01-20 17:19:32.213 | INFO     | src.agents.planner:classify_business_sub_intent:1020 | 执行业务子意图分类...
+2026-01-20 17:19:35.712 | INFO     | src.agents.planner:classify_business_sub_intent:1048 | 业务子意图分类结果: {'business_sub_intent': 'flood_forecast', 'confidence': 0.95, 'reason': "用户请求查询2025年7月1日那场降雨的洪水预报结果，明确涉及对特定时间点的洪水预报信息的获取，符合'flood_forecast'类别中'查询预报结果'的定义。"}
+2026-01-20 17:19:35.713 | INFO     | src.agents.planner:planner_node:1789 | 子意图分类结果: flood_forecast
+2026-01-20 17:19:35.713 | INFO     | src.agents.planner:planner_node:1795 | 进入第3阶段工作流选择
+2026-01-20 17:19:35.713 | INFO     | src.agents.planner:check_workflow_match:1079 | 执行第3阶段：业务工作流选择...
+2026-01-20 17:19:35.713 | INFO     | src.agents.planner:check_workflow_match:1090 | 使用已分类的子意图: flood_forecast
+2026-01-20 17:19:35.714 | INFO     | src.agents.planner:check_workflow_match:1104 | 对象类型未知，开始解析...
+2026-01-20 17:19:35.714 | INFO     | src.agents.planner:_resolve_object_type:811 | 开始解析对象类型: 2025年7月1日那场降雨的洪水
+2026-01-20 17:19:35.744 | INFO     | src.agents.planner:_resolve_object_type:870 | 数据库查询结果: 数据库中未找到名为'2025年7月1日那场降雨的洪水'的站点
+2026-01-20 17:19:35.744 | INFO     | src.rag.retriever:_init_vector_index:55 | PageIndex多知识库索引连接成功: 10 个知识库 ['catchment_basin', 'water_project', 'monitor_site', 'history_flood', 'flood_preplan', 'system_function', 'hydro_model', 'business_workflow', 'catchment_planning', 'project_designplan']
+2026-01-20 17:19:35.744 | INFO     | src.rag.retriever:__init__:47 | RAG检索器初始化完成（对接PageIndex）
+2026-01-20 17:19:35.744 | INFO     | src.rag.retriever:retrieve:114 | RAG检索: 2025年7月1日那场降雨的洪水是什么类型？属于什么站点或工... -> 知识库: ['monitor_site', 'history_flood', 'flood_preplan']
+2026-01-20 17:19:36.327 | INFO     | src.rag.retriever:retrieve:177 | 检索到 5 条文档，最高匹配度: 0.546
+2026-01-20 17:19:36.327 | INFO     | src.agents.planner:_resolve_object_type:893 | RAG检索完成，获取到 5 条相关文档
+2026-01-20 17:19:38.045 | INFO     | src.agents.planner:_resolve_object_type:924 | LLM对象类型合成结果: {'object': '2025年7月1日那场降雨的洪水', 'object_type': '业务类', 'stcd': '', 'confidence': 0.9, 'source': 'rag', 'reason': "对象名称中包含'洪水'，且未在数据库中找到对应站点信息，但根据知识库内容可知，'洪水'通常与洪水预报、预演等业务相关。"}
+2026-01-20 17:19:38.046 | INFO     | src.agents.planner:_resolve_object_type:932 | 对象类型解析完成: 2025年7月1日那场降雨的洪水 -> 业务类
+2026-01-20 17:19:38.046 | INFO     | src.agents.planner:check_workflow_match:1115 | 根据子意图 flood_forecast 筛选预定义工作流
+2026-01-20 17:19:38.105 | INFO     | src.workflows.workflow_vector_index:__init__:77 | 工作流向量索引初始化完成，存储目录: C:\Users\15257\Desktop\wg_agent\workflow_vectors
+2026-01-20 17:19:38.389 | INFO     | src.workflows.workflow_vector_index:search:242 | 工作流向量检索完成，查询: '告诉我2025年7月1日那场降雨的洪水预报结果...', 子意图: flood_forecast, 返回 0 个结果
+2026-01-20 17:19:38.389 | INFO     | src.agents.planner:_get_saved_workflows_description:1436 | 向量检索无结果，回退到数据库查询
+2026-01-20 17:19:38.454 | INFO     | src.agents.planner:check_workflow_match:1122 | 根据子意图 flood_forecast 和用户消息进行工作流检索
+2026-01-20 17:19:39.508 | INFO     | src.agents.planner:check_workflow_match:1150 | 工作流选择结果: {'matched_workflow': 'get_history_autoforecast_result', 'saved_workflow_id': None, 'output_type': 'text'}
+2026-01-20 17:19:39.508 | INFO     | src.agents.planner:check_workflow_match:1161 | LLM选择工作流: get_history_autoforecast_result
+2026-01-20 17:19:39.509 | INFO     | src.agents.planner:planner_node:1801 | 匹配到工作流: get_history_autoforecast_result，直接执行
+2026-01-20 17:19:39.510 | INFO     | src.agents.graph:workflow_executor_node:192 | 检查工作流执行...
+2026-01-20 17:19:39.510 | INFO     | src.agents.graph:workflow_executor_node:200 | 执行工作流: get_history_autoforecast_result
+2026-01-20 17:19:39.510 | INFO     | src.agents.graph:workflow_executor_node:215 | 开始执行工作流: get_history_autoforecast_result
+2026-01-20 17:19:39.510 | INFO     | src.workflows.get_history_autoforecast_result:execute:170 | 开始执行历史洪水自动预报结果查询工作流
+2026-01-20 17:19:39.511 | INFO     | src.workflows.get_history_autoforecast_result:execute:184 | 执行步骤1: 解析会话参数
+2026-01-20 17:19:39.511 | INFO     | src.workflows.get_history_autoforecast_result:execute:201 | 解析到预报对象: {'type': 'basin', 'name': '全流域', 'id': None}
+2026-01-20 17:19:39.511 | INFO     | src.workflows.get_history_autoforecast_result:execute:202 | 解析到降雨时间范围: 2025-06-28 00:00:00 - 2025-07-04 00:00:00
+2026-01-20 17:19:39.511 | INFO     | src.workflows.get_history_autoforecast_result:execute:205 | 执行步骤2: 获取历史面雨量过程
+2026-01-20 17:19:39.822 | INFO     | src.workflows.get_history_autoforecast_result:execute:239 | 执行步骤3: 获取具体降雨起止时间
+2026-01-20 17:19:39.823 | INFO     | src.workflows.get_history_autoforecast_result:_analyze_rain_time:655 | _analyze_rain_time: 数据类型: dict, 数据预览: {'t': ['2025-06-28 00:00:00', '2025-06-28 01:00:00', '2025-06-28 02:00:00', '2025-06-28 03:00:00', '2025-06-28 04:00:00', '2025-06-28 05:00:00', '2025-06-28 06:00:00', '2025-06-28 07:00:00', '2025-06-28 08:00:00', '2025-06-28 09:00:00', '2025-06-28 10:00:00', '2025-06-28 11:00:00', '2025-06-28 12:00:00', '2025-06-28 13:00:00', '2025-06-28 14:00:00', '2025-06-28 15:00:00', '2025-06-28 16:00:00', '2025-06-28 17:00:00', '2025-06-28 18:00:00', '2025-06-28 19:00:00', '2025-06-28 20:00:00', '2025-06-2
+2026-01-20 17:19:39.823 | INFO     | src.workflows.get_history_autoforecast_result:_analyze_rain_time:684 | _analyze_rain_time: 检测到并行数组格式: 时间数组长度=145, 值数组长度=145
+2026-01-20 17:19:39.823 | INFO     | src.workflows.get_history_autoforecast_result:_analyze_rain_time:731 | _analyze_rain_time: 解析得到 145 个时间点
+2026-01-20 17:19:39.824 | INFO     | src.workflows.get_history_autoforecast_result:_analyze_rain_time:753 | _analyze_rain_time: 降雨核心时间索引=74, 时间=2025-07-01 02:00:00, 3小时累积=18.11mm
+2026-01-20 17:19:39.824 | INFO     | src.workflows.get_history_autoforecast_result:_analyze_rain_time:792 | _analyze_rain_time: 分析成功，降雨时间段: 2025-06-30 18:00:00 ~ 2025-07-01 08:00:00, 时间点数量: 15, 总降雨量: 28.96mm
+2026-01-20 17:19:39.824 | INFO     | src.workflows.get_history_autoforecast_result:execute:253 | 分析得到具体降雨时间: {'start_time': '2025-06-30 18:00:00', 'end_time': '2025-07-01 08:00:00'}
+2026-01-20 17:19:39.824 | INFO     | src.workflows.get_history_autoforecast_result:execute:256 | 执行步骤4: 获取历史洪水自动预报方案ID
+2026-01-20 17:19:39.881 | INFO     | src.workflows.get_history_autoforecast_result:_find_matching_plan_id:823 | 历史预报方案清单类型: dict, 数据预览: {'model_auto_20240911180000': ['2024/09/11 18:00:00', '2024/09/14 18:00:00', '14.6'], 'model_auto_20240911200000': ['2024/09/11 20:00:00', '2024/09/14 20:00:00', '14.7'], 'model_auto_20241015080000': ['2024/10/15 08:00:00', '2024/10/18 08:00:00', '50.4'], 'model_auto_20241015180000': ['2024/10/15 18:00:00', '2024/10/18 18:00:00', '50.6'], 'model_auto_20241018120000': ['2024/10/18 12:00:00', '2024/10/21 12:00:00', '31.2'], 'model_auto_20241018140000': ['2024/10/18 14:00:00', '2024/10/21 14:00:00'
+2026-01-20 17:19:39.883 | INFO     | src.workflows.get_history_autoforecast_result:_find_matching_plan_id:832 | 目标降雨结束时间: 2025-07-01 08:00:00
+2026-01-20 17:19:39.884 | INFO     | src.workflows.get_history_autoforecast_result:_find_matching_plan_id:860 | 找到候选方案: model_auto_20250701120000, 预报开始时间: 2025-07-01 12:00:00, 差距: 14400.0秒
+2026-01-20 17:19:39.886 | INFO     | src.workflows.get_history_autoforecast_result:_find_matching_plan_id:907 | 最终选择的方案ID: model_auto_20250701120000
+2026-01-20 17:19:39.886 | INFO     | src.workflows.get_history_autoforecast_result:execute:289 | 找到匹配的历史预报方案ID: model_auto_20250701120000
+2026-01-20 17:19:39.886 | INFO     | src.workflows.get_history_autoforecast_result:execute:294 | 执行步骤5: 获取历史洪水自动预报结果
+2026-01-20 17:19:40.524 | INFO     | src.workflows.get_history_autoforecast_result:execute:326 | 执行步骤6: 结果信息提取整理
+2026-01-20 17:19:40.524 | INFO     | src.workflows.get_history_autoforecast_result:execute:330 | 步骤5返回数据keys: ['plan_code', 'start_time', 'end_time', 'total_rain', 'rain_gc', 'catchment_flood', 'reservoir_result', 'reachsection_result', 'floodblq_result', 'hdline_tj_result']
+2026-01-20 17:19:40.524 | INFO     | src.workflows.get_history_autoforecast_result:execute:351 | 执行步骤7: 采用合适的Web页面模板进行结果输出
+2026-01-20 17:19:40.524 | INFO     | src.output.templates:__init__:278 | 模板管理器初始化完成
+2026-01-20 17:19:40.525 | INFO     | src.output.page_generator:__init__:44 | 页面生成器初始化完成，输出目录: web\generated_pages
+2026-01-20 17:19:40.525 | INFO     | src.output.page_generator:generate_page:63 | 生成报告页面: history_forecast
+2026-01-20 17:19:40.599 | INFO     | src.output.page_generator:generate_page:88 | 页面生成成功: /pages/history_forecast_20260120_171940_37be5183.html
+2026-01-20 17:19:40.600 | INFO     | src.workflows.get_history_autoforecast_result:execute:380 | 历史洪水自动预报结果查询工作流执行完成
+2026-01-20 17:19:40.600 | INFO     | src.agents.graph:workflow_executor_node:217 | 工作流 get_history_autoforecast_result 执行完成
+2026-01-20 17:19:40.620 | INFO     | src.agents.controller:synthesize_response:124 | 开始合成最终响应...
+2026-01-20 17:19:40.620 | INFO     | src.agents.controller:synthesize_response:147 | 工作流已生成页面URL: /pages/history_forecast_20260120_171940_37be5183.html
+2026-01-20 17:19:40.621 | INFO     | src.agents.controller:_generate_text_response_for_workflow:387 | 生成工作流文字回复 - extracted_result存在: True, forecast_target: {'type': 'basin', 'name': '全流域', 'id': None}
+2026-01-20 17:19:40.621 | INFO     | src.agents.controller:_generate_text_response_for_workflow:396 | 提取结果 - summary: 全流域历史洪水自动预报结果, data存在: True, data有message: None
+2026-01-20 17:19:40.621 | INFO     | src.agents.controller:_generate_text_response_for_workflow:402 | 生成的文字回复: **全流域历史洪水自动预报结果**
+
+📊 **预报数据：**
+
+
+🏞️ **盘石头水库：**
+- 最高水位：242.12 m
+- 入库洪峰：6.22 m³/s
+- 出库洪峰：9.1 m³/s
+
+🏞️ ...
