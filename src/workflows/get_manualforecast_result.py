@@ -33,7 +33,7 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
     
     @property
     def name(self) -> str:
-        return "get_manualforecast_result"
+        return "get_manual_forecast_result"
     
     @property
     def description(self) -> str:
@@ -235,11 +235,26 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                     
                     if result.success:
                         results['rain_process'] = result.data
-                        
+                        logger.info(f"步骤2返回数据类型: {type(result.data)}, 数据长度: {len(result.data) if isinstance(result.data, (list, dict)) else 'N/A'}")
+                        # 打印数据的所有字段名，便于调试
+                        if isinstance(result.data, dict):
+                            logger.info(f"步骤2返回数据字段: {list(result.data.keys())}")
+                        logger.info(f"步骤2返回数据内容: {str(result.data)[:500]}")  # 打印前500字符
+
                         # 步骤3: 获取具体降雨起止时间
                         logger.info("执行步骤3: 获取具体降雨起止时间")
                         exact_rain_time = self._analyze_rain_time(result.data)
                         results['exact_rain_time'] = exact_rain_time
+                        logger.info(f"步骤3分析结果 - 降雨起止时间: {exact_rain_time}")
+
+                        # 如果分析降雨时间失败，使用用户提供的时间范围作为回退
+                        if not exact_rain_time.get("start") or not exact_rain_time.get("end"):
+                            logger.warning("降雨时间分析结果为空，使用用户提供的时间范围作为回退")
+                            exact_rain_time = {
+                                "start": rain_start,
+                                "end": rain_end
+                            }
+                            logger.info(f"回退使用时间范围: {exact_rain_time}")
                         
                         execution_results.append({
                             'step_id': 3,
@@ -334,14 +349,18 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 }
             
             results['manual_forecast_result'] = result.data
-            
+            logger.info(f"步骤5返回数据类型: {type(result.data)}")
+            logger.info(f"步骤5返回数据keys: {result.data.keys() if isinstance(result.data, dict) else 'N/A'}")
+            logger.info(f"步骤5返回数据内容: {str(result.data)[:1000]}")  # 打印前1000字符
+
             # 步骤6: 结果信息提取整理
             logger.info("执行步骤6: 结果信息提取整理")
             extracted_result = self._extract_forecast_result(
-                forecast_target, 
+                forecast_target,
                 result.data
             )
             results['extracted_result'] = extracted_result
+            logger.info(f"步骤6提取结果: {extracted_result}")
             
             execution_results.append({
                 'step_id': 6,
@@ -478,61 +497,311 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 result["rain_time_range"]["end"] = end_date.strftime("%Y-%m-%d 23:59:59")
             except ValueError:
                 pass
-        
+        else:
+            # 尝试从entities.time或user_message中解析时间
+            time_range = self._parse_time_from_text(user_message, entities)
+            if time_range["start"] and time_range["end"]:
+                result["rain_time_range"] = time_range
+
         return result
+
+    def _parse_time_from_text(self, user_message: str, entities: Dict[str, Any]) -> Dict[str, str]:
+        """
+        从用户消息或entities中解析时间范围
+
+        Args:
+            user_message: 用户消息
+            entities: 意图分析提取的实体
+
+        Returns:
+            包含start和end的时间范围字典
+        """
+        import re
+
+        result = {"start": "", "end": ""}
+        now = datetime.now()
+
+        # 合并用户消息和entities中的时间信息
+        time_str = entities.get("time", "") if entities else ""
+        text_to_parse = f"{user_message} {time_str}"
+
+        # 尝试解析具体日期
+        parsed_date = self._extract_date_from_text(text_to_parse, now)
+        if parsed_date:
+            # 找到具体日期，前后各加3天余量
+            result["start"] = (parsed_date - timedelta(days=3)).strftime("%Y-%m-%d 00:00:00")
+            result["end"] = (parsed_date + timedelta(days=3)).strftime("%Y-%m-%d 23:59:59")
+            return result
+
+        # 处理相对时间描述
+        if "上周" in text_to_parse:
+            result["start"] = (now - timedelta(days=14)).strftime("%Y-%m-%d 00:00:00")
+            result["end"] = (now - timedelta(days=7)).strftime("%Y-%m-%d 23:59:59")
+        elif "上个月" in text_to_parse:
+            last_month = now.replace(day=1) - timedelta(days=1)
+            result["start"] = last_month.replace(day=1).strftime("%Y-%m-%d 00:00:00")
+            result["end"] = last_month.strftime("%Y-%m-%d 23:59:59")
+        elif "今年汛期" in text_to_parse:
+            year = now.year
+            result["start"] = f"{year}-06-01 00:00:00"
+            result["end"] = f"{year}-09-30 23:59:59"
+        elif "去年汛期" in text_to_parse:
+            year = now.year - 1
+            result["start"] = f"{year}-06-01 00:00:00"
+            result["end"] = f"{year}-09-30 23:59:59"
+        else:
+            # 尝试匹配月份
+            month_match = re.search(r'(\d{1,2})月', text_to_parse)
+            if month_match:
+                month = int(month_match.group(1))
+                year = now.year
+                if month > now.month:
+                    year = now.year - 1
+
+                if month == 12:
+                    end_date = datetime(year + 1, 1, 1) - timedelta(seconds=1)
+                else:
+                    end_date = datetime(year, month + 1, 1) - timedelta(seconds=1)
+
+                result["start"] = f"{year}-{month:02d}-01 00:00:00"
+                result["end"] = end_date.strftime("%Y-%m-%d %H:%M:%S")
+
+        return result
+
+    def _extract_date_from_text(self, text: str, now: datetime) -> Optional[datetime]:
+        """
+        从文本中提取具体日期
+
+        支持格式：
+        - X月X日、X月X号
+        - XXXX年X月X日
+        - 今年X月X日、去年X月X日
+
+        Args:
+            text: 待解析的文本
+            now: 当前时间
+
+        Returns:
+            解析出的日期，如果解析失败返回None
+        """
+        import re
+
+        # 模式1: XXXX年X月X日 或 XXXX年X月X号
+        pattern1 = r'(\d{4})年(\d{1,2})月(\d{1,2})[日号]'
+        match = re.search(pattern1, text)
+        if match:
+            year, month, day = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            try:
+                return datetime(year, month, day)
+            except ValueError:
+                pass
+
+        # 模式2: X月X日 或 X月X号（无年份，需要推断）
+        pattern2 = r'(\d{1,2})月(\d{1,2})[日号]'
+        match = re.search(pattern2, text)
+        if match:
+            month, day = int(match.group(1)), int(match.group(2))
+            year = now.year
+            try:
+                target_date = datetime(year, month, day)
+                if target_date > now:
+                    year = now.year - 1
+                    target_date = datetime(year, month, day)
+                return target_date
+            except ValueError:
+                pass
+
+        # 模式3: 今年/去年 + X月X日
+        pattern3 = r'(今年|去年)(\d{1,2})月(\d{1,2})[日号]?'
+        match = re.search(pattern3, text)
+        if match:
+            year_hint, month, day = match.group(1), int(match.group(2)), int(match.group(3))
+            year = now.year if year_hint == "今年" else now.year - 1
+            try:
+                return datetime(year, month, day)
+            except ValueError:
+                pass
+
+        return None
     
     def _analyze_rain_time(self, rain_data: Any) -> Dict[str, str]:
         """
         分析降雨过程数据，获取具体降雨起止时间
-        
+
+        算法逻辑：
+        1. 首先将原始数据转换为时间序列 [(time, value), ...]
+        2. 计算每个时间点的3小时累积降雨量，找到最大值作为降雨核心时间
+        3. 从核心时间向前搜索，当连续3小时累积降雨小于阈值(1mm)时，认为降雨开始
+        4. 从核心时间向后搜索，当连续3小时累积降雨小于阈值(1mm)时，认为降雨结束
+
+        这样可以有效排除拖沓的前期降雨和尾雨，得到主要降雨时段
+
+        支持的数据格式：
+        1. {'t': [时间数组], 'v': [值数组]} - forecast_rain_ecmwf_avg API返回格式
+        2. {"data": [...], "list": [...], "records": [...]} - 嵌套数据格式
+        3. {time_string: value} - 时间-降雨量字典格式
+        4. [{"time": "...", "value": ...}, ...] - 列表格式
+        5. [[time, value], ...] - 二维数组格式
+
         Args:
-            rain_data: 逐小时降雨过程数据
-            
+            rain_data: 降雨过程数据
+
         Returns:
-            具体的降雨起止时间
+            具体降雨起止时间，格式为 {"start": "...", "end": "..."}
         """
         result = {
             "start": "",
             "end": ""
         }
-        
+
         if not rain_data:
+            logger.warning("_analyze_rain_time: 降雨数据为空")
             return result
-        
+
+        # 记录原始数据类型用于调试
+        logger.info(f"_analyze_rain_time: 数据类型: {type(rain_data).__name__}, 数据预览: {str(rain_data)[:500]}")
+
         try:
-            # 假设rain_data是一个时间-降雨量的字典或列表
+            # 提取降雨值的辅助函数
+            def extract_rain_value(val):
+                """从各种格式中提取降雨数值"""
+                if val is None:
+                    return 0.0
+                if isinstance(val, (int, float)):
+                    return float(val)
+                if isinstance(val, str):
+                    try:
+                        return float(val)
+                    except ValueError:
+                        return 0.0
+                return 0.0
+
+            # 第一步：将各种格式的数据统一转换为时间序列 [(time_str, rain_value), ...]
+            time_series = []
+
             if isinstance(rain_data, dict):
-                rain_times = []
-                threshold = 0.1  # 降雨阈值，用于过滤零星降雨
-                
-                for time_str, rain_value in rain_data.items():
-                    if isinstance(rain_value, (int, float)) and rain_value > threshold:
-                        rain_times.append(time_str)
-                
-                if rain_times:
-                    rain_times.sort()
-                    result["start"] = rain_times[0]
-                    result["end"] = rain_times[-1]
-            
+                # 格式1: {'t': [时间数组], 'v': [值数组]}
+                time_array = rain_data.get("t") or rain_data.get("time") or rain_data.get("times")
+                value_array = (rain_data.get("v") or rain_data.get("value") or
+                              rain_data.get("values") or rain_data.get("p") or
+                              rain_data.get("rain") or rain_data.get("rainfall") or
+                              rain_data.get("drp"))
+
+                if isinstance(time_array, list) and isinstance(value_array, list):
+                    logger.info(f"_analyze_rain_time: 检测到并行数组格式: 时间数组长度={len(time_array)}, 值数组长度={len(value_array)}")
+                    for t, v in zip(time_array, value_array):
+                        time_series.append((str(t), extract_rain_value(v)))
+
+                # 格式2: {"data": [...], "list": [...], "records": [...]}
+                elif rain_data.get("data") or rain_data.get("list") or rain_data.get("records"):
+                    nested_data = (rain_data.get("data") or rain_data.get("list") or
+                                  rain_data.get("records") or rain_data.get("items"))
+                    if nested_data and isinstance(nested_data, list):
+                        logger.info(f"_analyze_rain_time: 检测到嵌套数据格式，递归处理")
+                        return self._analyze_rain_time(nested_data)
+
+                # 格式3: {time_string: value} 字典格式
+                else:
+                    logger.info(f"_analyze_rain_time: 检测到时间-值字典格式，键数量: {len(rain_data)}")
+                    for time_key, rain_val in rain_data.items():
+                        if time_key in ["success", "message", "code", "total", "data", "list", "t", "v", "p"]:
+                            continue
+                        time_series.append((str(time_key), extract_rain_value(rain_val)))
+
             elif isinstance(rain_data, list):
-                rain_times = []
-                threshold = 0.1
-                
+                logger.info(f"_analyze_rain_time: 检测到列表格式，长度: {len(rain_data)}")
                 for item in rain_data:
                     if isinstance(item, dict):
-                        time_str = item.get("time") or item.get("tm")
-                        rain_value = item.get("value") or item.get("drp") or item.get("rain")
-                        if time_str and isinstance(rain_value, (int, float)) and rain_value > threshold:
-                            rain_times.append(time_str)
-                
-                if rain_times:
-                    rain_times.sort()
-                    result["start"] = rain_times[0]
-                    result["end"] = rain_times[-1]
-        
+                        time_val = (item.get("time") or item.get("TM") or
+                                   item.get("tm") or item.get("datetime") or
+                                   item.get("date") or item.get("timestamp") or item.get("t"))
+                        rain_val = extract_rain_value(
+                            item.get("value") or item.get("DRP") or
+                            item.get("drp") or item.get("rain") or
+                            item.get("rainfall") or item.get("P") or item.get("v") or 0
+                        )
+                        if time_val:
+                            time_series.append((str(time_val), rain_val))
+                    elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                        time_series.append((str(item[0]), extract_rain_value(item[1])))
+
+            if not time_series:
+                logger.warning("_analyze_rain_time: 未能解析出时间序列数据")
+                return result
+
+            # 按时间排序
+            try:
+                time_series.sort(key=lambda x: x[0])
+            except:
+                pass
+
+            logger.info(f"_analyze_rain_time: 解析得到 {len(time_series)} 个时间点")
+
+            # 第二步：计算每个时间点的3小时累积降雨量，找到核心时间
+            # 假设数据是小时级别的，3小时窗口 = 当前点 + 前2个点
+            window_size = 3
+            threshold_3h = 0.5  # 3小时累积降雨阈值(mm)
+
+            # 计算3小时累积降雨量
+            cumulative_3h = []
+            for i in range(len(time_series)):
+                # 计算以当前点为中心的3小时累积（前1个 + 当前 + 后1个）
+                start_idx = max(0, i - 1)
+                end_idx = min(len(time_series), i + 2)
+                sum_3h = sum(time_series[j][1] for j in range(start_idx, end_idx))
+                cumulative_3h.append(sum_3h)
+
+            # 找到3小时累积降雨量最大的位置作为核心时间
+            if not cumulative_3h or max(cumulative_3h) == 0:
+                logger.warning("_analyze_rain_time: 所有时间点降雨量均为0")
+                return result
+
+            core_idx = cumulative_3h.index(max(cumulative_3h))
+            logger.info(f"_analyze_rain_time: 降雨核心时间索引={core_idx}, 时间={time_series[core_idx][0]}, 3小时累积={cumulative_3h[core_idx]:.2f}mm")
+
+            # 第三步：从核心时间向前搜索，找到降雨开始时间
+            start_idx = core_idx
+            for i in range(core_idx, -1, -1):
+                # 计算从i开始的3小时累积
+                end_i = min(len(time_series), i + window_size)
+                sum_3h = sum(time_series[j][1] for j in range(i, end_i))
+                if sum_3h < threshold_3h:
+                    # 找到了降雨开始前的位置，降雨开始是下一个时间点
+                    start_idx = i + 1 if i + 1 < len(time_series) else i
+                    break
+                start_idx = i
+
+            # 第四步：从核心时间向后搜索，找到降雨结束时间
+            end_idx = core_idx
+            for i in range(core_idx, len(time_series)):
+                # 计算从i开始的3小时累积
+                end_i = min(len(time_series), i + window_size)
+                sum_3h = sum(time_series[j][1] for j in range(i, end_i))
+                if sum_3h < threshold_3h:
+                    # 找到了降雨结束的位置
+                    end_idx = i - 1 if i > 0 else i
+                    break
+                end_idx = i
+
+            # 确保索引有效
+            start_idx = max(0, min(start_idx, len(time_series) - 1))
+            end_idx = max(0, min(end_idx, len(time_series) - 1))
+
+            # 确保结束时间不早于开始时间
+            if end_idx < start_idx:
+                end_idx = start_idx
+
+            result["start"] = time_series[start_idx][0]
+            result["end"] = time_series[end_idx][0]
+
+            # 计算主要降雨时段的总降雨量
+            total_rain = sum(time_series[i][1] for i in range(start_idx, end_idx + 1))
+            logger.info(f"_analyze_rain_time: 分析成功，降雨时间段: {result['start']} ~ {result['end']}, "
+                       f"时间点数量: {end_idx - start_idx + 1}, 总降雨量: {total_rain:.2f}mm")
+
         except Exception as e:
-            logger.warning(f"分析降雨时间失败: {e}")
-        
+            logger.warning(f"_analyze_rain_time: 分析降雨时间失败: {e}", exc_info=True)
+
         return result
     
     def _match_plan_id(
@@ -543,70 +812,131 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
     ) -> Optional[str]:
         """
         匹配人工预报方案ID
-        
+
         Args:
             plan_list: 方案列表
             plan_description: 方案描述
             exact_rain_time: 具体降雨起止时间
-            
+
         Returns:
             匹配到的方案ID或None
         """
         if not plan_list:
+            logger.warning("方案列表为空")
             return None
-        
+
         plans = plan_list if isinstance(plan_list, list) else []
-        
+        logger.info(f"获取到 {len(plans)} 个方案")
+
+        # 过滤掉自动预报方案（model_auto），只保留人工预报方案
+        manual_plans = [p for p in plans if p.get("planCode", "") != "model_auto"]
+        logger.info(f"过滤后剩余 {len(manual_plans)} 个人工预报方案")
+
+        if not manual_plans:
+            logger.warning("没有找到人工预报方案")
+            return None
+
         # 如果有方案描述，按描述匹配
         if plan_description:
-            for plan in plans:
+            logger.info(f"按方案描述匹配: {plan_description}")
+            for plan in manual_plans:
                 plan_name = plan.get("planName", "")
                 plan_desc = plan.get("planDesc", "")
                 plan_code = plan.get("planCode", "")
-                
+
                 if plan_description.lower() in plan_name.lower() or \
                    plan_description.lower() in plan_desc.lower():
+                    logger.info(f"按描述匹配到方案: {plan_code} ({plan_name})")
                     return plan_code
-        
+
         # 如果有降雨时间，按时间匹配
         if exact_rain_time and exact_rain_time.get("start") and exact_rain_time.get("end"):
             rain_start = exact_rain_time["start"]
             rain_end = exact_rain_time["end"]
-            
-            for plan in plans:
+            logger.info(f"按时间匹配 - 降雨时间: {rain_start} ~ {rain_end}")
+
+            # 统一时间格式为 YYYY/MM/DD HH:MM:SS（方案时间格式）
+            rain_start_normalized = self._normalize_time_format(rain_start)
+            rain_end_normalized = self._normalize_time_format(rain_end)
+            logger.info(f"标准化后降雨时间: {rain_start_normalized} ~ {rain_end_normalized}")
+
+            matched_plans = []
+            for plan in manual_plans:
                 plan_start = plan.get("startTime", "")
                 plan_end = plan.get("endTime", "")
                 plan_code = plan.get("planCode", "")
-                
+                plan_name = plan.get("planName", "")
+
                 # 检查方案时间是否能"包住"降雨时间
                 if plan_start and plan_end:
-                    if plan_start <= rain_start and plan_end >= rain_end:
-                        return plan_code
-        
-        # 如果没有匹配到，返回最新的方案
-        if plans:
-            # 按创建时间或ID排序，取最新的
+                    # 标准化方案时间格式
+                    plan_start_normalized = self._normalize_time_format(plan_start)
+                    plan_end_normalized = self._normalize_time_format(plan_end)
+
+                    logger.info(f"比较方案 {plan_code}: 方案时间 {plan_start_normalized} ~ {plan_end_normalized}")
+
+                    if plan_start_normalized <= rain_start_normalized and plan_end_normalized >= rain_end_normalized:
+                        logger.info(f"时间匹配成功（包含）: {plan_code} ({plan_name})")
+                        matched_plans.append(plan)
+                    elif not (plan_end_normalized < rain_start_normalized or plan_start_normalized > rain_end_normalized):
+                        # 时间重叠（更宽松的匹配）
+                        logger.info(f"时间匹配成功（重叠）: {plan_code} ({plan_name})")
+                        matched_plans.append(plan)
+
+            if matched_plans:
+                # 如果有多个匹配，选择时间最接近的
+                best_plan = matched_plans[0]
+                logger.info(f"选择匹配方案: {best_plan.get('planCode')} ({best_plan.get('planName')})")
+                return best_plan.get("planCode")
+
+        # 如果没有匹配到，返回最新的人工预报方案（不是model_auto）
+        logger.warning("未能按描述或时间匹配到方案，尝试返回最新的人工预报方案")
+        if manual_plans:
+            # 按创建时间排序，取最新的
             sorted_plans = sorted(
-                plans,
+                manual_plans,
                 key=lambda x: x.get("createTime", "") or x.get("planCode", ""),
                 reverse=True
             )
-            return sorted_plans[0].get("planCode")
-        
+            latest_plan = sorted_plans[0]
+            logger.info(f"返回最新人工预报方案: {latest_plan.get('planCode')} ({latest_plan.get('planName')})")
+            return latest_plan.get("planCode")
+
+        logger.warning("没有找到任何可用的人工预报方案")
         return None
+
+    def _normalize_time_format(self, time_str: str) -> str:
+        """
+        统一时间格式，将各种格式转换为 YYYY/MM/DD HH:MM:SS
+
+        支持的输入格式：
+        - 2025-07-01 00:00:00 (使用 - 分隔)
+        - 2025/07/01 00:00:00 (使用 / 分隔)
+
+        Args:
+            time_str: 时间字符串
+
+        Returns:
+            标准化后的时间字符串
+        """
+        if not time_str:
+            return ""
+
+        # 将 - 替换为 /，统一格式
+        return time_str.replace("-", "/")
     
     def _extract_forecast_result(
-        self, 
-        forecast_target: Dict[str, Any], 
+        self,
+        forecast_target: Dict[str, Any],
         forecast_data: Any
     ) -> Dict[str, Any]:
         """
         根据预报对象提取相关结果数据
-        
+
         Args:
             forecast_target: 预报对象
             forecast_data: 完整的预报数据
-            
+
         Returns:
             提取后的结果数据
         """
@@ -615,37 +945,47 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             "summary": "",
             "data": {}
         }
-        
+
         if not forecast_data:
             extracted["summary"] = "未获取到预报数据"
+            logger.warning("步骤6: forecast_data 为空")
             return extracted
-        
+
         target_type = forecast_target.get("type", "basin")
         target_name = forecast_target.get("name", "全流域")
-        
+        logger.info(f"步骤6: 提取目标类型={target_type}, 目标名称={target_name}")
+
+        # 记录可用的数据字段
+        if isinstance(forecast_data, dict):
+            available_keys = list(forecast_data.keys())
+            logger.info(f"步骤6: forecast_data 可用字段: {available_keys}")
+
         if target_type == "basin":
             # 全流域数据提取
             extracted["summary"] = f"全流域人工洪水预报结果"
             extracted["data"] = forecast_data
-            
+
         elif target_type == "reservoir":
             # 水库数据提取
             reservoir_data = self._extract_reservoir_data(forecast_data, target_name)
             extracted["summary"] = f"{target_name}人工洪水预报结果"
             extracted["data"] = reservoir_data
-            
+            logger.info(f"步骤6: 水库数据提取结果: {str(reservoir_data)[:200]}")
+
         elif target_type == "station":
             # 站点数据提取
             station_data = self._extract_station_data(forecast_data, target_name)
             extracted["summary"] = f"{target_name}人工洪水预报结果"
             extracted["data"] = station_data
-            
+            logger.info(f"步骤6: 站点数据提取结果: {str(station_data)[:200]}")
+
         elif target_type == "detention_basin":
             # 蓄滞洪区数据提取
             detention_data = self._extract_detention_data(forecast_data, target_name)
             extracted["summary"] = f"{target_name}人工洪水预报结果"
             extracted["data"] = detention_data
-        
+            logger.info(f"步骤6: 蓄滞洪区数据提取结果: {str(detention_data)[:200]}")
+
         return extracted
     
     def _extract_reservoir_data(self, forecast_data: Any, reservoir_name: str) -> Dict[str, Any]:
@@ -664,21 +1004,82 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
         return {"message": f"未找到{reservoir_name}的预报数据"}
     
     def _extract_station_data(self, forecast_data: Any, station_name: str) -> Dict[str, Any]:
-        """提取站点相关数据"""
+        """
+        提取站点（河道断面）相关数据
+
+        数据结构: {"reachsection_result": {"修武": {"Stcd": "...", "SectionName": "修武", ...}, ...}}
+        """
         if isinstance(forecast_data, dict):
-            stations = forecast_data.get("stations", [])
-            for sta in stations:
-                if sta.get("name") == station_name or station_name in str(sta.get("name", "")):
-                    return sta
+            # 河道断面结果在 reachsection_result 字段中
+            reachsection_result = forecast_data.get("reachsection_result", {})
+            logger.info(f"_extract_station_data: 查找站点 '{station_name}'")
+            logger.info(f"_extract_station_data: reachsection_result 可用断面: {list(reachsection_result.keys()) if isinstance(reachsection_result, dict) else 'N/A'}")
+
+            if isinstance(reachsection_result, dict):
+                # 去掉站名中的"站"字进行匹配
+                station_name_clean = station_name.replace("站", "")
+                logger.info(f"_extract_station_data: 清理后站名 '{station_name_clean}'")
+
+                # 直接按名称查找
+                if station_name in reachsection_result:
+                    logger.info(f"_extract_station_data: 直接匹配成功 '{station_name}'")
+                    return reachsection_result[station_name]
+                if station_name_clean in reachsection_result:
+                    logger.info(f"_extract_station_data: 清理名称匹配成功 '{station_name_clean}'")
+                    return reachsection_result[station_name_clean]
+
+                # 模糊匹配
+                for name, data in reachsection_result.items():
+                    if station_name in name or name in station_name:
+                        logger.info(f"_extract_station_data: 模糊匹配成功 '{name}'")
+                        return data
+                    if station_name_clean in name or name in station_name_clean:
+                        logger.info(f"_extract_station_data: 清理名称模糊匹配成功 '{name}'")
+                        return data
+                    # 也检查 SectionName 字段
+                    section_name = data.get("SectionName", "")
+                    if station_name in section_name or section_name in station_name:
+                        logger.info(f"_extract_station_data: SectionName 匹配成功 '{section_name}'")
+                        return data
+                    if station_name_clean in section_name or section_name in station_name_clean:
+                        logger.info(f"_extract_station_data: SectionName 清理名称匹配成功 '{section_name}'")
+                        return data
+
+        logger.warning(f"_extract_station_data: 未找到站点 '{station_name}'")
         return {"message": f"未找到{station_name}的预报数据"}
     
     def _extract_detention_data(self, forecast_data: Any, detention_name: str) -> Dict[str, Any]:
-        """提取蓄滞洪区相关数据"""
+        """
+        提取蓄滞洪区相关数据
+
+        数据结构: {"floodblq_result": {"良相坡": {"Stcd": "...", "Name": "良相坡", ...}, ...}}
+        """
         if isinstance(forecast_data, dict):
-            detentions = forecast_data.get("detention_basins", [])
-            for det in detentions:
-                if det.get("name") == detention_name or detention_name in str(det.get("name", "")):
-                    return det
+            # 蓄滞洪区结果在 floodblq_result 字段中
+            floodblq_result = forecast_data.get("floodblq_result", {})
+            if isinstance(floodblq_result, dict):
+                # 去掉名称中的"蓄滞洪区"字样进行匹配
+                detention_name_clean = detention_name.replace("蓄滞洪区", "")
+
+                # 直接按名称查找
+                if detention_name in floodblq_result:
+                    return floodblq_result[detention_name]
+                if detention_name_clean in floodblq_result:
+                    return floodblq_result[detention_name_clean]
+
+                # 模糊匹配
+                for name, data in floodblq_result.items():
+                    if detention_name in name or name in detention_name:
+                        return data
+                    if detention_name_clean in name or name in detention_name_clean:
+                        return data
+                    # 也检查 Name 字段
+                    xzhq_name = data.get("Name", "")
+                    if detention_name in xzhq_name or xzhq_name in detention_name:
+                        return data
+                    if detention_name_clean in xzhq_name or xzhq_name in detention_name_clean:
+                        return data
+
         return {"message": f"未找到{detention_name}的预报数据"}
     
     def _select_template(self, forecast_target: Dict[str, Any]) -> str:

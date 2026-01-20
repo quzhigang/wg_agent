@@ -620,13 +620,27 @@ class GetHistoryAutoForecastResultWorkflow(BaseWorkflow):
     def _analyze_rain_time(self, rain_data: Any) -> Dict[str, str]:
         """
         分析降雨过程数据，获取具体降雨起止时间
-        通过掐头去尾，去掉主要降雨时段前后零星的少量降雨
+
+        算法逻辑：
+        1. 首先将原始数据转换为时间序列 [(time, value), ...]
+        2. 计算每个时间点的3小时累积降雨量，找到最大值作为降雨核心时间
+        3. 从核心时间向前搜索，当连续3小时累积降雨小于阈值(1mm)时，认为降雨开始
+        4. 从核心时间向后搜索，当连续3小时累积降雨小于阈值(1mm)时，认为降雨结束
+
+        这样可以有效排除拖沓的前期降雨和尾雨，得到主要降雨时段
+
+        支持的数据格式：
+        1. {'t': [时间数组], 'v': [值数组]} - forecast_rain_ecmwf_avg API返回格式
+        2. {"data": [...], "list": [...], "records": [...]} - 嵌套数据格式
+        3. {time_string: value} - 时间-降雨量字典格式
+        4. [{"time": "...", "value": ...}, ...] - 列表格式
+        5. [[time, value], ...] - 二维数组格式
 
         Args:
             rain_data: 降雨过程数据
 
         Returns:
-            具体降雨起止时间
+            具体降雨起止时间，格式为 {"start_time": "...", "end_time": "..."}
         """
         result = {
             "start_time": "",
@@ -634,102 +648,152 @@ class GetHistoryAutoForecastResultWorkflow(BaseWorkflow):
         }
 
         if not rain_data:
-            logger.warning("降雨数据为空")
+            logger.warning("_analyze_rain_time: 降雨数据为空")
             return result
 
         # 记录原始数据类型用于调试
-        logger.info(f"降雨数据类型: {type(rain_data).__name__}, 数据预览: {str(rain_data)[:500]}")
+        logger.info(f"_analyze_rain_time: 数据类型: {type(rain_data).__name__}, 数据预览: {str(rain_data)[:500]}")
 
         try:
-            # 降雨量阈值（mm/h）
-            threshold = 0.5
-            rain_times = []
-
             # 提取降雨值的辅助函数
             def extract_rain_value(val):
                 """从各种格式中提取降雨数值"""
                 if val is None:
-                    return 0
+                    return 0.0
                 if isinstance(val, (int, float)):
                     return float(val)
                 if isinstance(val, str):
                     try:
                         return float(val)
                     except ValueError:
-                        return 0
-                return 0
+                        return 0.0
+                return 0.0
+
+            # 第一步：将各种格式的数据统一转换为时间序列 [(time_str, rain_value), ...]
+            time_series = []
 
             if isinstance(rain_data, dict):
-                # 格式1: {'t': [时间数组], 'v': [值数组]} 或 {'t': [...], 'p': [...]}
-                # 这是实际API返回的格式
+                # 格式1: {'t': [时间数组], 'v': [值数组]}
                 time_array = rain_data.get("t") or rain_data.get("time") or rain_data.get("times")
                 value_array = (rain_data.get("v") or rain_data.get("value") or
                               rain_data.get("values") or rain_data.get("p") or
-                              rain_data.get("rain") or rain_data.get("rainfall"))
+                              rain_data.get("rain") or rain_data.get("rainfall") or
+                              rain_data.get("drp"))
 
                 if isinstance(time_array, list) and isinstance(value_array, list):
-                    logger.info(f"检测到并行数组格式: 时间数组长度={len(time_array)}, 值数组长度={len(value_array)}")
-                    # 并行数组格式
-                    for i, (t, v) in enumerate(zip(time_array, value_array)):
-                        rain_val = extract_rain_value(v)
-                        if rain_val > threshold:
-                            rain_times.append(t)
+                    logger.info(f"_analyze_rain_time: 检测到并行数组格式: 时间数组长度={len(time_array)}, 值数组长度={len(value_array)}")
+                    for t, v in zip(time_array, value_array):
+                        time_series.append((str(t), extract_rain_value(v)))
 
                 # 格式2: {"data": [...], "list": [...], "records": [...]}
                 elif rain_data.get("data") or rain_data.get("list") or rain_data.get("records"):
                     nested_data = (rain_data.get("data") or rain_data.get("list") or
                                   rain_data.get("records") or rain_data.get("items"))
                     if nested_data and isinstance(nested_data, list):
-                        # 递归处理嵌套数据
+                        logger.info(f"_analyze_rain_time: 检测到嵌套数据格式，递归处理")
                         return self._analyze_rain_time(nested_data)
 
                 # 格式3: {time_string: value} 字典格式
                 else:
+                    logger.info(f"_analyze_rain_time: 检测到时间-值字典格式，键数量: {len(rain_data)}")
                     for time_key, rain_val in rain_data.items():
-                        # 跳过非时间键
                         if time_key in ["success", "message", "code", "total", "data", "list", "t", "v", "p"]:
                             continue
-                        extracted_val = extract_rain_value(rain_val)
-                        if extracted_val > threshold:
-                            rain_times.append(time_key)
+                        time_series.append((str(time_key), extract_rain_value(rain_val)))
 
             elif isinstance(rain_data, list):
-                # 格式4: [{"time": "...", "value": ...}, ...]
+                logger.info(f"_analyze_rain_time: 检测到列表格式，长度: {len(rain_data)}")
                 for item in rain_data:
                     if isinstance(item, dict):
-                        # 尝试多种可能的时间字段名
                         time_val = (item.get("time") or item.get("TM") or
                                    item.get("tm") or item.get("datetime") or
-                                   item.get("date") or item.get("timestamp"))
-                        # 尝试多种可能的降雨值字段名
+                                   item.get("date") or item.get("timestamp") or item.get("t"))
                         rain_val = extract_rain_value(
                             item.get("value") or item.get("DRP") or
                             item.get("drp") or item.get("rain") or
                             item.get("rainfall") or item.get("P") or item.get("v") or 0
                         )
-                        if time_val and rain_val > threshold:
-                            rain_times.append(time_val)
+                        if time_val:
+                            time_series.append((str(time_val), rain_val))
                     elif isinstance(item, (list, tuple)) and len(item) >= 2:
-                        # 格式5: [[time, value], ...]
-                        time_val = item[0]
-                        rain_val = extract_rain_value(item[1])
-                        if time_val and rain_val > threshold:
-                            rain_times.append(time_val)
+                        time_series.append((str(item[0]), extract_rain_value(item[1])))
 
-            if rain_times:
-                # 尝试排序（如果是时间字符串）
-                try:
-                    rain_times.sort()
-                except:
-                    pass
-                result["start_time"] = str(rain_times[0])
-                result["end_time"] = str(rain_times[-1])
-                logger.info(f"分析得到降雨时间段: {result['start_time']} - {result['end_time']}, 共{len(rain_times)}个有效时间点")
-            else:
-                logger.warning("未找到超过阈值的降雨数据")
+            if not time_series:
+                logger.warning("_analyze_rain_time: 未能解析出时间序列数据")
+                return result
+
+            # 按时间排序
+            try:
+                time_series.sort(key=lambda x: x[0])
+            except:
+                pass
+
+            logger.info(f"_analyze_rain_time: 解析得到 {len(time_series)} 个时间点")
+
+            # 第二步：计算每个时间点的3小时累积降雨量，找到核心时间
+            # 假设数据是小时级别的，3小时窗口 = 当前点 + 前2个点
+            window_size = 3
+            threshold_3h = 0.5  # 3小时累积降雨阈值(mm)
+
+            # 计算3小时累积降雨量
+            cumulative_3h = []
+            for i in range(len(time_series)):
+                # 计算以当前点为中心的3小时累积（前1个 + 当前 + 后1个）
+                start_idx = max(0, i - 1)
+                end_idx = min(len(time_series), i + 2)
+                sum_3h = sum(time_series[j][1] for j in range(start_idx, end_idx))
+                cumulative_3h.append(sum_3h)
+
+            # 找到3小时累积降雨量最大的位置作为核心时间
+            if not cumulative_3h or max(cumulative_3h) == 0:
+                logger.warning("_analyze_rain_time: 所有时间点降雨量均为0")
+                return result
+
+            core_idx = cumulative_3h.index(max(cumulative_3h))
+            logger.info(f"_analyze_rain_time: 降雨核心时间索引={core_idx}, 时间={time_series[core_idx][0]}, 3小时累积={cumulative_3h[core_idx]:.2f}mm")
+
+            # 第三步：从核心时间向前搜索，找到降雨开始时间
+            start_idx = core_idx
+            for i in range(core_idx, -1, -1):
+                # 计算从i开始的3小时累积
+                end_i = min(len(time_series), i + window_size)
+                sum_3h = sum(time_series[j][1] for j in range(i, end_i))
+                if sum_3h < threshold_3h:
+                    # 找到了降雨开始前的位置，降雨开始是下一个时间点
+                    start_idx = i + 1 if i + 1 < len(time_series) else i
+                    break
+                start_idx = i
+
+            # 第四步：从核心时间向后搜索，找到降雨结束时间
+            end_idx = core_idx
+            for i in range(core_idx, len(time_series)):
+                # 计算从i开始的3小时累积
+                end_i = min(len(time_series), i + window_size)
+                sum_3h = sum(time_series[j][1] for j in range(i, end_i))
+                if sum_3h < threshold_3h:
+                    # 找到了降雨结束的位置
+                    end_idx = i - 1 if i > 0 else i
+                    break
+                end_idx = i
+
+            # 确保索引有效
+            start_idx = max(0, min(start_idx, len(time_series) - 1))
+            end_idx = max(0, min(end_idx, len(time_series) - 1))
+
+            # 确保结束时间不早于开始时间
+            if end_idx < start_idx:
+                end_idx = start_idx
+
+            result["start_time"] = time_series[start_idx][0]
+            result["end_time"] = time_series[end_idx][0]
+
+            # 计算主要降雨时段的总降雨量
+            total_rain = sum(time_series[i][1] for i in range(start_idx, end_idx + 1))
+            logger.info(f"_analyze_rain_time: 分析成功，降雨时间段: {result['start_time']} ~ {result['end_time']}, "
+                       f"时间点数量: {end_idx - start_idx + 1}, 总降雨量: {total_rain:.2f}mm")
 
         except Exception as e:
-            logger.warning(f"分析降雨时间失败: {e}", exc_info=True)
+            logger.warning(f"_analyze_rain_time: 分析降雨时间失败: {e}", exc_info=True)
 
         return result
 
