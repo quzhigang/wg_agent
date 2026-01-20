@@ -454,7 +454,7 @@ class Controller:
 
         Args:
             target_name: 目标名称（如水库名、站点名）
-            target_type: 目标类型（reservoir/station/detention_basin/basin）
+            target_type: 目标类型（reservoir/station/detention_basin/basin/multiple）
             summary: 摘要信息
             data: 预报数据
 
@@ -462,6 +462,28 @@ class Controller:
             格式化的文字回复
         """
         lines = [f"**{summary}**\n"]
+
+        # 多对象查询结果（支持 targets 和 results 两种格式）
+        if target_type == 'multiple':
+            items = data.get('targets') or data.get('results') or []
+            if items:
+                for result_item in items:
+                    item_data = result_item.get('data', {})
+                    # 兼容两种格式：直接的 name/type 或嵌套的 target.name/target.type
+                    item_name = result_item.get('name') or result_item.get('target', {}).get('name', '未知对象')
+                    item_type = result_item.get('type') or result_item.get('target', {}).get('type', 'basin')
+
+                    # 检查是否有错误消息
+                    if item_data.get('message'):
+                        lines.append(f"\n⚠️ **{item_name}**：{item_data.get('message')}")
+                        continue
+
+                    # 根据类型格式化单个对象的结果
+                    single_lines = self._format_single_target_response(item_name, item_type, item_data)
+                    lines.extend(single_lines)
+
+                lines.append("\n💡 *详细信息和过程曲线请查看左侧报告页面。*")
+                return "\n".join(lines)
 
         if target_type == 'reservoir':
             # 水库预报结果格式化
@@ -588,6 +610,94 @@ class Controller:
         lines.append("\n💡 *详细信息和过程曲线请查看左侧报告页面。*")
 
         return "\n".join(lines)
+
+    def _format_single_target_response(
+        self,
+        target_name: str,
+        target_type: str,
+        data: Dict[str, Any]
+    ) -> List[str]:
+        """
+        格式化单个对象的预报结果
+
+        Args:
+            target_name: 目标名称
+            target_type: 目标类型
+            data: 预报数据
+
+        Returns:
+            格式化的文字行列表
+        """
+        lines = []
+
+        if target_type == 'reservoir':
+            lines.append(f"\n🏞️ **{target_name}：**")
+            # 入库流量信息
+            inflow_peak = data.get('Max_InQ') or data.get('inflow_peak')
+            inflow_peak_time = data.get('MaxInQ_Time') or data.get('inflow_peak_time')
+            if inflow_peak is not None:
+                lines.append(f"- 入库洪峰流量：{inflow_peak} m³/s")
+                if inflow_peak_time:
+                    lines.append(f"- 入库洪峰时间：{inflow_peak_time}")
+            # 出库流量信息
+            outflow_peak = data.get('Max_OutQ') or data.get('outflow_peak')
+            if outflow_peak is not None:
+                lines.append(f"- 出库洪峰流量：{outflow_peak} m³/s")
+            # 水位信息
+            max_level = data.get('Max_Level') or data.get('max_water_level')
+            max_level_time = data.get('MaxLevel_Time')
+            if max_level is not None:
+                lines.append(f"- 最高水位：{max_level} m")
+                if max_level_time:
+                    lines.append(f"- 最高水位时间：{max_level_time}")
+
+        elif target_type == 'station':
+            lines.append(f"\n📍 **{target_name}：**")
+            # 站点预报结果
+            peak_flow = data.get('Max_Qischarge') or data.get('peak_flow')
+            peak_time = data.get('MaxQ_AtTime') or data.get('peak_time')
+            peak_level = data.get('Max_Level') or data.get('peak_level')
+            total_flood = data.get('Total_Flood')
+            if peak_flow is not None:
+                lines.append(f"- 洪峰流量：{peak_flow} m³/s")
+            if peak_time:
+                lines.append(f"- 洪峰到达时间：{peak_time}")
+            if peak_level is not None:
+                lines.append(f"- 最高水位：{peak_level} m")
+            if total_flood is not None:
+                lines.append(f"- 总过洪量：{total_flood} 万m³")
+
+        elif target_type == 'detention_basin':
+            lines.append(f"\n🌊 **{target_name}：**")
+            # 蓄滞洪区预报结果
+            state_val = data.get('Xzhq_State') or data.get('状态')
+            if state_val:
+                lines.append(f"- 状态：{state_val}")
+            max_inflow = data.get('Max_InQ')
+            if max_inflow is not None:
+                lines.append(f"- 最大进洪流量：{max_inflow} m³/s")
+            total_inflow = data.get('Total_InVolumn')
+            if total_inflow is not None:
+                lines.append(f"- 总进洪量：{total_inflow} 万m³")
+
+        elif target_type == 'gate':
+            lines.append(f"\n🚧 **{target_name}：**")
+            # 闸站预报结果（类似站点）
+            peak_flow = data.get('Max_Qischarge') or data.get('peak_flow')
+            peak_level = data.get('Max_Level') or data.get('peak_level')
+            if peak_flow is not None:
+                lines.append(f"- 洪峰流量：{peak_flow} m³/s")
+            if peak_level is not None:
+                lines.append(f"- 最高水位：{peak_level} m")
+
+        else:
+            lines.append(f"\n📊 **{target_name}：**")
+            # 通用格式化
+            for key, value in data.items():
+                if not isinstance(value, (dict, list)) and key not in ['message']:
+                    lines.append(f"- {key}：{value}")
+
+        return lines
 
     async def handle_error_response(self, state: AgentState) -> Dict[str, Any]:
         """

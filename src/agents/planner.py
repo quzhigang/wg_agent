@@ -238,7 +238,7 @@ PREDEFINED_WORKFLOWS_BY_SUB_INTENT = {
 2. get_history_autoforecast_result - 查询历史自动预报结果
    适用场景：用户询问过去某次自动预报的结果
    适用对象类型：洪水预报
-   示例："上次自动预报结果"、"历史预报记录"
+   示例："去年6月中旬那场洪水预报"、"历史预报记录"、"2025年9月4日那场降雨的洪水预报"
 
 3. flood_autoforecast_getresult - 启动自动洪水预报并获取结果
    适用场景：用户明确要求启动/执行一次新的自动预报计算
@@ -285,16 +285,17 @@ WORKFLOW_SELECT_PROMPT = """你是河南省卫共流域数字孪生系统的业�
 
 ## 匹配规则
 
-1. **data_query子意图必须严格匹配数据来源**
+1. **时间判断（flood_forecast子意图必须遵守）**
+   - entities.time为具体历史日期（如"2024年7月"、"去年"、"上次"） → 选择历史查询工作流
+   - entities.time为"当前"、"最新"、"未来"或null → 选择最新查询工作流
+
+2. **data_query子意图必须严格匹配数据来源**
    - 数据来源由entities中的object_type字段确定
    - 工作流的数据来源必须与object_type完全对应
-   - 如：object_type为"水库水文站"，只能匹配水库水文站数据来源的工作流
 
-2. **工作流必须完全覆盖用户需求**
-   - 只有完全满足用户需求才能匹配
-   - 部分满足视为不匹配，返回null交给动态规划
+3. **工作流必须完全覆盖用户需求**，部分满足返回null
 
-3. **无可用工作流时返回null**
+4. **无可用工作流时返回null**
 
 ## 输出格式
 返回JSON：
@@ -639,6 +640,10 @@ class Planner:
             )
 
             logger.info(f"意图分析结果: {result}")
+
+            # 如果存在补全后的查询语句，单独输出日志
+            if result.get("rewritten_query"):
+                logger.info(f"结合对话历史补全后的完整查询语句: {result.get('rewritten_query')}")
 
             intent_category = result.get("intent_category", "chat")
 
