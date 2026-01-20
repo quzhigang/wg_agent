@@ -518,16 +518,27 @@ class Controller:
             # 站点预报结果格式化
             lines.append(f"📊 **{target_name}预报数据：**\n")
 
-            peak_flow = data.get('peak_flow') or data.get('洪峰流量')
-            peak_time = data.get('peak_time') or data.get('洪峰时间')
-            peak_level = data.get('peak_level') or data.get('洪峰水位')
+            # 根据API返回的字段名获取数据
+            # API字段: Max_Qischarge, MaxQ_AtTime, Max_Level, Total_Flood, Stcd, SectionName
+            peak_flow = data.get('Max_Qischarge') or data.get('peak_flow') or data.get('洪峰流量')
+            peak_time = data.get('MaxQ_AtTime') or data.get('peak_time') or data.get('洪峰时间')
+            peak_level = data.get('Max_Level') or data.get('peak_level') or data.get('洪峰水位')
+            total_flood = data.get('Total_Flood') or data.get('总过洪量')
+            stcd = data.get('Stcd')
+            section_name = data.get('SectionName')
 
+            if section_name:
+                lines.append(f"- **断面名称**：{section_name}")
+            if stcd:
+                lines.append(f"- **站点编码**：{stcd}")
             if peak_flow is not None:
                 lines.append(f"- **洪峰流量**：{peak_flow} m³/s")
             if peak_time:
-                lines.append(f"- **洪峰时间**：{peak_time}")
+                lines.append(f"- **洪峰到达时间**：{peak_time}")
             if peak_level is not None:
-                lines.append(f"- **洪峰水位**：{peak_level} m")
+                lines.append(f"- **最高水位**：{peak_level} m")
+            if total_flood is not None:
+                lines.append(f"- **总过洪量**：{total_flood} 万m³")
 
         elif target_type == 'detention_basin':
             # 蓄滞洪区预报结果格式化
