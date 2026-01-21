@@ -386,7 +386,7 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
     
     def _parse_forecast_target(self, user_message: str, params: Dict[str, Any], entities: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        解析预报对象
+        解析预报对象，支持多对象查询
 
         Args:
             user_message: 用户消息
@@ -394,60 +394,97 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             entities: 意图分析提取的实体（entities字段）
 
         Returns:
-            预报对象信息
+            预报对象信息，包含 targets 列表支持多对象
         """
-        target = {
-            "type": "basin",  # 默认全流域
-            "name": "全流域",
-            "id": None
-        }
-
         entities = entities or {}
 
         # 优先从entities中获取对象信息
         object_name = entities.get("object", "")
         object_type = entities.get("object_type", "")
 
-        # 检查是否指定了具体的水库
-        if object_type == "水库" or "水库" in user_message:
+        # 检查是否有多个对象（用逗号、顿号、"和"分隔）
+        import re
+        object_names = []
+        object_types = []
+
+        if object_name:
+            # 分割多个对象名称
+            object_names = re.split(r'[,，、和]', object_name)
+            object_names = [name.strip() for name in object_names if name.strip()]
+
+        if object_type:
+            # 分割多个对象类型
+            object_types = re.split(r'[,，、和]', object_type)
+            object_types = [t.strip() for t in object_types if t.strip()]
+
+        # 如果没有从entities获取到，尝试从用户消息中提取
+        if not object_names:
+            # 尝试提取水库名称
+            reservoir_names = re.findall(r'([\u4e00-\u9fa5]+水库)', user_message)
+            # 尝试提取站点名称
+            station_names = re.findall(r'([\u4e00-\u9fa5]+站)', user_message)
+            # 尝试提取蓄滞洪区名称
+            detention_names = re.findall(r'([\u4e00-\u9fa5]+蓄滞洪区)', user_message)
+
+            object_names = reservoir_names + station_names + detention_names
+
+        # 如果仍然没有对象，返回全流域
+        if not object_names:
+            return {
+                "type": "basin",
+                "name": "全流域",
+                "id": None,
+                "targets": [{"type": "basin", "name": "全流域", "id": None}]
+            }
+
+        # 解析每个对象的类型
+        targets = []
+        for i, name in enumerate(object_names):
+            obj_type = object_types[i] if i < len(object_types) else None
+            target = self._parse_single_target(name, obj_type, user_message)
+            targets.append(target)
+
+        # 如果只有一个对象，保持向后兼容
+        if len(targets) == 1:
+            result = targets[0].copy()
+            result["targets"] = targets
+            return result
+
+        # 多个对象
+        return {
+            "type": "multiple",
+            "name": "、".join([t["name"] for t in targets]),
+            "id": None,
+            "targets": targets
+        }
+
+    def _parse_single_target(self, name: str, obj_type: str, user_message: str) -> Dict[str, Any]:
+        """
+        解析单个预报对象
+
+        Args:
+            name: 对象名称
+            obj_type: 对象类型（可能为None）
+            user_message: 用户消息
+
+        Returns:
+            单个预报对象信息
+        """
+        target = {
+            "type": "basin",
+            "name": name,
+            "id": None
+        }
+
+        # 根据名称或类型判断对象类型
+        if obj_type == "水库" or "水库" in name:
             target["type"] = "reservoir"
-            # 优先使用entities中的对象名称
-            if object_name and "水库" in object_name:
-                target["name"] = object_name
-            elif params.get("reservoir_name"):
-                target["name"] = params.get("reservoir_name")
-                target["id"] = params.get("reservoir_id")
-            else:
-                # 尝试从用户消息中提取水库名称
-                extracted_name = self._extract_name_from_message(user_message, "水库")
-                if extracted_name:
-                    target["name"] = extracted_name
-
-        # 检查是否指定了具体的站点
-        elif object_type in ["站点", "水文站", "站"] or ("站" in user_message and "蓄滞洪" not in user_message):
+        elif obj_type in ["站点", "水文站", "站", "监测站点"] or "站" in name:
             target["type"] = "station"
-            if object_name and "站" in object_name:
-                target["name"] = object_name
-            elif params.get("station_name"):
-                target["name"] = params.get("station_name")
-                target["id"] = params.get("station_id")
-            else:
-                extracted_name = self._extract_name_from_message(user_message, "站")
-                if extracted_name:
-                    target["name"] = extracted_name
-
-        # 检查是否指定了蓄滞洪区
-        elif object_type == "蓄滞洪区" or "蓄滞洪区" in user_message:
+        elif obj_type == "蓄滞洪区" or "蓄滞洪区" in name or "滞洪区" in name:
             target["type"] = "detention_basin"
-            if object_name and "蓄滞洪区" in object_name:
-                target["name"] = object_name
-            elif params.get("detention_name"):
-                target["name"] = params.get("detention_name")
-                target["id"] = params.get("detention_id")
-            else:
-                extracted_name = self._extract_name_from_message(user_message, "蓄滞洪区")
-                if extracted_name:
-                    target["name"] = extracted_name
+        elif obj_type == "闸" or "闸" in name:
+            target["type"] = "gate"
 
         return target
 
@@ -471,17 +508,17 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
         return ""
     
     def _extract_forecast_result(
-        self, 
-        forecast_target: Dict[str, Any], 
+        self,
+        forecast_target: Dict[str, Any],
         forecast_data: Any
     ) -> Dict[str, Any]:
         """
-        根据预报对象提取相关结果数据
-        
+        根据预报对象提取相关结果数据，支持多对象查询
+
         Args:
-            forecast_target: 预报对象
+            forecast_target: 预报对象（可能包含多个targets）
             forecast_data: 完整的预报数据
-            
+
         Returns:
             提取后的结果数据
         """
@@ -490,70 +527,287 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             "summary": "",
             "data": {}
         }
-        
+
         if not forecast_data:
             extracted["summary"] = "未获取到预报数据"
             return extracted
-        
+
         target_type = forecast_target.get("type", "basin")
         target_name = forecast_target.get("name", "全流域")
-        
+        targets = forecast_target.get("targets", [])
+
+        # 多对象查询
+        if target_type == "multiple" and targets:
+            extracted["summary"] = f"{target_name}洪水预报结果"
+            extracted["data"] = {"results": []}
+
+            for target in targets:
+                single_data = self._extract_single_target_data(target, forecast_data)
+                extracted["data"]["results"].append({
+                    "target": target,
+                    "data": single_data
+                })
+
+            return extracted
+
+        # 单对象查询（向后兼容）
         if target_type == "basin":
             # 全流域数据提取
             extracted["summary"] = f"全流域洪水自动预报结果"
             extracted["data"] = forecast_data
-            
+
         elif target_type == "reservoir":
             # 水库数据提取
             reservoir_data = self._extract_reservoir_data(forecast_data, target_name)
             extracted["summary"] = f"{target_name}洪水预报结果"
             extracted["data"] = reservoir_data
-            
+
         elif target_type == "station":
             # 站点数据提取
             station_data = self._extract_station_data(forecast_data, target_name)
             extracted["summary"] = f"{target_name}洪水预报结果"
             extracted["data"] = station_data
-            
+
         elif target_type == "detention_basin":
             # 蓄滞洪区数据提取
             detention_data = self._extract_detention_data(forecast_data, target_name)
             extracted["summary"] = f"{target_name}洪水预报结果"
             extracted["data"] = detention_data
-        
+
         return extracted
+
+    def _extract_single_target_data(self, target: Dict[str, Any], forecast_data: Any) -> Dict[str, Any]:
+        """
+        提取单个对象的预报数据
+
+        Args:
+            target: 单个预报对象
+            forecast_data: 完整的预报数据
+
+        Returns:
+            该对象的预报数据
+        """
+        target_type = target.get("type", "basin")
+        target_name = target.get("name", "")
+
+        if target_type == "basin":
+            return forecast_data
+        elif target_type == "reservoir":
+            return self._extract_reservoir_data(forecast_data, target_name)
+        elif target_type == "station":
+            return self._extract_station_data(forecast_data, target_name)
+        elif target_type == "detention_basin":
+            return self._extract_detention_data(forecast_data, target_name)
+        elif target_type == "gate":
+            # 闸站数据也从河道断面中提取
+            return self._extract_station_data(forecast_data, target_name)
+
+        return {"message": f"未找到{target_name}的预报数据"}
     
+    def _normalize_name(self, name: str, name_type: str = "station") -> str:
+        """
+        标准化名称，去掉常见后缀以便匹配
+
+        Args:
+            name: 原始名称
+            name_type: 名称类型 ("station", "reservoir", "detention", "gate")
+
+        Returns:
+            标准化后的名称
+
+        支持的匹配方式：
+        - 水文站点：修武、修武站、修武水文站、修武水位站 -> 修武
+        - 水库：盘石头、盘石头水库 -> 盘石头
+        - 蓄滞洪区：良相坡、良相坡蓄滞洪区、良相坡滞洪区 -> 良相坡
+        - 闸站：小河口、小河口闸、小河口拦河闸、小河口节制闸 -> 小河口
+        """
+        if not name:
+            return ""
+
+        result = name
+
+        if name_type == "station":
+            # 水文站点：去掉"站"、"水文站"、"水位站"等后缀
+            suffixes = ["水文站", "水位站", "站"]
+            for suffix in suffixes:
+                if result.endswith(suffix):
+                    result = result[:-len(suffix)]
+                    break
+
+        elif name_type == "reservoir":
+            # 水库：去掉"水库"后缀
+            if result.endswith("水库"):
+                result = result[:-2]
+
+        elif name_type == "detention":
+            # 蓄滞洪区：去掉"蓄滞洪区"、"滞洪区"等后缀
+            suffixes = ["蓄滞洪区", "滞洪区"]
+            for suffix in suffixes:
+                if result.endswith(suffix):
+                    result = result[:-len(suffix)]
+                    break
+
+        elif name_type == "gate":
+            # 闸站：去掉"闸"、"拦河闸"、"节制闸"等后缀
+            suffixes = ["拦河闸", "节制闸", "分洪闸", "进洪闸", "退水闸", "闸"]
+            for suffix in suffixes:
+                if result.endswith(suffix):
+                    result = result[:-len(suffix)]
+                    break
+
+        return result
+
     def _extract_reservoir_data(self, forecast_data: Any, reservoir_name: str) -> Dict[str, Any]:
-        """提取水库相关数据"""
+        """
+        提取水库相关数据
+
+        支持多种名称匹配方式：
+        - 盘石头、盘石头水库 都能匹配到 "盘石头水库"
+        """
         if isinstance(forecast_data, dict):
             # 数据结构: {'reservoir_result': {'水库名': {...}}}
             reservoir_result = forecast_data.get("reservoir_result", {})
             if isinstance(reservoir_result, dict):
+                # 标准化水库名称
+                reservoir_name_clean = self._normalize_name(reservoir_name, "reservoir")
+
                 # 直接按名称查找
                 if reservoir_name in reservoir_result:
                     return reservoir_result[reservoir_name]
+                if reservoir_name_clean in reservoir_result:
+                    return reservoir_result[reservoir_name_clean]
+
                 # 模糊匹配
                 for name, data in reservoir_result.items():
+                    name_clean = self._normalize_name(name, "reservoir")
+                    # 标准化后完全匹配
+                    if reservoir_name_clean == name_clean:
+                        return data
+                    # 包含匹配
+                    if reservoir_name_clean in name or name in reservoir_name_clean:
+                        return data
                     if reservoir_name in name or name in reservoir_name:
                         return data
+                    # 检查 ResName 字段
+                    if isinstance(data, dict):
+                        res_name = data.get("ResName", "")
+                        res_name_clean = self._normalize_name(res_name, "reservoir")
+                        if reservoir_name_clean == res_name_clean:
+                            return data
+                        if reservoir_name_clean in res_name or res_name in reservoir_name_clean:
+                            return data
+
         return {"message": f"未找到{reservoir_name}的预报数据"}
-    
+
     def _extract_station_data(self, forecast_data: Any, station_name: str) -> Dict[str, Any]:
-        """提取站点相关数据"""
+        """
+        提取站点/河道断面相关数据
+
+        API返回的数据结构中，河道断面数据在 reachsection_result 字段，格式：
+        {
+            "reachsection_result": {
+                "修武": {
+                    "Stcd": "31004900",
+                    "SectionName": "修武",
+                    "Max_Qischarge": 22.1,
+                    "Max_Level": 79.23,
+                    ...
+                },
+                ...
+            }
+        }
+
+        支持多种名称匹配方式：
+        - 修武、修武站、修武水文站、修武水位站 都能匹配到 "修武"
+        """
         if isinstance(forecast_data, dict):
-            stations = forecast_data.get("stations", [])
-            for sta in stations:
-                if sta.get("name") == station_name or station_name in str(sta.get("name", "")):
-                    return sta
+            # 河道断面结果在 reachsection_result 字段
+            reachsection_result = forecast_data.get("reachsection_result", {})
+            if isinstance(reachsection_result, dict) and reachsection_result:
+                # 标准化站点名称
+                station_name_clean = self._normalize_name(station_name, "station")
+
+                # 直接按名称查找
+                if station_name in reachsection_result:
+                    return reachsection_result[station_name]
+                if station_name_clean in reachsection_result:
+                    return reachsection_result[station_name_clean]
+
+                # 模糊匹配
+                for name, data in reachsection_result.items():
+                    name_clean = self._normalize_name(name, "station")
+                    # 标准化后完全匹配
+                    if station_name_clean == name_clean:
+                        return data
+                    # 包含匹配
+                    if station_name_clean in name or name in station_name_clean:
+                        return data
+                    if station_name in name or name in station_name:
+                        return data
+                    # 检查 SectionName 字段
+                    if isinstance(data, dict):
+                        section_name = data.get("SectionName", "")
+                        section_name_clean = self._normalize_name(section_name, "station")
+                        if station_name_clean == section_name_clean:
+                            return data
+                        if station_name_clean in section_name or section_name in station_name_clean:
+                            return data
+
         return {"message": f"未找到{station_name}的预报数据"}
-    
+
     def _extract_detention_data(self, forecast_data: Any, detention_name: str) -> Dict[str, Any]:
-        """提取蓄滞洪区相关数据"""
+        """
+        提取蓄滞洪区相关数据
+
+        API返回的数据结构中，蓄滞洪区数据在 floodblq_result 字段，格式：
+        {
+            "floodblq_result": {
+                "良相坡": {
+                    "Stcd": "LXP_ZHQ",
+                    "Name": "良相坡",
+                    "Xzhq_State": "未启用",
+                    ...
+                },
+                ...
+            }
+        }
+
+        支持多种名称匹配方式：
+        - 良相坡、良相坡蓄滞洪区、良相坡滞洪区 都能匹配到 "良相坡"
+        """
         if isinstance(forecast_data, dict):
-            detentions = forecast_data.get("detention_basins", [])
-            for det in detentions:
-                if det.get("name") == detention_name or detention_name in str(det.get("name", "")):
-                    return det
+            # 蓄滞洪区结果在 floodblq_result 字段
+            floodblq_result = forecast_data.get("floodblq_result", {})
+            if isinstance(floodblq_result, dict):
+                # 标准化蓄滞洪区名称
+                detention_name_clean = self._normalize_name(detention_name, "detention")
+
+                # 直接按名称查找
+                if detention_name in floodblq_result:
+                    return floodblq_result[detention_name]
+                if detention_name_clean in floodblq_result:
+                    return floodblq_result[detention_name_clean]
+
+                # 模糊匹配
+                for name, data in floodblq_result.items():
+                    name_clean = self._normalize_name(name, "detention")
+                    # 标准化后完全匹配
+                    if detention_name_clean == name_clean:
+                        return data
+                    # 包含匹配
+                    if detention_name_clean in name or name in detention_name_clean:
+                        return data
+                    if detention_name in name or name in detention_name:
+                        return data
+                    # 检查 Name 字段
+                    if isinstance(data, dict):
+                        xzhq_name = data.get("Name", "")
+                        xzhq_name_clean = self._normalize_name(xzhq_name, "detention")
+                        if detention_name_clean == xzhq_name_clean:
+                            return data
+                        if detention_name_clean in xzhq_name or xzhq_name in detention_name_clean:
+                            return data
+
         return {"message": f"未找到{detention_name}的预报数据"}
     
     def _select_template(self, forecast_target: Dict[str, Any]) -> str:
