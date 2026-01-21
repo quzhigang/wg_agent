@@ -219,6 +219,9 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                     if event_type == "intent":
                         event_data["intent"] = event.get("intent", "")
                         event_data["confidence"] = event.get("confidence", 0)
+                        event_data["intent_category"] = event.get("intent_category", "")
+                        event_data["business_sub_intent"] = event.get("business_sub_intent", "")
+                        event_data["matched_workflow"] = event.get("matched_workflow", "")
                     elif event_type == "rag":
                         event_data["doc_count"] = event.get("doc_count", 0)
                         event_data["source"] = event.get("source", "rag")

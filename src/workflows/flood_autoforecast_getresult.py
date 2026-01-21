@@ -831,6 +831,247 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             return "res_module"  # 单目标使用web模板2（res_module）
 
 
+    # ==================== 单步执行模式支持 ====================
+
+    @property
+    def supports_step_execution(self) -> bool:
+        """启用单步执行模式，支持流式显示每个步骤的进度"""
+        return True
+
+    async def prepare_execution(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        准备执行工作流（初始化阶段）
+
+        解析用户消息中的参数，初始化工作流上下文
+        """
+        logger.info("初始化自动预报工作流执行环境")
+
+        user_message = state.get('user_message', '')
+        params = state.get('extracted_params', {})
+        entities = state.get('entities', {})
+
+        # 解析预报对象
+        forecast_target = self._parse_forecast_target(user_message, params, entities)
+
+        return {
+            'workflow_context': {
+                'forecast_target': forecast_target,
+                'results': {},
+                'expect_seconds': 60,
+                'max_poll_count': 0,
+                'poll_count': 0,
+                'plan_completed': False
+            },
+            'workflow_status': 'running'
+        }
+
+    async def execute_step(self, state: Dict[str, Any], step_index: int) -> Dict[str, Any]:
+        """
+        执行单个步骤（单步执行模式）
+
+        Args:
+            state: 智能体状态
+            step_index: 要执行的步骤索引（从0开始）
+
+        Returns:
+            步骤执行结果
+        """
+        registry = get_tool_registry()
+        ctx = state.get('workflow_context', {})
+        forecast_target = ctx.get('forecast_target', {})
+        results = ctx.get('results', {})
+
+        # 步骤索引到步骤ID的映射（步骤ID从1开始）
+        step_id = step_index + 1
+
+        logger.info(f"执行自动预报工作流步骤 {step_id}")
+
+        try:
+            if step_id == 1:
+                return await self._step_1_parse_params(ctx, forecast_target)
+            elif step_id == 2:
+                return await self._step_2_start_auto_forecast(ctx, registry)
+            elif step_id == 3:
+                return await self._step_3_poll_status(ctx, registry)
+            elif step_id == 4:
+                return await self._step_4_get_result(ctx, registry)
+            elif step_id == 5:
+                return await self._step_5_extract_result(ctx, forecast_target)
+            elif step_id == 6:
+                return await self._step_6_generate_page(ctx, forecast_target, registry)
+            else:
+                return {'success': False, 'error': f'未知步骤: {step_id}'}
+
+        except Exception as e:
+            logger.error(f"步骤 {step_id} 执行异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e),
+                'workflow_context': ctx
+            }
+
+    async def finalize_execution(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        完成工作流执行（收尾阶段）
+        """
+        ctx = state.get('workflow_context', {})
+        results = ctx.get('results', {})
+        forecast_target = ctx.get('forecast_target', {})
+
+        logger.info("自动预报工作流执行完成，生成最终响应")
+
+        return {
+            'workflow_status': 'completed',
+            'output_type': self.output_type,
+            'generated_page_url': results.get('report_page_url'),
+            'forecast_target': forecast_target,
+            'extracted_result': results.get('extracted_result'),
+            'next_action': 'respond'
+        }
+
+    # ==================== 各步骤的具体实现 ====================
+
+    async def _step_1_parse_params(self, ctx: Dict, forecast_target: Dict) -> Dict[str, Any]:
+        """步骤1: 解析会话参数"""
+        ctx['results']['forecast_target'] = forecast_target
+        logger.info(f"解析到预报对象: {forecast_target}")
+
+        return {
+            'success': True,
+            'result': forecast_target,
+            'workflow_context': ctx
+        }
+
+    async def _step_2_start_auto_forecast(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤2: 进行自动预报"""
+        result = await registry.execute("auto_forcast")
+
+        if result.success:
+            ctx['results']['auto_forcast_result'] = result.data
+            logger.info("自动预报已启动")
+
+            # 获取预计计算时间
+            expect_seconds = 60
+            if isinstance(result.data, dict) and result.data.get('expect_seconds'):
+                try:
+                    expect_seconds = int(result.data.get('expect_seconds', 60))
+                except (ValueError, TypeError):
+                    expect_seconds = 60
+
+            ctx['expect_seconds'] = expect_seconds
+            ctx['max_poll_count'] = expect_seconds // 5 + 30
+
+        return {
+            'success': result.success,
+            'result': result.data if result.success else None,
+            'error': result.error if not result.success else None,
+            'workflow_context': ctx
+        }
+
+    async def _step_3_poll_status(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤3: 监视自动预报计算进度"""
+        max_poll_count = ctx.get('max_poll_count', 42)
+
+        poll_count = 0
+        plan_completed = False
+        final_state = None
+
+        while poll_count < max_poll_count:
+            poll_count += 1
+
+            # 等待5秒
+            await asyncio.sleep(5)
+
+            # 查询状态
+            detail_result = await registry.execute("model_plan_detail", plan_code="model_auto")
+
+            if detail_result.success and detail_result.data:
+                detail_data = detail_result.data
+                current_state = detail_data.get('state', '')
+
+                logger.info(f"自动预报计算进度查询 ({poll_count}/{max_poll_count}): state={current_state}")
+
+                if current_state == '已完成':
+                    plan_completed = True
+                    final_state = current_state
+                    break
+                elif current_state in ['待计算', '计算错误']:
+                    final_state = current_state
+                else:
+                    final_state = current_state
+            else:
+                logger.warning(f"查询自动预报进度失败: {detail_result.error}")
+
+        ctx['poll_count'] = poll_count
+        ctx['plan_completed'] = plan_completed
+        ctx['results']['plan_detail'] = {'state': final_state, 'request_count': poll_count}
+
+        if not plan_completed and final_state in ['待计算', '计算错误']:
+            return {
+                'success': False,
+                'result': {'final_state': final_state, 'request_count': poll_count},
+                'error': f"自动预报计算失败，状态: {final_state}",
+                'workflow_context': ctx
+            }
+
+        return {
+            'success': plan_completed,
+            'result': {'final_state': final_state, 'request_count': poll_count},
+            'error': None if plan_completed else f"计算未完成，最终状态: {final_state}",
+            'workflow_context': ctx
+        }
+
+    async def _step_4_get_result(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤4: 获取最新洪水自动预报结果"""
+        result = await registry.execute("get_tjdata_result", plan_code="model_auto")
+
+        if result.success:
+            ctx['results']['auto_forecast_result'] = result.data
+
+        return {
+            'success': result.success,
+            'result': result.data if result.success else None,
+            'error': result.error if not result.success else None,
+            'workflow_context': ctx
+        }
+
+    async def _step_5_extract_result(self, ctx: Dict, forecast_target: Dict) -> Dict[str, Any]:
+        """步骤5: 结果信息提取整理"""
+        forecast_data = ctx['results'].get('auto_forecast_result')
+        extracted_result = self._extract_forecast_result(forecast_target, forecast_data)
+        ctx['results']['extracted_result'] = extracted_result
+
+        return {
+            'success': True,
+            'result': extracted_result,
+            'workflow_context': ctx
+        }
+
+    async def _step_6_generate_page(self, ctx: Dict, forecast_target: Dict, registry) -> Dict[str, Any]:
+        """步骤6: 采用合适的Web页面模板进行结果输出"""
+        extracted_result = ctx['results'].get('extracted_result')
+        template = self._select_template(forecast_target)
+
+        page_result = await registry.execute(
+            "generate_report_page",
+            report_type="auto_forecast",
+            template=template,
+            data=extracted_result
+        )
+
+        if page_result.success:
+            ctx['results']['report_page_url'] = page_result.data
+
+        return {
+            'success': page_result.success,
+            'result': page_result.data if page_result.success else None,
+            'error': page_result.error if not page_result.success else None,
+            'workflow_context': ctx
+        }
+
+
 # 自动注册工作流
 _flood_autoforecast_getresult_workflow = FloodAutoForecastGetResultWorkflow()
 register_workflow(_flood_autoforecast_getresult_workflow)

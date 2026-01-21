@@ -24,6 +24,13 @@ EXCLUDE_TOOLS_FROM_RESPONSE = [
 # 需要过滤的敏感字段
 SENSITIVE_FIELDS = ["token", "password", "api_key", "secret"]
 
+# 需要轻量化处理的工具列表（这些工具返回大量时序数据，需要截取部分值）
+# 轻量化处理：对于时序数据字典，只保留前几个值作为示例
+LIGHTWEIGHT_TOOLS = [
+    "get_tjdata_result",           # 获取预报方案结果，包含大量时序数据
+    "get_history_autoforcast_res", # 获取历史自动预报结果，包含大量时序数据
+]
+
 
 # 响应生成提示词
 RESPONSE_GENERATION_PROMPT = """你是卫共流域数字孪生系统的智能助手，负责生成最终响应。
@@ -130,8 +137,11 @@ class Controller:
                 state.get('plan', [])
             )
 
-            # 格式化计划摘要
-            plan_summary = self._format_plan_summary(state.get('plan', []))
+            # 格式化计划摘要（传入执行结果以推断步骤状态）
+            plan_summary = self._format_plan_summary(
+                state.get('plan', []),
+                state.get('execution_results', [])
+            )
 
             # 格式化检索文档
             docs_summary = self._format_documents(
@@ -276,7 +286,10 @@ class Controller:
         if not text_response:
             # 需要LLM生成文字回复
             docs_summary = self._format_documents(state.get('retrieved_documents', []))
-            plan_summary = self._format_plan_summary(state.get('plan', []))
+            plan_summary = self._format_plan_summary(
+                state.get('plan', []),
+                state.get('execution_results', [])
+            )
 
             try:
                 chat_history_str = self._format_chat_history(state.get('chat_history', []))
@@ -784,7 +797,13 @@ class Controller:
         return "处理中..."
     
     def _format_execution_results(self, results: List[Dict[str, Any]], plan: List[Dict[str, Any]] = None) -> str:
-        """格式化执行结果，过滤内部工具和敏感信息"""
+        """
+        格式化执行结果，过滤内部工具和敏感信息
+
+        兼容两种执行模式：
+        - 批量执行模式：结果字段为 'output'
+        - 单步执行模式：结果字段为 'result'
+        """
         if not results:
             return ""
 
@@ -797,7 +816,7 @@ class Controller:
         formatted = []
         for r in results:
             step_id = r.get('step_id', '?')
-            tool_name = tool_map.get(step_id, '')
+            tool_name = tool_map.get(step_id, '') or r.get('tool_name', '')
 
             # 过滤：跳过内部工具的结果
             if tool_name in EXCLUDE_TOOLS_FROM_RESPONSE:
@@ -805,24 +824,100 @@ class Controller:
                 continue
 
             success = r.get('success', False)
-            output = r.get('output', '')
+            # 兼容两种字段名：'output'（批量模式）和 'result'（单步模式）
+            output = r.get('output') or r.get('result') or r.get('data', '')
             error = r.get('error')
 
             if success:
+                # 检查是否需要轻量化处理
+                need_lightweight = tool_name in LIGHTWEIGHT_TOOLS
+
                 # 格式化输出
                 if isinstance(output, dict):
                     # 过滤敏感字段
                     filtered_output = self._filter_sensitive_fields(output)
+                    # 对特定工具进行轻量化处理
+                    if need_lightweight:
+                        filtered_output = self._lightweight_timeseries_data(filtered_output)
                     output_str = self._format_dict_output(filtered_output)
                 elif isinstance(output, list):
                     output_str = self._format_list_output(output)
-                else:
+                elif output:
                     output_str = str(output)
+                else:
+                    # 如果没有输出内容，显示步骤名称
+                    step_name = r.get('step_name', '')
+                    output_str = f"完成 - {step_name}" if step_name else "完成"
                 formatted.append(f"步骤{step_id}: {output_str}")
             else:
                 formatted.append(f"步骤{step_id}: 执行失败 - {error}")
 
         return "\n\n".join(formatted)
+
+    def _lightweight_timeseries_data(self, data: Dict[str, Any], max_timeseries_items: int = 3) -> Dict[str, Any]:
+        """
+        轻量化处理时序数据字典
+
+        对于包含大量时序数据的字典（如 {'2026-01-21 08:00': 100, '2026-01-21 09:00': 150, ...}），
+        只保留前几个值作为示例，避免传递给LLM的数据过大。
+
+        Args:
+            data: 原始数据字典
+            max_timeseries_items: 时序数据最多保留的项数
+
+        Returns:
+            轻量化处理后的字典
+        """
+        if not isinstance(data, dict):
+            return data
+
+        result = {}
+        for key, value in data.items():
+            if isinstance(value, dict):
+                # 检查是否为时序数据字典（键看起来像时间戳或日期）
+                if self._is_timeseries_dict(value):
+                    # 截取前几个值
+                    items = list(value.items())
+                    if len(items) > max_timeseries_items:
+                        truncated = dict(items[:max_timeseries_items])
+                        truncated['...'] = f"(共{len(items)}条时序数据，已截取前{max_timeseries_items}条)"
+                        result[key] = truncated
+                    else:
+                        result[key] = value
+                else:
+                    # 递归处理嵌套字典
+                    result[key] = self._lightweight_timeseries_data(value, max_timeseries_items)
+            elif isinstance(value, list) and len(value) > 20:
+                # 对于过长的列表，也进行截取
+                result[key] = value[:5] + [f"...(共{len(value)}项)"]
+            else:
+                result[key] = value
+
+        return result
+
+    def _is_timeseries_dict(self, data: Dict[str, Any]) -> bool:
+        """
+        判断字典是否为时序数据字典
+
+        时序数据字典的特征：
+        - 键是时间格式的字符串（如 '2026-01-21 08:00:00'）
+        - 值是数值类型
+        """
+        if not data or len(data) < 5:
+            return False
+
+        # 检查前几个键是否符合时间格式
+        sample_keys = list(data.keys())[:3]
+        time_pattern_count = 0
+
+        for key in sample_keys:
+            if isinstance(key, str):
+                # 检查是否包含日期时间特征
+                if any(sep in key for sep in ['-', '/', ':']) and any(c.isdigit() for c in key):
+                    time_pattern_count += 1
+
+        # 如果大部分键符合时间格式，认为是时序数据
+        return time_pattern_count >= 2
 
     def _filter_sensitive_fields(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """过滤字典中的敏感字段"""
@@ -845,7 +940,7 @@ class Controller:
         if len(data) > max_items:
             lines.append(f"  ... 共{len(data)}项")
         return "\n".join(lines)
-    
+
     def _format_list_output(self, data: List[Any], max_items: int = 10) -> str:
         """格式化列表输出"""
         items = data[:max_items]
@@ -854,16 +949,44 @@ class Controller:
             lines.append(f"  ... 共{len(data)}项")
         return "\n".join(lines)
     
-    def _format_plan_summary(self, plan: List[Dict[str, Any]]) -> str:
-        """格式化计划摘要"""
+    def _format_plan_summary(self, plan: List[Dict[str, Any]], execution_results: List[Dict[str, Any]] = None) -> str:
+        """
+        格式化计划摘要
+
+        Args:
+            plan: 执行计划步骤列表
+            execution_results: 执行结果列表（用于推断步骤状态）
+
+        Returns:
+            格式化的计划摘要字符串
+        """
         if not plan:
             return ""
+
+        # 构建 step_id -> 执行结果 的映射
+        result_map = {}
+        if execution_results:
+            for r in execution_results:
+                step_id = r.get('step_id')
+                if step_id is not None:
+                    result_map[step_id] = r
 
         steps = []
         for step in plan:
             step_id = step.get('step_id', '?')
-            description = step.get('description', '')
-            status = step.get('status', 'pending')
+            description = step.get('description', '') or step.get('name', '')
+
+            # 优先使用步骤自带的状态，否则从执行结果推断
+            status = step.get('status')
+            if not status and step_id in result_map:
+                result = result_map[step_id]
+                if result.get('success'):
+                    status = 'completed'
+                else:
+                    status = 'failed'
+            elif not status:
+                status = 'pending'
+
             steps.append(f"{step_id}. {description} [{status}]")
 
         return "\n".join(steps)

@@ -712,25 +712,37 @@ iframe {
     padding-left: 20px;
     position: relative;
     margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.step-item::before {
-    content: '';
-    position: absolute;
-    left: 6px;
-    top: 6px;
-    width: 6px;
-    height: 6px;
+.step-dot {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #ddd;
+    flex-shrink: 0;
+    display: inline-block;
 }
 
-.step-item.active::before {
-    background: #007acc;
-    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+.step-item.active .step-dot {
+    background: #10b981;
+    animation: pulse-dot 1s ease-in-out infinite;
 }
 
-.step-item.completed::before {
+@keyframes pulse-dot {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+    }
+}
+
+.step-item.completed .step-dot {
     background: #28a745;
 }
 

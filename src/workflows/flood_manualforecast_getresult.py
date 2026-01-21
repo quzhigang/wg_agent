@@ -703,7 +703,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             })
 
             # 步骤13: 生成Web页面
-            logger.info("执行步骤13: 采用合适的Web页面模板进行结果输出")
+            logger.info("执行步骤13: 结果合成和前端表现")
             start_time = time.time()
 
             # 根据预报对象选择合适的模板

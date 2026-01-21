@@ -324,8 +324,9 @@ async def _execute_workflow_step(workflow, state: Dict[str, Any]) -> Dict[str, A
             'error': step_result.get('error')
         }
 
-        # 更新执行结果列表
-        new_execution_results = list(execution_results) + [step_execution_result]
+        # 注意：execution_results 使用 Annotated[..., add]，LangGraph 会自动累加
+        # 因此只需返回新增的步骤结果，不需要手动拼接完整列表
+        new_step_results = [step_execution_result]
 
         # 更新工作流上下文
         new_workflow_context = {
@@ -343,7 +344,7 @@ async def _execute_workflow_step(workflow, state: Dict[str, Any]) -> Dict[str, A
         if step_result.get('workflow_completed', False):
             logger.info(f"工作流 {workflow.name} 提前完成")
             return {
-                'execution_results': new_execution_results,
+                'execution_results': new_step_results,
                 'workflow_context': new_workflow_context,
                 'current_step_index': total_steps,  # 标记为完成
                 'workflow_completed': True,
@@ -356,7 +357,7 @@ async def _execute_workflow_step(workflow, state: Dict[str, Any]) -> Dict[str, A
         is_last_step = next_step_index >= total_steps
 
         return {
-            'execution_results': new_execution_results,
+            'execution_results': new_step_results,
             'workflow_context': new_workflow_context,
             'current_step_index': next_step_index,
             'workflow_completed': is_last_step,
@@ -384,10 +385,11 @@ async def _execute_workflow_step(workflow, state: Dict[str, Any]) -> Dict[str, A
             'error': str(e)
         }
 
-        new_execution_results = list(execution_results) + [step_execution_result]
+        # 注意：execution_results 使用 Annotated[..., add]，只返回新增的步骤结果
+        new_step_results = [step_execution_result]
 
         return {
-            'execution_results': new_execution_results,
+            'execution_results': new_step_results,
             'workflow_context': workflow_context,
             'current_step_index': current_step_index + 1,
             'error': f"步骤 {step_id} 执行异常: {str(e)}",
@@ -780,6 +782,9 @@ async def run_agent_stream(
                     business_sub_intent = node_output.get('business_sub_intent', '')
                     matched_workflow = node_output.get('matched_workflow') or node_output.get('saved_workflow_name') or ''
 
+                    # 调试日志
+                    logger.info(f"[DEBUG] plan节点输出: intent={intent}, intent_category={intent_category}, business_sub_intent={business_sub_intent}, matched_workflow={matched_workflow}")
+
                     if intent:
                         yield {
                             "type": "intent",
@@ -927,40 +932,10 @@ async def run_agent_stream(
                         }
 
                 elif node_name == "workflow":
-                    # 工作流节点 - 发送步骤执行状态（单步执行模式）
+                    # 工作流节点 - 发送步骤完成事件（前端自动处理闪烁）
                     current_step_index = node_output.get('current_step_index', 0)
                     plan = node_output.get('plan', [])
                     execution_results = node_output.get('execution_results', [])
-
-                    # 发送步骤开始事件（当前正在执行的步骤）
-                    # 注意：current_step_index 是下一步的索引，所以当前完成的是 current_step_index - 1
-                    if current_step_index > 0 and current_step_index <= len(plan):
-                        # 发送刚完成步骤的 step_end 事件
-                        completed_step_index = current_step_index - 1
-                        completed_step = plan[completed_step_index] if completed_step_index < len(plan) else None
-
-                        if completed_step:
-                            step_id = completed_step.get('step_id', completed_step_index + 1)
-                            step_name = completed_step.get('name', completed_step.get('description', f'步骤{step_id}'))
-
-                            # 发送步骤开始事件（如果还没发送过）
-                            if step_id not in sent_steps:
-                                yield {
-                                    "type": "step_start",
-                                    "node": node_name,
-                                    "step_id": step_id,
-                                    "name": step_name,  # 简短名称
-                                    "description": step_name,  # 前端会添加步骤编号前缀
-                                    "tool_name": completed_step.get('tool_name'),
-                                    "progress": progress,
-                                    "state": {
-                                        "intent": node_output.get('intent'),
-                                        "current_step": completed_step_index,
-                                        "total_steps": len(plan),
-                                        "next_action": node_output.get('next_action')
-                                    }
-                                }
-                                sent_steps.add(step_id)
 
                     # 发送步骤完成事件
                     for result in execution_results:
@@ -971,8 +946,8 @@ async def run_agent_stream(
                                 "type": "step_end",
                                 "node": node_name,
                                 "step_id": result_step_id,
-                                "name": result_step_name,  # 简短名称
-                                "description": result_step_name,  # 前端会添加步骤编号前缀
+                                "name": result_step_name,
+                                "description": result_step_name,
                                 "success": result.get('success', False),
                                 "result_summary": str(result.get('result', ''))[:200] if result.get('result') else '',
                                 "execution_time_ms": result.get('execution_time_ms', 0),

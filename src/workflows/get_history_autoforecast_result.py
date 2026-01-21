@@ -1291,6 +1291,276 @@ class GetHistoryAutoForecastResultWorkflow(BaseWorkflow):
             return "res_module"  # 单目标预报结果模板
 
 
+    # ==================== 单步执行模式支持 ====================
+
+    @property
+    def supports_step_execution(self) -> bool:
+        """启用单步执行模式，支持流式显示每个步骤的进度"""
+        return True
+
+    async def prepare_execution(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        准备执行工作流（初始化阶段）
+
+        解析用户消息中的参数，初始化工作流上下文
+        """
+        logger.info("初始化历史自动预报结果查询工作流执行环境")
+
+        user_message = state.get('user_message', '')
+        params = state.get('extracted_params', {})
+        entities = state.get('entities', {})
+
+        # 解析会话参数
+        parsed_params = self._parse_session_params(user_message, params, entities)
+
+        return {
+            'workflow_context': {
+                'parsed_params': parsed_params,
+                'results': {},
+                'exact_rain_time': None,
+                'history_plan_id': None
+            },
+            'workflow_status': 'running'
+        }
+
+    async def execute_step(self, state: Dict[str, Any], step_index: int) -> Dict[str, Any]:
+        """
+        执行单个步骤（单步执行模式）
+
+        Args:
+            state: 智能体状态
+            step_index: 要执行的步骤索引（从0开始）
+
+        Returns:
+            步骤执行结果
+        """
+        registry = get_tool_registry()
+        ctx = state.get('workflow_context', {})
+        parsed_params = ctx.get('parsed_params', {})
+        results = ctx.get('results', {})
+
+        # 步骤索引到步骤ID的映射（步骤ID从1开始）
+        step_id = step_index + 1
+
+        logger.info(f"执行历史自动预报结果查询工作流步骤 {step_id}")
+
+        try:
+            if step_id == 1:
+                return await self._step_1_parse_params(ctx, parsed_params)
+            elif step_id == 2:
+                return await self._step_2_get_history_rain(ctx, parsed_params, registry)
+            elif step_id == 3:
+                return await self._step_3_analyze_rain_time(ctx)
+            elif step_id == 4:
+                return await self._step_4_get_plan_id(ctx, registry)
+            elif step_id == 5:
+                return await self._step_5_get_result(ctx, registry)
+            elif step_id == 6:
+                return await self._step_6_extract_result(ctx, parsed_params)
+            elif step_id == 7:
+                return await self._step_7_generate_page(ctx, parsed_params, registry)
+            else:
+                return {'success': False, 'error': f'未知步骤: {step_id}'}
+
+        except Exception as e:
+            logger.error(f"步骤 {step_id} 执行异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': str(e),
+                'workflow_context': ctx
+            }
+
+    async def finalize_execution(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        完成工作流执行（收尾阶段）
+        """
+        ctx = state.get('workflow_context', {})
+        results = ctx.get('results', {})
+        parsed_params = ctx.get('parsed_params', {})
+        forecast_target = parsed_params.get('forecast_target', {})
+
+        logger.info("历史自动预报结果查询工作流执行完成，生成最终响应")
+
+        return {
+            'workflow_status': 'completed',
+            'output_type': self.output_type,
+            'generated_page_url': results.get('report_page_url'),
+            'forecast_target': forecast_target,
+            'history_plan_id': ctx.get('history_plan_id'),
+            'extracted_result': results.get('extracted_result'),
+            'next_action': 'respond'
+        }
+
+    # ==================== 各步骤的具体实现 ====================
+
+    async def _step_1_parse_params(self, ctx: Dict, parsed_params: Dict) -> Dict[str, Any]:
+        """步骤1: 解析会话参数"""
+        ctx['results']['parsed_params'] = parsed_params
+        ctx['results']['forecast_target'] = parsed_params.get('forecast_target', {})
+        ctx['results']['rain_start_time'] = parsed_params.get('rain_start_time', '')
+        ctx['results']['rain_end_time'] = parsed_params.get('rain_end_time', '')
+
+        logger.info(f"解析到预报对象: {ctx['results']['forecast_target']}")
+        logger.info(f"解析到降雨时间范围: {ctx['results']['rain_start_time']} - {ctx['results']['rain_end_time']}")
+
+        return {
+            'success': True,
+            'result': parsed_params,
+            'workflow_context': ctx
+        }
+
+    async def _step_2_get_history_rain(self, ctx: Dict, parsed_params: Dict, registry) -> Dict[str, Any]:
+        """步骤2: 获取历史面雨量过程"""
+        rain_start_time = parsed_params.get('rain_start_time', '')
+        rain_end_time = parsed_params.get('rain_end_time', '')
+
+        if not rain_start_time or not rain_end_time:
+            return {
+                'success': False,
+                'result': None,
+                'error': '未提供降雨时间范围',
+                'workflow_context': ctx
+            }
+
+        result = await registry.execute(
+            "forecast_rain_ecmwf_avg",
+            st=rain_start_time,
+            ed=rain_end_time
+        )
+
+        if result.success:
+            ctx['results']['rain_process'] = result.data
+
+        return {
+            'success': result.success,
+            'result': result.data if result.success else None,
+            'error': result.error if not result.success else None,
+            'workflow_context': ctx
+        }
+
+    async def _step_3_analyze_rain_time(self, ctx: Dict) -> Dict[str, Any]:
+        """步骤3: 获取具体降雨起止时间"""
+        rain_process = ctx['results'].get('rain_process')
+
+        if not rain_process:
+            return {
+                'success': False,
+                'result': None,
+                'error': '无降雨过程数据',
+                'workflow_context': ctx
+            }
+
+        exact_rain_time = self._analyze_rain_time(rain_process)
+        ctx['exact_rain_time'] = exact_rain_time
+        ctx['results']['exact_rain_time'] = exact_rain_time
+
+        logger.info(f"分析得到具体降雨时间: {exact_rain_time}")
+
+        return {
+            'success': True,
+            'result': exact_rain_time,
+            'workflow_context': ctx
+        }
+
+    async def _step_4_get_plan_id(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤4: 获取历史洪水自动预报方案ID"""
+        result = await registry.execute("get_history_autoforcast_list")
+
+        if not result.success:
+            return {
+                'success': False,
+                'result': None,
+                'error': result.error,
+                'workflow_context': ctx
+            }
+
+        # 从清单中找到匹配的方案ID
+        exact_rain_time = ctx.get('exact_rain_time', {})
+        history_plan_id = self._find_matching_plan_id(
+            result.data,
+            exact_rain_time.get('end_time', '')
+        )
+        ctx['history_plan_id'] = history_plan_id
+        ctx['results']['history_plan_id'] = history_plan_id
+
+        logger.info(f"找到匹配的历史预报方案ID: {history_plan_id}")
+
+        return {
+            'success': bool(history_plan_id),
+            'result': {'history_plan_id': history_plan_id, 'plan_list': result.data},
+            'error': None if history_plan_id else '未找到匹配的历史预报方案',
+            'workflow_context': ctx
+        }
+
+    async def _step_5_get_result(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤5: 获取历史洪水自动预报结果"""
+        history_plan_id = ctx.get('history_plan_id')
+
+        if not history_plan_id:
+            return {
+                'success': False,
+                'result': None,
+                'error': '无有效的历史方案ID',
+                'workflow_context': ctx
+            }
+
+        # 使用 get_history_autoforcast_res 接口获取历史自动预报结果
+        result = await registry.execute(
+            "get_history_autoforcast_res",
+            history_plan_id=history_plan_id
+        )
+
+        if result.success:
+            ctx['results']['history_forecast_result'] = result.data
+
+        return {
+            'success': result.success,
+            'result': result.data if result.success else None,
+            'error': result.error if not result.success else None,
+            'workflow_context': ctx
+        }
+
+    async def _step_6_extract_result(self, ctx: Dict, parsed_params: Dict) -> Dict[str, Any]:
+        """步骤6: 结果信息提取整理"""
+        forecast_target = parsed_params.get('forecast_target', {'type': 'basin', 'name': '全流域'})
+        forecast_data = ctx['results'].get('history_forecast_result')
+
+        extracted_result = self._extract_forecast_result(forecast_target, forecast_data)
+        ctx['results']['extracted_result'] = extracted_result
+
+        return {
+            'success': True,
+            'result': extracted_result,
+            'workflow_context': ctx
+        }
+
+    async def _step_7_generate_page(self, ctx: Dict, parsed_params: Dict, registry) -> Dict[str, Any]:
+        """步骤7: 采用合适的Web页面模板进行结果输出"""
+        forecast_target = parsed_params.get('forecast_target', {'type': 'basin', 'name': '全流域'})
+        extracted_result = ctx['results'].get('extracted_result')
+
+        template = self._select_template(forecast_target)
+
+        page_result = await registry.execute(
+            "generate_report_page",
+            report_type="history_forecast",
+            template=template,
+            data=extracted_result
+        )
+
+        if page_result.success:
+            ctx['results']['report_page_url'] = page_result.data
+
+        return {
+            'success': page_result.success,
+            'result': page_result.data if page_result.success else None,
+            'error': page_result.error if not page_result.success else None,
+            'workflow_context': ctx
+        }
+
+
 # 自动注册工作流
 _history_auto_forecast_workflow = GetHistoryAutoForecastResultWorkflow()
 register_workflow(_history_auto_forecast_workflow)

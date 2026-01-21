@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>水库洪水预报结果展示</title>
-    <link rel="stylesheet" href="css/style.css?v=1.9">
+    <link rel="stylesheet" href="css/style.css?v=2.0">
     <link rel="icon" href="data:;base64,=">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -201,6 +201,7 @@
             }
 
             function handleEvent(data, ui) {
+                console.log('[DEBUG] Received event:', data.type, data);  // 调试日志
                 switch (data.type) {
                     case 'start': currentConversationId = data.conversation_id; break;
                     case 'intent':
@@ -232,16 +233,13 @@
                             let intentText = '';
                             if (category === 'business' && subIntent) {
                                 // 业务类：显示类别 > 子意图
-                                intentText = categoryName + ' > ' + subIntentName + ' (' + confidence + '%)';
-                                if (matchedWorkflow) {
-                                    intentText += '<br><span style="color:#1890ff;font-size:12px;margin-left:20px">匹配流程: ' + matchedWorkflow + '</span>';
-                                }
+                                intentText = '<span style="color:#1890ff;font-weight:500">' + categoryName + '</span> > <span style="color:#52c41a;font-weight:500">' + subIntentName + '</span> <span style="color:#999">(' + confidence + '%)</span>';
                             } else {
-                                // 非业务类：只显示类别
-                                intentText = categoryName + ' (' + confidence + '%)';
+                                // 非业务类：显示类别名称
+                                intentText = '<span style="color:#1890ff;font-weight:500">' + categoryName + '</span> <span style="color:#999">(' + confidence + '%)</span>';
                             }
 
-                            intentEl.innerHTML = '<span class="process-icon">✓</span><span>确认意图: ' + intentText + '</span>';
+                            intentEl.innerHTML = '<span class="process-icon" style="color:#52c41a">✓</span><span>意图识别: ' + intentText + '</span>';
                         }
                         break;
                     case 'rag':
@@ -259,17 +257,23 @@
                         planDiv.innerHTML = '<div style="width:100%"><div style="margin-bottom:5px;color:#666">执行计划:</div><div class="steps-container" style="padding-left:10px"></div></div>';
                         ui.processBody.appendChild(planDiv);
                         const container = planDiv.querySelector('.steps-container');
-                        (data.steps || []).forEach(s => {
+                        (data.steps || []).forEach((s, index) => {
                             const sEl = document.createElement('div');
                             sEl.className = 'step-item';
                             sEl.setAttribute('data-id', s.step_id);
-                            sEl.innerHTML = '<span>步骤' + s.step_id + '：' + s.description + '</span><span class="step-status"></span>';
+                            sEl.innerHTML = '<span class="step-dot"></span><span>步骤' + s.step_id + '：' + s.description + '</span><span class="step-status"></span>';
+                            // 第一个步骤立即开始闪烁
+                            if (index === 0) {
+                                sEl.classList.add('active');
+                                sEl.querySelector('.step-status').innerHTML = '<div class="loading-spinner-small"></div>';
+                            }
                             container.appendChild(sEl);
                         });
                         break;
                     case 'step_start':
+                        // step_start 事件现在作为备用，主要逻辑在 plan 和 step_end 中处理
                         const startEl = ui.assistantLi.querySelector('.step-item[data-id="' + data.step_id + '"]');
-                        if (startEl) {
+                        if (startEl && !startEl.classList.contains('active') && !startEl.classList.contains('completed')) {
                             startEl.classList.add('active');
                             startEl.querySelector('.step-status').innerHTML = '<div class="loading-spinner-small"></div>';
                         }
@@ -280,6 +284,12 @@
                             endEl.classList.remove('active');
                             endEl.classList.add('completed');
                             endEl.querySelector('.step-status').innerHTML = '<span style="color:#28a745">✓</span>';
+                            // 让下一个步骤开始闪烁
+                            const nextEl = ui.assistantLi.querySelector('.step-item[data-id="' + (data.step_id + 1) + '"]');
+                            if (nextEl && !nextEl.classList.contains('completed')) {
+                                nextEl.classList.add('active');
+                                nextEl.querySelector('.step-status').innerHTML = '<div class="loading-spinner-small"></div>';
+                            }
                         }
                         break;
                     case 'content':
