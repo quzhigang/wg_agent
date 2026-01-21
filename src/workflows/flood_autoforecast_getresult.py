@@ -229,8 +229,8 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
                 except (ValueError, TypeError):
                     expect_seconds = 60
             
-            # 计算最大请求次数：N = expectSeconds/5 + 10
-            max_requests = expect_seconds // 5 + 10
+            # 计算最大请求次数：N = expectSeconds/5 + 30
+            max_requests = expect_seconds // 5 + 30
             request_count = 0
             plan_completed = False
             final_state = None

@@ -133,6 +133,11 @@ class AgentState(TypedDict):
     # 流程控制
     next_action: Optional[str]  # 下一步动作: "plan", "execute", "respond", "wait_async", "end"
 
+    # 工作流单步执行上下文
+    workflow_context: Optional[Dict[str, Any]]  # 工作流执行过程中的上下文数据
+    workflow_status: Optional[str]  # 工作流状态: pending/running/completed/failed
+    workflow_completed: Optional[bool]  # 工作流是否已完成
+
 
 def create_initial_state(
     conversation_id: str,
@@ -217,7 +222,12 @@ def create_initial_state(
         should_retry=False,
 
         # 流程控制
-        next_action="plan"
+        next_action="plan",
+
+        # 工作流单步执行上下文
+        workflow_context=None,
+        workflow_status=None,
+        workflow_completed=False
     )
 
 

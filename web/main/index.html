@@ -206,7 +206,42 @@
                     case 'intent':
                         const intentEl = ui.assistantLi.querySelector('.intent-status');
                         if (intentEl) {
-                            intentEl.innerHTML = '<span class="process-icon">✓</span><span>确认意图: ' + (data.intent || '未知') + ' (' + Math.round((data.confidence || 0) * 100) + '%)</span>';
+                            // 意图类别中文映射
+                            const categoryMap = {
+                                'chat': '一般对话',
+                                'knowledge': '知识查询',
+                                'business': '业务操作'
+                            };
+                            // 业务子意图中文映射
+                            const subIntentMap = {
+                                'data_query': '监测数据查询',
+                                'flood_forecast': '洪水预报',
+                                'flood_simulation': '洪水预演',
+                                'emergency_plan': '预案生成',
+                                'damage_assessment': '灾损评估',
+                                'other': '其他业务'
+                            };
+
+                            const category = data.intent_category || '';
+                            const categoryName = categoryMap[category] || category;
+                            const subIntent = data.business_sub_intent || '';
+                            const subIntentName = subIntentMap[subIntent] || subIntent;
+                            const matchedWorkflow = data.matched_workflow || '';
+                            const confidence = Math.round((data.confidence || 0) * 100);
+
+                            let intentText = '';
+                            if (category === 'business' && subIntent) {
+                                // 业务类：显示类别 > 子意图
+                                intentText = categoryName + ' > ' + subIntentName + ' (' + confidence + '%)';
+                                if (matchedWorkflow) {
+                                    intentText += '<br><span style="color:#1890ff;font-size:12px;margin-left:20px">匹配流程: ' + matchedWorkflow + '</span>';
+                                }
+                            } else {
+                                // 非业务类：只显示类别
+                                intentText = categoryName + ' (' + confidence + '%)';
+                            }
+
+                            intentEl.innerHTML = '<span class="process-icon">✓</span><span>确认意图: ' + intentText + '</span>';
                         }
                         break;
                     case 'rag':

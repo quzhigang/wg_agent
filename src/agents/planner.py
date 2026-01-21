@@ -1164,12 +1164,21 @@ class Planner:
                 registry = get_workflow_registry()
                 if registry.has_workflow(matched_workflow):
                     logger.info(f"LLM选择工作流: {matched_workflow}")
+                    # 获取工作流实例，提取步骤列表作为 plan
+                    workflow_instance = registry.get_workflow(matched_workflow)
+                    plan_steps = workflow_instance.get_plan_steps({
+                        'user_message': user_message,
+                        'entities': enhanced_entities
+                    }) if workflow_instance else []
+                    logger.info(f"工作流 {matched_workflow} 包含 {len(plan_steps)} 个步骤")
                     return {
                         "matched_workflow": matched_workflow,
                         "workflow_from_template": True,
                         "intent": business_sub_intent,
                         "output_type": output_type,
                         "entities": enhanced_entities,  # 返回增强后的实体
+                        "plan": plan_steps,  # 添加工作流步骤作为计划
+                        "current_step_index": 0,  # 初始化步骤索引
                         "next_action": "execute"
                     }
                 else:
