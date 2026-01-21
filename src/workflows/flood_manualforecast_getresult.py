@@ -32,10 +32,11 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
     6. 预报方案降雨设置 - 调用model_rain_area_add_ecmwf或model_rain_area_add_manual工具
     7. 预报方案边界条件设置 - 调用change_boundry工具
     8. 计算该人工预报方案 - 调用model_plan_calc工具
-    9. 监视人工预报方案计算状态 - 每5秒调用model_plan_detail工具
-    10. 获取该人工预报方案结果 - 调用get_tjdata_result工具
-    11. 结果信息提取整理 - 提取主要预报结果数据
-    12. 采用合适的Web页面模板进行结果输出
+    9. 获取模型预计计算时间 - 调用model_plan_detail工具获取expectSeconds
+    10. 监视人工预报方案计算状态 - 每5秒调用model_plan_detail工具
+    11. 获取该人工预报方案结果 - 调用get_tjdata_result工具
+    12. 结果信息提取整理 - 提取主要预报结果数据
+    13. 采用合适的Web页面模板进行结果输出
     """
     
     @property
@@ -180,36 +181,46 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             ),
             WorkflowStep(
                 step_id=9,
-                name="监视人工预报方案计算状态",
-                description="每5秒调用model_plan_detail工具查询计算状态",
+                name="获取模型预计计算时间",
+                description="调用model_plan_detail工具获取expectSeconds",
                 tool_name="model_plan_detail",
                 tool_args_template={"plan_code": "$plan_code"},
                 depends_on=[8],
                 is_async=False,
-                output_key="plan_detail"
+                output_key="expect_seconds"
             ),
             WorkflowStep(
                 step_id=10,
+                name="监视人工预报方案计算状态",
+                description="每5秒调用model_plan_detail工具查询计算状态",
+                tool_name="model_plan_detail",
+                tool_args_template={"plan_code": "$plan_code"},
+                depends_on=[9],
+                is_async=False,
+                output_key="plan_detail"
+            ),
+            WorkflowStep(
+                step_id=11,
                 name="获取该人工预报方案结果",
                 description="调用get_tjdata_result工具获取预报方案结果",
                 tool_name="get_tjdata_result",
                 tool_args_template={"plan_code": "$plan_code"},
-                depends_on=[9],
+                depends_on=[10],
                 is_async=False,
                 output_key="forecast_result"
             ),
             WorkflowStep(
-                step_id=11,
+                step_id=12,
                 name="结果信息提取整理",
                 description="根据预报对象提取全流域或单一目标主要预报结果数据",
                 tool_name=None,
                 tool_args_template=None,
-                depends_on=[10],
+                depends_on=[11],
                 is_async=False,
                 output_key="extracted_result"
             ),
             WorkflowStep(
-                step_id=12,
+                step_id=13,
                 name="采用合适的Web页面模板进行结果输出",
                 description="全流域预报结果采用web模板1，单目标预报结果采用web模板2",
                 tool_name="generate_report_page",
@@ -218,7 +229,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                     "template": "$template_name",
                     "data": "$extracted_result"
                 },
-                depends_on=[11],
+                depends_on=[12],
                 is_async=False,
                 output_key="report_page_url"
             )
@@ -347,18 +358,22 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             # 步骤4: 新建人工预报方案
             logger.info("执行步骤4: 新建人工预报方案")
             start_time = time.time()
-            
+
             # 生成方案名称和描述
             plan_name = self._generate_plan_name(session_params)
             plan_desc = self._generate_plan_desc(session_params)
-            
+
+            # 转换时间格式为API要求的格式 (yyyy/MM/dd HH:mm:ss)
+            api_forecast_start = self._convert_time_format(forecast_start_time)
+            api_forecast_end = self._convert_time_format(forecast_end_time)
+
             result = await registry.execute(
                 "model_plan_add",
                 plan_name=plan_name,
                 business_code="flood_forecast_wg",
                 business_name="卫共流域洪水预报应用模型",
-                start_time=forecast_start_time,
-                end_time=forecast_end_time,
+                start_time=api_forecast_start,
+                end_time=api_forecast_end,
                 plan_desc=plan_desc
             )
             
@@ -401,18 +416,22 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             if total_rainfall:
                 # 需要获取雨型来分解降雨
                 result = await registry.execute("model_rain_pattern_detail", id=1)
-                
+
                 execution_time_ms = int((time.time() - start_time) * 1000)
-                
+
                 if result.success and result.data:
                     rain_pattern = result.data
+                    logger.info(f"获取雨型成功，雨型ID: 1")
                     # 根据雨型分解降雨总量到逐小时
                     hourly_rain_process = self._distribute_rainfall_by_pattern(
                         total_rainfall, rain_pattern, forecast_start_time
                     )
                     results['rain_pattern'] = rain_pattern
                     results['hourly_rain_process'] = hourly_rain_process
-                
+                    logger.info(f"生成逐小时降雨过程: 共{len(hourly_rain_process)}小时，总降雨量{total_rainfall}mm")
+                else:
+                    logger.warning(f"获取雨型失败: {result.error}，将使用均匀分布")
+
                 execution_results.append({
                     'step_id': 5,
                     'step_name': '解析指定降雨过程',
@@ -437,13 +456,16 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             # 步骤6: 预报方案降雨设置
             logger.info("执行步骤6: 预报方案降雨设置")
             start_time = time.time()
-            
+
             if hourly_rain_process:
                 # 使用手动设置降雨
                 drp_json = json.dumps(hourly_rain_process)
+                logger.info(f"手动设置降雨，数据点数: {len(hourly_rain_process)}，drp_json长度: {len(drp_json)}")
+                logger.debug(f"drp_json内容: {drp_json[:500]}...")  # 只输出前500字符
                 result = await registry.execute(
                     "model_rain_area_add_manual",
                     plan_code=plan_code,
+                    bsn_code="avg",  # 添加全流域平均参数
                     drp_json=drp_json,
                     source="2"  # 指定降雨
                 )
@@ -535,41 +557,70 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                     "error": f"启动人工预报计算失败: {result.error}",
                     "next_action": "respond"
                 }
-            
+
+            # 输出步骤8返回的数据，便于调试
+            logger.info(f"步骤8返回数据: {result.data}")
+
             results['calc_result'] = result.data
-            
-            # 步骤9: 监视人工预报方案计算状态
-            logger.info("执行步骤9: 监视人工预报方案计算状态")
-            
-            # 获取预计计算时间
+
+            # 步骤9: 获取模型预计计算时间
+            logger.info("执行步骤9: 获取模型预计计算时间")
+            start_time = time.time()
+
+            # 调用model_plan_detail获取expectSeconds
+            detail_result = await registry.execute("model_plan_detail", plan_code=plan_code)
+
+            execution_time_ms = int((time.time() - start_time) * 1000)
+
             expect_seconds = 60  # 默认60秒
-            if isinstance(result.data, dict) and result.data.get('expect_seconds'):
-                try:
-                    expect_seconds = int(result.data.get('expect_seconds', 60))
-                except (ValueError, TypeError):
-                    expect_seconds = 60
-            
-            # 计算最大请求次数：N = expectSeconds/5 + 10
-            max_requests = expect_seconds // 5 + 10
+            if detail_result.success and detail_result.data:
+                detail_data = detail_result.data
+                # model_plan_detail工具返回的data已经是API响应中的data字段
+                # 数据结构: {"planCode": "...", "expectSeconds": 50, ...}
+                if isinstance(detail_data, dict) and 'expectSeconds' in detail_data:
+                    try:
+                        expect_seconds = int(detail_data['expectSeconds'])
+                    except (ValueError, TypeError):
+                        pass
+
+            logger.info(f"模型预计计算时间: {expect_seconds}秒")
+
+            execution_results.append({
+                'step_id': 9,
+                'step_name': '获取模型预计计算时间',
+                'tool_name': 'model_plan_detail',
+                'success': detail_result.success,
+                'execution_time_ms': execution_time_ms,
+                'data': {'expectSeconds': expect_seconds},
+                'error': detail_result.error if not detail_result.success else None
+            })
+
+            results['expect_seconds'] = expect_seconds
+
+            # 步骤10: 监视人工预报方案计算状态
+            logger.info("执行步骤10: 监视人工预报方案计算状态")
+
+            # 计算最大请求次数：N = expectSeconds/5 + 20
+            max_requests = expect_seconds // 5 + 20
             request_count = 0
             plan_completed = False
             final_state = None
-            
+
             while request_count < max_requests:
                 request_count += 1
-                
+
                 # 等待5秒
                 await asyncio.sleep(5)
-                
+
                 # 调用model_plan_detail查询状态
                 detail_result = await registry.execute("model_plan_detail", plan_code=plan_code)
-                
+
                 if detail_result.success and detail_result.data:
                     detail_data = detail_result.data
                     current_state = detail_data.get('state', '')
-                    
+
                     logger.info(f"人工预报计算进度查询 ({request_count}/{max_requests}): state={current_state}")
-                    
+
                     if current_state == '已完成':
                         plan_completed = True
                         final_state = current_state
@@ -582,9 +633,9 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                         # 其他状态（如"计算中"），继续等待
                 else:
                     logger.warning(f"查询人工预报进度失败: {detail_result.error}")
-            
+
             execution_results.append({
-                'step_id': 9,
+                'step_id': 10,
                 'step_name': '监视人工预报方案计算状态',
                 'tool_name': 'model_plan_detail',
                 'success': plan_completed,
@@ -592,7 +643,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 'data': {'final_state': final_state, 'request_count': request_count},
                 'error': None if plan_completed else f"计算未完成，最终状态: {final_state}"
             })
-            
+
             if not plan_completed:
                 logger.warning(f"人工预报计算未在预期时间内完成，最终状态: {final_state}")
                 # 根据文档，如果超时且状态还是"待计算"或"计算错误"，直接结束流程
@@ -602,21 +653,21 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                         "error": f"人工预报计算失败，状态: {final_state}",
                         "next_action": "respond"
                     }
-            
+
             results['plan_detail'] = {'state': final_state, 'request_count': request_count}
-            
-            # 步骤10: 获取该人工预报方案结果
-            logger.info("执行步骤10: 获取该人工预报方案结果")
+
+            # 步骤11: 获取该人工预报方案结果
+            logger.info("执行步骤11: 获取该人工预报方案结果")
             start_time = time.time()
-            
+
             # 注意：根据文档，方案ID字符串参数固定采用"model_auto"
             # 但这里应该使用创建的方案ID，文档可能有误
             result = await registry.execute("get_tjdata_result", plan_code=plan_code)
-            
+
             execution_time_ms = int((time.time() - start_time) * 1000)
-            
+
             execution_results.append({
-                'step_id': 10,
+                'step_id': 11,
                 'step_name': '获取该人工预报方案结果',
                 'tool_name': 'get_tjdata_result',
                 'success': result.success,
@@ -624,7 +675,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 'data': result.data if result.success else None,
                 'error': result.error if not result.success else None
             })
-            
+
             if not result.success:
                 logger.error(f"获取人工预报结果失败: {result.error}")
                 return {
@@ -632,17 +683,17 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                     "error": f"获取人工预报结果失败: {result.error}",
                     "next_action": "respond"
                 }
-            
+
             results['forecast_result'] = result.data
-            
-            # 步骤11: 结果信息提取整理
-            logger.info("执行步骤11: 结果信息提取整理")
+
+            # 步骤12: 结果信息提取整理
+            logger.info("执行步骤12: 结果信息提取整理")
             forecast_target = session_params.get('forecast_target', {'type': 'basin', 'name': '全流域'})
             extracted_result = self._extract_forecast_result(forecast_target, result.data)
             results['extracted_result'] = extracted_result
-            
+
             execution_results.append({
-                'step_id': 11,
+                'step_id': 12,
                 'step_name': '结果信息提取整理',
                 'tool_name': None,
                 'success': True,
@@ -650,25 +701,25 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 'data': extracted_result,
                 'error': None
             })
-            
-            # 步骤12: 生成Web页面
-            logger.info("执行步骤12: 采用合适的Web页面模板进行结果输出")
+
+            # 步骤13: 生成Web页面
+            logger.info("执行步骤13: 采用合适的Web页面模板进行结果输出")
             start_time = time.time()
-            
+
             # 根据预报对象选择合适的模板
             template = self._select_template(forecast_target)
-            
+
             page_result = await registry.execute(
                 "generate_report_page",
                 report_type="manual_forecast",
                 template=template,
                 data=extracted_result
             )
-            
+
             execution_time_ms = int((time.time() - start_time) * 1000)
-            
+
             execution_results.append({
-                'step_id': 12,
+                'step_id': 13,
                 'step_name': '采用合适的Web页面模板进行结果输出',
                 'tool_name': 'generate_report_page',
                 'success': page_result.success,
@@ -1001,26 +1052,45 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             return "基于历史降雨的人工预报方案"
         else:
             return "基于格网预报降雨的人工预报方案"
-    
+
+    def _convert_time_format(self, time_str: str) -> str:
+        """
+        将时间格式从 yyyy-MM-dd HH:mm:ss 转换为 yyyy/MM/dd HH:mm:ss
+
+        API要求时间格式为斜杠分隔
+
+        Args:
+            time_str: 输入时间字符串
+
+        Returns:
+            转换后的时间字符串
+        """
+        if not time_str:
+            return time_str
+        # 将横杠替换为斜杠
+        return time_str.replace("-", "/")
+
     def _distribute_rainfall_by_pattern(
-        self, 
-        total_rainfall: float, 
+        self,
+        total_rainfall: float,
         rain_pattern: Any,
         start_time: str
     ) -> Dict[str, float]:
         """
         根据雨型将降雨总量分解到逐小时
-        
+
         Args:
             total_rainfall: 降雨总量(mm)
             rain_pattern: 雨型数据
             start_time: 开始时间
-            
+
         Returns:
-            逐小时降雨过程字典
+            逐小时降雨过程字典，时间格式为 yyyy/MM/dd HH:mm:ss（API要求格式）
         """
         result = {}
-        
+        # API要求的时间格式：yyyy/MM/dd HH:mm:ss
+        api_time_format = "%Y/%m/%d %H:%M:%S"
+
         try:
             # 解析雨型数据
             pattern_data = rain_pattern
@@ -1030,7 +1100,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                     pattern_data = json.loads(pattern_json)
                 else:
                     pattern_data = pattern_json
-            
+
             # 计算雨型总和
             if isinstance(pattern_data, list):
                 pattern_sum = sum(pattern_data)
@@ -1040,25 +1110,28 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                     for i, ratio in enumerate(pattern_data):
                         hour_time = start_dt + timedelta(hours=i)
                         hour_rainfall = (ratio / pattern_sum) * total_rainfall
-                        result[hour_time.strftime("%Y-%m-%d %H:%M:%S")] = round(hour_rainfall, 2)
-            
+                        result[hour_time.strftime(api_time_format)] = round(hour_rainfall, 2)
+
             # 如果雨型数据无效，使用均匀分布（默认24小时）
             if not result:
                 start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
                 hourly_rain = total_rainfall / 24
                 for i in range(24):
                     hour_time = start_dt + timedelta(hours=i)
-                    result[hour_time.strftime("%Y-%m-%d %H:%M:%S")] = round(hourly_rain, 2)
-                    
+                    result[hour_time.strftime(api_time_format)] = round(hourly_rain, 2)
+
         except Exception as e:
             logger.warning(f"分解降雨过程失败: {e}，使用均匀分布")
             # 使用均匀分布
-            start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+            try:
+                start_dt = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                start_dt = datetime.now().replace(minute=0, second=0, microsecond=0)
             hourly_rain = total_rainfall / 24
             for i in range(24):
                 hour_time = start_dt + timedelta(hours=i)
-                result[hour_time.strftime("%Y-%m-%d %H:%M:%S")] = round(hourly_rain, 2)
-        
+                result[hour_time.strftime(api_time_format)] = round(hourly_rain, 2)
+
         return result
     
     def _extract_forecast_result(

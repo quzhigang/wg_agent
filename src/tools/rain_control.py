@@ -1404,16 +1404,28 @@ class ModelRainAreaAddManualTool(BaseTool):
                 payload["bsnCode"] = kwargs.get("bsn_code")
             if kwargs.get("source"):
                 payload["source"] = kwargs.get("source")
-            
+
+            logger.info(f"手动设置方案降雨请求: planCode={payload.get('planCode')}, bsnCode={payload.get('bsnCode')}, source={payload.get('source')}")
+
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.post(url, json=payload)
-                response.raise_for_status()
-                data = response.json()
-            
+                # 先获取响应内容，再检查状态码
+                try:
+                    data = response.json()
+                except Exception:
+                    data = {"raw_text": response.text[:500]}
+
+                if response.status_code >= 400:
+                    logger.error(f"手动设置方案降雨HTTP错误: status={response.status_code}, response={data}")
+                    return ToolResult(success=False, error=f"HTTP {response.status_code}: {data}")
+
             if data.get("success"):
+                logger.info("手动设置方案降雨过程成功")
                 return ToolResult(success=True, data={"message": "手动设置方案降雨过程成功"})
             else:
-                return ToolResult(success=False, error=data.get("message", "设置失败"))
+                error_msg = data.get("message", "设置失败")
+                logger.error(f"手动设置方案降雨业务失败: {error_msg}")
+                return ToolResult(success=False, error=error_msg)
         except Exception as e:
             logger.error(f"手动设置方案降雨过程失败: {e}")
             return ToolResult(success=False, error=str(e))
