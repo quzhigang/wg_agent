@@ -356,12 +356,36 @@ async def _execute_workflow_step(workflow, state: Dict[str, Any]) -> Dict[str, A
         next_step_index = current_step_index + 1
         is_last_step = next_step_index >= total_steps
 
+        # 如果是最后一步，调用 finalize_execution 获取最终状态（包括 generated_page_url）
+        if is_last_step:
+            logger.info(f"工作流 {workflow.name} 最后一步执行完成，执行收尾")
+            # 构建临时状态用于 finalize_execution
+            temp_state = {
+                **state,
+                'workflow_context': new_workflow_context,
+                'current_step_index': next_step_index
+            }
+            final_result = await workflow.finalize_execution(temp_state)
+            return {
+                'execution_results': new_step_results,
+                'workflow_context': new_workflow_context,
+                'current_step_index': next_step_index,
+                'workflow_completed': True,
+                'next_action': 'respond',
+                # 合并 finalize_execution 的结果（包括 generated_page_url, extracted_result 等）
+                **{k: v for k, v in final_result.items()
+                   if k not in ['workflow_context', 'current_step_index', 'workflow_completed', 'next_action']},
+                # 传递步骤结果中的其他状态
+                **{k: v for k, v in step_result.items()
+                   if k not in ['success', 'result', 'error', 'workflow_context', 'workflow_completed', 'final_state']}
+            }
+
         return {
             'execution_results': new_step_results,
             'workflow_context': new_workflow_context,
             'current_step_index': next_step_index,
-            'workflow_completed': is_last_step,
-            'next_action': 'respond' if is_last_step else 'workflow',  # 继续执行下一步
+            'workflow_completed': False,
+            'next_action': 'workflow',  # 继续执行下一步
             # 传递步骤结果中的其他状态
             **{k: v for k, v in step_result.items()
                if k not in ['success', 'result', 'error', 'workflow_context', 'workflow_completed', 'final_state']}

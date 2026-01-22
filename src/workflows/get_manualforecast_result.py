@@ -736,14 +736,25 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
 
             if isinstance(rain_data, dict):
                 # 格式1: {'t': [时间数组], 'v': [值数组]}
-                time_array = rain_data.get("t") or rain_data.get("time") or rain_data.get("times")
-                value_array = (rain_data.get("v") or rain_data.get("value") or
-                              rain_data.get("values") or rain_data.get("p") or
-                              rain_data.get("rain") or rain_data.get("rainfall") or
-                              rain_data.get("drp"))
+                # 注意：使用 in 检查键是否存在，而不是用 or 链（空列表会被跳过）
+                time_array = None
+                value_array = None
 
-                if isinstance(time_array, list) and isinstance(value_array, list):
+                for t_key in ["t", "time", "times"]:
+                    if t_key in rain_data and isinstance(rain_data[t_key], list):
+                        time_array = rain_data[t_key]
+                        break
+
+                for v_key in ["v", "value", "values", "p", "rain", "rainfall", "drp"]:
+                    if v_key in rain_data and isinstance(rain_data[v_key], list):
+                        value_array = rain_data[v_key]
+                        break
+
+                if time_array is not None and value_array is not None:
                     logger.info(f"_analyze_rain_time: 检测到并行数组格式: 时间数组长度={len(time_array)}, 值数组长度={len(value_array)}")
+                    if len(time_array) == 0 or len(value_array) == 0:
+                        logger.warning("_analyze_rain_time: 并行数组为空，无降雨数据")
+                        return result
                     for t, v in zip(time_array, value_array):
                         time_series.append((str(t), extract_rain_value(v)))
 

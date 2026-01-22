@@ -832,24 +832,38 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
     def _parse_date_from_message(self, message: str, reference_date: datetime) -> Optional[Dict[str, datetime]]:
         """
         从消息中解析日期信息
-        
+
         Args:
             message: 用户消息
             reference_date: 参考日期（当前时间）
-            
+
         Returns:
             日期范围字典或None
         """
         import re
-        
-        # 尝试解析"X月X日"格式
+
+        # 尝试解析"XXXX年X月X日"格式（完整年份）
+        full_date_pattern = r'(\d{4})年(\d{1,2})月(\d{1,2})日'
+        full_matches = re.findall(full_date_pattern, message)
+
+        if full_matches:
+            # 有完整的年月日
+            year = int(full_matches[0][0])
+            month = int(full_matches[0][1])
+            day = int(full_matches[0][2])
+            start_dt = datetime(year, month, day)
+            end_dt = start_dt + timedelta(days=1)
+            logger.info(f"解析到完整日期: {year}年{month}月{day}日")
+            return {'start': start_dt, 'end': end_dt}
+
+        # 尝试解析"X月X日"格式（无年份，使用参考年份）
         date_pattern1 = r'(\d{1,2})月(\d{1,2})日'
         matches1 = re.findall(date_pattern1, message)
-        
+
         # 尝试解析"X月X日X点"格式
         datetime_pattern = r'(\d{1,2})月(\d{1,2})日\s*(\d{1,2})[点时]'
         matches2 = re.findall(datetime_pattern, message)
-        
+
         if matches2 and len(matches2) >= 2:
             # 有完整的起止时间
             year = reference_date.year
@@ -857,14 +871,25 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             end_dt = datetime(year, int(matches2[1][0]), int(matches2[1][1]), int(matches2[1][2]))
             return {'start': start_dt, 'end': end_dt}
         elif matches1:
-            # 只有日期
+            # 只有日期，没有年份
             year = reference_date.year
             month = int(matches1[0][0])
             day = int(matches1[0][1])
+
+            # 如果解析出的日期在未来，可能是指去年的日期
+            try:
+                parsed_date = datetime(year, month, day)
+                if parsed_date > reference_date:
+                    # 日期在未来，使用去年
+                    year = year - 1
+                    logger.info(f"日期 {month}月{day}日 在未来，调整为去年: {year}年")
+            except ValueError:
+                pass
+
             start_dt = datetime(year, month, day)
             end_dt = start_dt + timedelta(days=1)
             return {'start': start_dt, 'end': end_dt}
-        
+
         return None
     
     def _parse_forecast_target(self, user_message: str, params: Dict[str, Any], entities: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -978,63 +1003,217 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             target["name"] = object_name
 
         return target
-    
+
     def _analyze_rain_time_range(self, rain_data: Any) -> Dict[str, Any]:
         """
         分析降雨过程数据，获取具体降雨起止时间
-        
+
+        算法逻辑：
+        1. 首先将原始数据转换为时间序列 [(time, value), ...]
+        2. 计算每个时间点的3小时累积降雨量，找到最大值作为降雨核心时间
+        3. 从核心时间向前搜索，当连续3小时累积降雨小于阈值(0.5mm)时，认为降雨开始
+        4. 从核心时间向后搜索，当连续3小时累积降雨小于阈值(0.5mm)时，认为降雨结束
+
+        这样可以有效排除拖沓的前期降雨和尾雨，得到主要降雨时段
+
+        支持的数据格式：
+        1. {'t': [时间数组], 'v': [值数组]} - forecast_rain_ecmwf_avg API返回格式
+        2. {"data": [...], "list": [...], "records": [...]} - 嵌套数据格式
+        3. {time_string: value} - 时间-降雨量字典格式
+        4. [{"time": "...", "value": ...}, ...] - 列表格式
+        5. [[time, value], ...] - 二维数组格式
+
         Args:
-            rain_data: 逐小时降雨过程数据
-            
+            rain_data: 降雨过程数据
+
         Returns:
-            降雨时间范围字典
+            降雨时间范围字典，格式为 {"rain_start": "...", "rain_end": "...", "forecast_end": "..."}
         """
         result = {
             "rain_start": None,
             "rain_end": None,
             "forecast_end": None
         }
-        
+
         if not rain_data:
+            logger.warning("_analyze_rain_time_range: 降雨数据为空")
             return result
-        
-        # 假设rain_data是时间-降雨量的字典或列表
+
+        # 记录原始数据类型用于调试
+        logger.info(f"_analyze_rain_time_range: 数据类型: {type(rain_data).__name__}, 数据预览: {str(rain_data)[:500]}")
+
         try:
+            # 提取降雨值的辅助函数
+            def extract_rain_value(val):
+                """从各种格式中提取降雨数值"""
+                if val is None:
+                    return 0.0
+                if isinstance(val, (int, float)):
+                    return float(val)
+                if isinstance(val, str):
+                    try:
+                        return float(val)
+                    except ValueError:
+                        return 0.0
+                return 0.0
+
+            # 第一步：将各种格式的数据统一转换为时间序列 [(time_str, rain_value), ...]
+            time_series = []
+
             if isinstance(rain_data, dict):
-                # 按时间排序
-                sorted_times = sorted(rain_data.keys())
-                rain_values = [(t, rain_data[t]) for t in sorted_times]
+                # 格式1: {'t': [时间数组], 'v': [值数组]}
+                # 注意：使用 in 检查键是否存在，而不是用 or 链（空列表会被跳过）
+                time_array = None
+                value_array = None
+
+                for t_key in ["t", "time", "times"]:
+                    if t_key in rain_data and isinstance(rain_data[t_key], list):
+                        time_array = rain_data[t_key]
+                        break
+
+                for v_key in ["v", "value", "values", "p", "rain", "rainfall", "drp"]:
+                    if v_key in rain_data and isinstance(rain_data[v_key], list):
+                        value_array = rain_data[v_key]
+                        break
+
+                if time_array is not None and value_array is not None:
+                    logger.info(f"_analyze_rain_time_range: 检测到并行数组格式: 时间数组长度={len(time_array)}, 值数组长度={len(value_array)}")
+                    if len(time_array) == 0 or len(value_array) == 0:
+                        logger.warning("_analyze_rain_time_range: 并行数组为空，无降雨数据")
+                        return result
+                    for t, v in zip(time_array, value_array):
+                        time_series.append((str(t), extract_rain_value(v)))
+
+                # 格式2: {"data": [...], "list": [...], "records": [...]}
+                elif rain_data.get("data") or rain_data.get("list") or rain_data.get("records"):
+                    nested_data = (rain_data.get("data") or rain_data.get("list") or
+                                  rain_data.get("records") or rain_data.get("items"))
+                    if nested_data and isinstance(nested_data, list):
+                        logger.info(f"_analyze_rain_time_range: 检测到嵌套数据格式，递归处理")
+                        return self._analyze_rain_time_range(nested_data)
+
+                # 格式3: {time_string: value} 字典格式
+                else:
+                    logger.info(f"_analyze_rain_time_range: 检测到时间-值字典格式，键数量: {len(rain_data)}")
+                    for time_key, rain_val in rain_data.items():
+                        if time_key in ["success", "message", "code", "total", "data", "list", "t", "v", "p"]:
+                            continue
+                        time_series.append((str(time_key), extract_rain_value(rain_val)))
+
             elif isinstance(rain_data, list):
-                rain_values = rain_data
-            else:
+                logger.info(f"_analyze_rain_time_range: 检测到列表格式，长度: {len(rain_data)}")
+                for item in rain_data:
+                    if isinstance(item, dict):
+                        time_val = (item.get("time") or item.get("TM") or
+                                   item.get("tm") or item.get("datetime") or
+                                   item.get("date") or item.get("timestamp") or item.get("t"))
+                        rain_val = extract_rain_value(
+                            item.get("value") or item.get("DRP") or
+                            item.get("drp") or item.get("rain") or
+                            item.get("rainfall") or item.get("P") or item.get("v") or 0
+                        )
+                        if time_val:
+                            time_series.append((str(time_val), rain_val))
+                    elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                        time_series.append((str(item[0]), extract_rain_value(item[1])))
+
+            if not time_series:
+                logger.warning("_analyze_rain_time_range: 未能解析出时间序列数据")
                 return result
-            
-            # 找出主要降雨时段（过滤掉零星降雨）
-            threshold = 0.5  # 降雨阈值
-            rain_start_idx = None
-            rain_end_idx = None
-            
-            for i, (t, v) in enumerate(rain_values):
-                if v > threshold:
-                    if rain_start_idx is None:
-                        rain_start_idx = i
-                    rain_end_idx = i
-            
-            if rain_start_idx is not None and rain_end_idx is not None:
-                result["rain_start"] = rain_values[rain_start_idx][0]
-                result["rain_end"] = rain_values[rain_end_idx][0]
-                
-                # 预报结束时间为本场降雨结束时间+3天
-                from datetime import datetime, timedelta
-                rain_end_dt = datetime.strptime(result["rain_end"], "%Y-%m-%d %H:%M:%S")
-                forecast_end_dt = rain_end_dt + timedelta(days=3)
-                result["forecast_end"] = forecast_end_dt.strftime("%Y-%m-%d %H:%M:%S")
-                
+
+            # 按时间排序
+            try:
+                time_series.sort(key=lambda x: x[0])
+            except:
+                pass
+
+            logger.info(f"_analyze_rain_time_range: 解析得到 {len(time_series)} 个时间点")
+
+            # 第二步：计算每个时间点的3小时累积降雨量，找到核心时间
+            window_size = 3
+            threshold_3h = 0.5  # 3小时累积降雨阈值(mm)
+
+            # 计算3小时累积降雨量
+            cumulative_3h = []
+            for i in range(len(time_series)):
+                # 计算以当前点为中心的3小时累积（前1个 + 当前 + 后1个）
+                start_idx = max(0, i - 1)
+                end_idx = min(len(time_series), i + 2)
+                sum_3h = sum(time_series[j][1] for j in range(start_idx, end_idx))
+                cumulative_3h.append(sum_3h)
+
+            # 找到3小时累积降雨量最大的位置作为核心时间
+            if not cumulative_3h or max(cumulative_3h) == 0:
+                logger.warning("_analyze_rain_time_range: 所有时间点降雨量均为0")
+                return result
+
+            core_idx = cumulative_3h.index(max(cumulative_3h))
+            logger.info(f"_analyze_rain_time_range: 降雨核心时间索引={core_idx}, 时间={time_series[core_idx][0]}, 3小时累积={cumulative_3h[core_idx]:.2f}mm")
+
+            # 第三步：从核心时间向前搜索，找到降雨开始时间
+            start_idx = core_idx
+            for i in range(core_idx, -1, -1):
+                # 计算从i开始的3小时累积
+                end_i = min(len(time_series), i + window_size)
+                sum_3h = sum(time_series[j][1] for j in range(i, end_i))
+                if sum_3h < threshold_3h:
+                    # 找到了降雨开始前的位置，降雨开始是下一个时间点
+                    start_idx = i + 1 if i + 1 < len(time_series) else i
+                    break
+                start_idx = i
+
+            # 第四步：从核心时间向后搜索，找到降雨结束时间
+            end_idx = core_idx
+            for i in range(core_idx, len(time_series)):
+                # 计算从i开始的3小时累积
+                end_i = min(len(time_series), i + window_size)
+                sum_3h = sum(time_series[j][1] for j in range(i, end_i))
+                if sum_3h < threshold_3h:
+                    # 找到了降雨结束的位置
+                    end_idx = i - 1 if i > 0 else i
+                    break
+                end_idx = i
+
+            # 确保索引有效
+            start_idx = max(0, min(start_idx, len(time_series) - 1))
+            end_idx = max(0, min(end_idx, len(time_series) - 1))
+
+            # 确保结束时间不早于开始时间
+            if end_idx < start_idx:
+                end_idx = start_idx
+
+            result["rain_start"] = time_series[start_idx][0]
+            result["rain_end"] = time_series[end_idx][0]
+
+            # 预报结束时间为本场降雨结束时间+3天
+            from datetime import timedelta
+            try:
+                # 尝试多种时间格式解析
+                rain_end_str = result["rain_end"]
+                rain_end_dt = None
+                for fmt in ["%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M"]:
+                    try:
+                        rain_end_dt = datetime.strptime(rain_end_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+
+                if rain_end_dt:
+                    forecast_end_dt = rain_end_dt + timedelta(days=3)
+                    result["forecast_end"] = forecast_end_dt.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception as e:
+                logger.warning(f"_analyze_rain_time_range: 计算预报结束时间失败: {e}")
+
+            # 计算主要降雨时段的总降雨量
+            total_rain = sum(time_series[i][1] for i in range(start_idx, end_idx + 1))
+            logger.info(f"_analyze_rain_time_range: 分析成功，降雨时间段: {result['rain_start']} ~ {result['rain_end']}, "
+                       f"时间点数量: {end_idx - start_idx + 1}, 总降雨量: {total_rain:.2f}mm")
+
         except Exception as e:
-            logger.warning(f"分析降雨时间范围失败: {e}")
-        
+            logger.warning(f"_analyze_rain_time_range: 分析降雨时间范围失败: {e}", exc_info=True)
+
         return result
-    
+
     def _generate_plan_name(self, session_params: Dict[str, Any]) -> str:
         """
         生成方案名称
