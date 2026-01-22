@@ -222,6 +222,15 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                         event_data["intent_category"] = event.get("intent_category", "")
                         event_data["business_sub_intent"] = event.get("business_sub_intent", "")
                         event_data["matched_workflow"] = event.get("matched_workflow", "")
+                    elif event_type == "intent_stage":
+                        # 分阶段意图识别事件
+                        event_data["stage"] = event.get("stage", 0)
+                        event_data["stage_name"] = event.get("stage_name", "")
+                        event_data["stage_label"] = event.get("stage_label", "")
+                        event_data["intent_category"] = event.get("intent_category", "")
+                        event_data["business_sub_intent"] = event.get("business_sub_intent", "")
+                        event_data["matched_workflow"] = event.get("matched_workflow", "")
+                        event_data["confidence"] = event.get("confidence", 0)
                     elif event_type == "rag":
                         event_data["doc_count"] = event.get("doc_count", 0)
                         event_data["source"] = event.get("source", "rag")

@@ -13,7 +13,7 @@ from ..config.logging_config import get_logger
 from ..config.settings import settings
 from ..config.llm_prompt_logger import start_session, end_session
 from .state import AgentState, create_initial_state, OutputType, IntentCategory
-from .planner import planner_node, get_planner
+from .planner import planner_node, sub_intent_node, workflow_match_node, get_planner
 from .executor import executor_node, get_executor
 from .controller import controller_node, get_controller
 from ..rag.retriever import get_rag_retriever
@@ -507,12 +507,12 @@ async def async_wait_node(state: AgentState) -> Dict[str, Any]:
 
 def plan_router(state: AgentState) -> str:
     """
-    规划节点路由函数（三大类分类）
+    规划节点路由函数（第1阶段：意图分类后的路由）
 
     根据意图类别决定下一步走向：
     - chat: 快速对话
     - knowledge: 知识库检索
-    - business: 业务执行（模板或动态规划）
+    - business: 进入第2阶段子意图分类
     """
     intent_category = state.get('intent_category')
     next_action = state.get('next_action')
@@ -525,28 +525,48 @@ def plan_router(state: AgentState) -> str:
     if intent_category == IntentCategory.KNOWLEDGE.value or next_action == 'knowledge_rag':
         return "knowledge_rag"
 
-    # 第3类：business - 业务执行
-    if intent_category == IntentCategory.BUSINESS.value:
-        # 匹配到模板，直接执行
-        if state.get('matched_workflow'):
-            return "workflow"
-        # 未匹配，走动态规划后执行
-        return "execute"
+    # 第3类：business - 进入第2阶段子意图分类
+    if intent_category == IntentCategory.BUSINESS.value or next_action == 'sub_intent':
+        return "sub_intent"
 
     # 默认走知识库检索
     return "knowledge_rag"
 
 
+def sub_intent_router(state: AgentState) -> str:
+    """
+    子意图分类节点路由函数（第2阶段完成后的路由）
+
+    始终进入第3阶段工作流匹配
+    """
+    return "workflow_match"
+
+
+def workflow_match_router(state: AgentState) -> str:
+    """
+    工作流匹配节点路由函数（第3阶段完成后的路由）
+
+    根据匹配结果决定下一步：
+    - 匹配到模板: workflow
+    - 未匹配（动态规划）: execute
+    """
+    # 匹配到模板，直接执行
+    if state.get('matched_workflow') or state.get('saved_workflow_id'):
+        return "workflow"
+    # 未匹配，走动态规划后执行
+    return "execute"
+
+
 def create_agent_graph() -> StateGraph:
     """
-    创建智能体状态图（三大类分类架构）
+    创建智能体状态图（三阶段意图识别架构）
 
     流程：
     - 第1类 chat: plan → quick_chat → END
     - 第2类 knowledge: plan → knowledge_rag → respond → END
     - 第3类 business:
-        - 匹配模板: plan → workflow → execute → respond → END
-        - 动态规划: plan → execute → respond → END
+        - plan → sub_intent → workflow_match → workflow → respond → END (模板匹配)
+        - plan → sub_intent → workflow_match → execute → respond → END (动态规划)
 
     Returns:
         配置好的StateGraph实例
@@ -557,9 +577,11 @@ def create_agent_graph() -> StateGraph:
     workflow = StateGraph(AgentState)
 
     # 添加节点
-    workflow.add_node("plan", planner_node)
+    workflow.add_node("plan", planner_node)                    # 第1阶段：意图分类
+    workflow.add_node("sub_intent", sub_intent_node)           # 第2阶段：子意图分类
+    workflow.add_node("workflow_match", workflow_match_node)   # 第3阶段：工作流匹配
     workflow.add_node("quick_chat", quick_chat_node)
-    workflow.add_node("knowledge_rag", knowledge_rag_node)  # 新增：知识库检索节点
+    workflow.add_node("knowledge_rag", knowledge_rag_node)
     workflow.add_node("workflow", workflow_executor_node)
     workflow.add_node("execute", executor_node)
     workflow.add_node("wait_async", async_wait_node)
@@ -568,15 +590,27 @@ def create_agent_graph() -> StateGraph:
     # 设置入口点
     workflow.set_entry_point("plan")
 
-    # 添加条件边 - 规划后的三大类路由
+    # 添加条件边 - 第1阶段：意图分类后的路由
     workflow.add_conditional_edges(
         "plan",
         plan_router,
         {
             "quick_chat": "quick_chat",      # 第1类：chat
             "knowledge_rag": "knowledge_rag", # 第2类：knowledge
-            "workflow": "workflow",           # 第3类：business（模板匹配）
-            "execute": "execute"              # 第3类：business（动态规划）
+            "sub_intent": "sub_intent"        # 第3类：business → 进入第2阶段
+        }
+    )
+
+    # 第2阶段：子意图分类后进入第3阶段
+    workflow.add_edge("sub_intent", "workflow_match")
+
+    # 添加条件边 - 第3阶段：工作流匹配后的路由
+    workflow.add_conditional_edges(
+        "workflow_match",
+        workflow_match_router,
+        {
+            "workflow": "workflow",   # 模板匹配
+            "execute": "execute"      # 动态规划
         }
     )
 
@@ -799,25 +833,23 @@ async def run_agent_stream(
 
                 # 根据节点类型发送不同的事件
                 if node_name == "plan":
-                    # 规划节点 - 发送意图识别结果
+                    # 第1阶段：意图分类节点
                     intent = node_output.get('intent')
                     confidence = node_output.get('intent_confidence', 0)
                     intent_category = node_output.get('intent_category', '')
-                    business_sub_intent = node_output.get('business_sub_intent', '')
-                    matched_workflow = node_output.get('matched_workflow') or node_output.get('saved_workflow_name') or ''
 
                     # 调试日志
-                    logger.info(f"[DEBUG] plan节点输出: intent={intent}, intent_category={intent_category}, business_sub_intent={business_sub_intent}, matched_workflow={matched_workflow}")
+                    logger.info(f"[DEBUG] plan节点输出: intent={intent}, intent_category={intent_category}")
 
-                    if intent:
+                    if intent_category:
                         yield {
-                            "type": "intent",
+                            "type": "intent_stage",
                             "node": node_name,
-                            "intent": intent,
+                            "stage": 1,
+                            "stage_name": "intent_category",
+                            "stage_label": "意图类别",
+                            "intent_category": intent_category,
                             "confidence": confidence,
-                            "intent_category": intent_category,  # 三大类: chat/knowledge/business
-                            "business_sub_intent": business_sub_intent,  # 业务子意图
-                            "matched_workflow": matched_workflow,  # 匹配的工作流名称
                             "progress": progress,
                             "state": {
                                 "intent": intent,
@@ -826,9 +858,56 @@ async def run_agent_stream(
                                 "next_action": node_output.get('next_action')
                             }
                         }
-                    
-                    # 如果有执行计划，发送计划事件
+
+                elif node_name == "sub_intent":
+                    # 第2阶段：子意图分类节点
+                    business_sub_intent = node_output.get('business_sub_intent', '')
+
+                    logger.info(f"[DEBUG] sub_intent节点输出: business_sub_intent={business_sub_intent}")
+
+                    if business_sub_intent:
+                        yield {
+                            "type": "intent_stage",
+                            "node": node_name,
+                            "stage": 2,
+                            "stage_name": "business_sub_intent",
+                            "stage_label": "业务子意图",
+                            "business_sub_intent": business_sub_intent,
+                            "progress": progress,
+                            "state": {
+                                "intent": node_output.get('intent'),
+                                "current_step": 0,
+                                "total_steps": 0,
+                                "next_action": node_output.get('next_action')
+                            }
+                        }
+
+                elif node_name == "workflow_match":
+                    # 第3阶段：工作流匹配节点
+                    matched_workflow = node_output.get('matched_workflow') or node_output.get('saved_workflow_name') or ''
+                    business_sub_intent = node_output.get('business_sub_intent') or node_output.get('intent') or ''
                     plan = node_output.get('plan', [])
+
+                    logger.info(f"[DEBUG] workflow_match节点输出: matched_workflow={matched_workflow}, business_sub_intent={business_sub_intent}, plan_steps={len(plan)}")
+
+                    yield {
+                        "type": "intent_stage",
+                        "node": node_name,
+                        "stage": 3,
+                        "stage_name": "workflow_match",
+                        "stage_label": "工作流匹配",
+                        "matched_workflow": matched_workflow,
+                        "business_sub_intent": business_sub_intent,  # 传递子意图供前端显示
+                        "progress": progress,
+                        "state": {
+                            "intent": node_output.get('intent'),
+                            "current_step": 0,
+                            "total_steps": len(plan),
+                            "next_action": node_output.get('next_action')
+                        }
+                    }
+
+                    # 如果有执行计划（动态规划），发送计划事件
                     if plan:
                         yield {
                             "type": "plan",
@@ -836,20 +915,20 @@ async def run_agent_stream(
                             "steps": [
                                 {
                                     "step_id": step.get('step_id', i+1),
-                                    "description": step.get('name', step.get('description', '')),  # 使用简短名称
+                                    "description": step.get('name', step.get('description', '')),
                                     "tool_name": step.get('tool_name')
                                 }
                                 for i, step in enumerate(plan)
                             ],
                             "progress": progress,
                             "state": {
-                                "intent": intent,
+                                "intent": node_output.get('intent'),
                                 "current_step": 0,
                                 "total_steps": len(plan),
                                 "next_action": node_output.get('next_action')
                             }
                         }
-                
+
                 elif node_name == "knowledge_rag":
                     # 知识库检索节点
                     retrieved_docs = node_output.get('retrieved_documents', [])

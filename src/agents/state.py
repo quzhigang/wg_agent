@@ -139,6 +139,9 @@ class AgentState(TypedDict):
     workflow_completed: Optional[bool]  # 工作流是否已完成
     executing_step_id: Optional[int]  # 当前正在执行的步骤ID（用于流式显示step_start）
 
+    # 意图识别阶段信息（用于流式输出）
+    intent_stages: Optional[List[Dict[str, Any]]]  # 意图识别各阶段结果，按顺序存储
+
 
 def create_initial_state(
     conversation_id: str,
@@ -229,7 +232,10 @@ def create_initial_state(
         workflow_context=None,
         workflow_status=None,
         workflow_completed=False,
-        executing_step_id=None
+        executing_step_id=None,
+
+        # 意图识别阶段信息
+        intent_stages=[]
     )
 
 

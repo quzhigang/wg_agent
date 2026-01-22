@@ -1758,20 +1758,18 @@ def get_planner() -> Planner:
         _planner_instance = Planner()
     return _planner_instance
 
-
+# 主意图分析节点函数
 async def planner_node(state: AgentState) -> Dict[str, Any]:
     """
-    LangGraph节点函数 - 规划节点
+    LangGraph节点函数 - 第1阶段：意图分类节点
 
-    三阶段意图分析：
-    - 第1阶段：三大类分类（chat/knowledge/business）
-    - 第2阶段：仅business类触发子意图分类
-    - 第3阶段：工作流选择（使用子意图分类结果）
+    仅执行三大类分类（chat/knowledge/business），不进行子意图分类和工作流匹配。
+    后续阶段由独立节点处理，实现真正的流式输出。
 
     流程：
-    - chat: 直接返回回复
-    - knowledge: 走知识库检索流程
-    - business: 先子意图分类，再工作流选择，未匹配则动态规划
+    - chat: next_action = "quick_respond"
+    - knowledge: next_action = "knowledge_rag"
+    - business: next_action = "sub_intent" (进入第2阶段)
     """
     planner = get_planner()
 
@@ -1790,36 +1788,65 @@ async def planner_node(state: AgentState) -> Dict[str, Any]:
         logger.info("意图类别: knowledge，走知识库检索流程")
         return intent_result
 
-    # 第3类：business - 先子意图分类，再工作流选择
+    # 第3类：business - 设置 next_action 进入第2阶段
     if intent_category == IntentCategory.BUSINESS.value:
         logger.info("意图类别: business，进入第2阶段子意图分类")
-
-        # 合并意图结果到临时状态
-        temp_state = dict(state)
-        temp_state.update(intent_result)
-
-        # 第2阶段：子意图分类
-        sub_intent_result = await planner.classify_business_sub_intent(temp_state)
-        logger.info(f"子意图分类结果: {sub_intent_result.get('business_sub_intent')}")
-
-        # 合并子意图分类结果
-        temp_state.update(sub_intent_result)
-
-        # 第3阶段：工作流选择（传入子意图分类结果）
-        logger.info("进入第3阶段工作流选择")
-        workflow_result = await planner.check_workflow_match(temp_state)
-
-        # 如果匹配到工作流（预定义模板或已保存的动态工作流），直接执行
-        if workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_id'):
-            matched_name = workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_name') or workflow_result.get('saved_workflow_id')
-            logger.info(f"匹配到工作流: {matched_name}，直接执行")
-            return {**intent_result, **sub_intent_result, **workflow_result}
-
-        # 未匹配到工作流，进行动态规划
-        logger.info(f"未匹配工作流，子意图: {sub_intent_result.get('business_sub_intent')}，进行动态规划")
-        temp_state.update(workflow_result)
-        plan_result = await planner.generate_plan(temp_state)
-        return {**intent_result, **sub_intent_result, **workflow_result, **plan_result}
+        intent_result['next_action'] = 'sub_intent'
+        return intent_result
 
     # 默认返回意图结果
     return intent_result
+
+# 业务子意图分析节点函数
+async def sub_intent_node(state: AgentState) -> Dict[str, Any]:
+    """
+    LangGraph节点函数 - 第2阶段：业务子意图分类节点
+
+    仅对 business 类进行子意图分类，不进行工作流匹配。
+    完成后设置 next_action = "workflow_match" 进入第3阶段。
+    """
+    planner = get_planner()
+
+    logger.info("执行第2阶段：业务子意图分类")
+
+    # 第2阶段：子意图分类
+    sub_intent_result = await planner.classify_business_sub_intent(state)
+    business_sub_intent = sub_intent_result.get('business_sub_intent')
+    logger.info(f"子意图分类结果: {business_sub_intent}")
+
+    # 设置 next_action 进入第3阶段
+    sub_intent_result['next_action'] = 'workflow_match'
+
+    return sub_intent_result
+
+# 工作流匹配节点函数
+async def workflow_match_node(state: AgentState) -> Dict[str, Any]:
+    """
+    LangGraph节点函数 - 第3阶段：工作流匹配节点
+
+    执行工作流选择，如果匹配到工作流则直接执行，否则进行动态规划。
+    """
+    planner = get_planner()
+
+    logger.info("执行第3阶段：工作流匹配")
+
+    # 获取之前阶段的子意图（用于传递给前端显示）
+    business_sub_intent = state.get('business_sub_intent', '')
+
+    # 第3阶段：工作流选择
+    workflow_result = await planner.check_workflow_match(state)
+
+    # 确保返回结果中包含 business_sub_intent（供前端显示）
+    workflow_result['business_sub_intent'] = business_sub_intent
+
+    matched_workflow = workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_name') or workflow_result.get('saved_workflow_id')
+
+    # 如果匹配到工作流（预定义模板或已保存的动态工作流），直接执行
+    if workflow_result.get('matched_workflow') or workflow_result.get('saved_workflow_id'):
+        logger.info(f"匹配到工作流: {matched_workflow}，直接执行")
+        return workflow_result
+
+    # 未匹配到工作流，进行动态规划
+    logger.info(f"未匹配工作流，子意图: {business_sub_intent}，进行动态规划")
+    plan_result = await planner.generate_plan(state)
+    return {**workflow_result, **plan_result}
