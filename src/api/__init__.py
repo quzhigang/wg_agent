@@ -9,6 +9,7 @@ from .pages import router as pages_router
 from .knowledge import router as knowledge_router
 from .saved_workflows import router as saved_workflows_router
 from .system_info import router as system_info_router
+from .web_templates import router as web_templates_router
 
 __all__ = [
     "health_router",
@@ -16,6 +17,7 @@ __all__ = [
     "pages_router",
     "knowledge_router",
     "saved_workflows_router",
-    "system_info_router"
+    "system_info_router",
+    "web_templates_router"
 ]
 

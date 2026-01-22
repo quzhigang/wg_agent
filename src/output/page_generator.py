@@ -784,6 +784,140 @@ class PageGenerator:
             })
         return sorted(pages, key=lambda x: x['created'], reverse=True)
 
+    async def save_html_content(
+        self,
+        html_content: str,
+        title: str = ""
+    ) -> str:
+        """
+        保存HTML内容到文件（用于动态模板复用）
+
+        Args:
+            html_content: HTML内容
+            title: 页面标题
+
+        Returns:
+            生成的页面URL
+        """
+        import re
+
+        # 生成文件名
+        page_id = str(uuid.uuid4())[:8]
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"reused_{timestamp}_{page_id}.html"
+
+        # 如果需要更新标题
+        if title:
+            html_content = re.sub(
+                r'<title>.*?</title>',
+                f'<title>{title}</title>',
+                html_content
+            )
+
+        # 保存文件
+        file_path = self._output_dir / filename
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+        # 返回访问URL
+        page_url = f"/pages/{filename}"
+        logger.info(f"动态模板复用页面保存成功: {page_url}")
+
+        return page_url
+
+    async def generate_page_with_template(
+        self,
+        template_info: Dict[str, Any],
+        data: Dict[str, Any],
+        title: str = ""
+    ) -> str:
+        """
+        使用预定义模板生成页面
+
+        Args:
+            template_info: 模板信息，包含 template_path, name 等
+            data: 要注入的数据
+            title: 页面标题
+
+        Returns:
+            生成的页面URL
+        """
+        import re
+        import shutil
+
+        template_path = template_info.get('template_path', '')
+        template_name = template_info.get('name', 'template')
+
+        logger.info(f"使用模板生成页面: {template_name}, 模板路径: {template_path}")
+
+        try:
+            # 1. 确定模板目录和文件
+            template_base_dir = Path(settings.web_templates_dir)
+            template_html_path = template_base_dir / template_path
+
+            if not template_html_path.exists():
+                logger.error(f"模板文件不存在: {template_html_path}")
+                raise FileNotFoundError(f"模板文件不存在: {template_path}")
+
+            template_dir = template_html_path.parent
+
+            # 2. 读取模板HTML
+            with open(template_html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+
+            # 3. 生成唯一输出目录
+            page_id = str(uuid.uuid4())[:8]
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            output_dir_name = f"{template_name}_{timestamp}_{page_id}"
+            output_dir = self._output_dir / output_dir_name
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # 4. 复制模板资源文件 (css, js, images等)
+            for subdir in ['css', 'js', 'images', 'fonts']:
+                src_dir = template_dir / subdir
+                if src_dir.exists():
+                    shutil.copytree(src_dir, output_dir / subdir, dirs_exist_ok=True)
+
+            # 5. 构建数据注入脚本
+            data_script = f"""
+    <script>
+        window.PAGE_DATA = {json.dumps(data, ensure_ascii=False, indent=2)};
+    </script>
+"""
+
+            # 6. 在 </head> 之前注入数据脚本
+            if '</head>' in html_content:
+                html_content = html_content.replace('</head>', f'{data_script}\n</head>')
+            else:
+                # 如果没有 </head>，在第一个 <script> 之前注入
+                html_content = data_script + html_content
+
+            # 7. 修改标题
+            if title:
+                html_content = re.sub(
+                    r'<title>.*?</title>',
+                    f'<title>{title}</title>',
+                    html_content
+                )
+
+            # 8. 修正资源路径（相对路径保持不变，因为资源已复制）
+            # 不需要修改，因为资源文件已经复制到同级目录
+
+            # 9. 保存生成的页面
+            output_html = output_dir / 'index.html'
+            with open(output_html, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+
+            # 10. 返回访问URL
+            page_url = f"/static/pages/{output_dir_name}/index.html"
+            logger.info(f"模板页面生成成功: {page_url}")
+
+            return page_url
+
+        except Exception as e:
+            logger.error(f"使用模板生成页面失败: {e}")
+            raise
+
 
 # 全局页面生成器实例
 _page_generator: Optional[PageGenerator] = None

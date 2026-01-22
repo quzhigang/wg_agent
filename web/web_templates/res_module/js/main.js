@@ -16,21 +16,49 @@ async function init() {
     setInterval(updateTime, 1000);
 
     const conclusionTextDom = document.getElementById('conclusionText');
-    if (conclusionTextDom) {
-        conclusionTextDom.innerText = "正在获取实时预报数据...";
-    }
 
     try {
-        // Fetch data from both APIs
-        const [floodData, rainData] = await Promise.all([
-            fetchFloodResult(),
-            fetchRainProcess()
-        ]);
+        let floodData, rainData;
 
-        if (floodData) {
-            processAllData(floodData, rainData);
+        // 检查是否有注入的数据 (window.PAGE_DATA)
+        if (window.PAGE_DATA) {
+            console.log("Using injected PAGE_DATA");
+            const pageData = window.PAGE_DATA;
+
+            // 构建 floodData 结构
+            const reservoirName = pageData.reservoir_name || "盘石头水库";
+            floodData = {
+                reservoir_result: {
+                    [reservoirName]: pageData.reservoir_result || {}
+                },
+                result_desc: pageData.result_desc || ""
+            };
+
+            // 获取降雨数据
+            rainData = pageData.rain_data || [];
+
+            // 使用注入数据处理
+            if (floodData.reservoir_result[reservoirName]) {
+                processAllDataDynamic(floodData, rainData, reservoirName);
+            } else {
+                throw new Error("注入数据格式错误");
+            }
         } else {
-            throw new Error("未能获取洪水结果数据");
+            // 原有的API获取逻辑
+            if (conclusionTextDom) {
+                conclusionTextDom.innerText = "正在获取实时预报数据...";
+            }
+
+            [floodData, rainData] = await Promise.all([
+                fetchFloodResult(),
+                fetchRainProcess()
+            ]);
+
+            if (floodData) {
+                processAllData(floodData, rainData);
+            } else {
+                throw new Error("未能获取洪水结果数据");
+            }
         }
     } catch (error) {
         console.error("Data loading error:", error);
@@ -40,6 +68,19 @@ async function init() {
     }
 
     initMap();
+}
+
+// 支持动态水库名称的数据处理
+function processAllDataDynamic(floodRaw, rainData, reservoirName) {
+    if (!floodRaw.reservoir_result || !floodRaw.reservoir_result[reservoirName]) {
+        console.error(`Data for ${reservoirName} not found.`);
+        return;
+    }
+    const reservoirData = floodRaw.reservoir_result[reservoirName];
+    const description = floodRaw.result_desc || "";
+
+    renderChart(reservoirData, rainData);
+    renderConclusion(reservoirData, description);
 }
 
 async function fetchFloodResult() {

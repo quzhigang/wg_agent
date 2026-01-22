@@ -228,14 +228,14 @@
         .stats-section {
             margin-top: 40px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 15px;
         }
 
         .stat-card {
             background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
             border-radius: 12px;
-            padding: 25px;
+            padding: 15px 10px;
             text-align: center;
             border: 1px solid #e2e8f0;
             cursor: pointer;
@@ -1111,6 +1111,14 @@
                     <div class="stat-number">3</div>
                     <div class="stat-label">🎯 意图分类</div>
                 </div>
+                <div class="stat-card" id="card-predefined-templates" onclick="showPredefinedTemplatesModal()" title="点击查看预定义模板">
+                    <div class="stat-number">1</div>
+                    <div class="stat-label">📦 预定义web模板</div>
+                </div>
+                <div class="stat-card" id="card-dynamic-templates" onclick="openDynamicTemplates()" title="点击管理动态模板">
+                    <div class="stat-number" id="dynamic-template-count">-</div>
+                    <div class="stat-label">🎨 动态web模板</div>
+                </div>
             </div>
 
             <!-- 分支 -->
@@ -1694,32 +1702,79 @@
         let toolsData = null;           // 缓存工具列表数据
         let llmConfigData = null;       // 缓存LLM配置数据
 
-        // 预定义工作流数据（静态定义，与后端保持一致）
+        // 预定义工作流数据（静态定义，包含步骤详情）
         const predefinedWorkflows = [
             {
                 name: 'get_auto_forecast_result',
                 displayName: '查询最新自动预报结果',
-                description: '自动获取系统中最新的洪水自动预报计算结果，包含水位、流量等预报数据。适用于"查询最新预报"、"获取自动预报结果"等场景。'
+                description: '自动获取系统中最新的洪水自动预报计算结果，包含水位、流量等预报数据。',
+                steps: [
+                    { id: 1, name: '解析会话参数', desc: '从用户会话中提取预报对象（如指定站点名称或全流域）' },
+                    { id: 2, name: '获取最新自动预报结果', desc: '调用 get_tjdata_result 工具，plan_code 固定为 model_auto' },
+                    { id: 3, name: '结果信息提取整理', desc: '根据预报对象提取主要预报数据（水位、流量等）及概括描述' },
+                    { id: 4, name: '生成Web页面', desc: '调用 res_module 模板生成并展示结果页面' }
+                ]
             },
             {
                 name: 'get_history_autoforecast_result',
                 displayName: '查询历史自动预报结果',
-                description: '根据时间范围查询历史的自动预报记录和结果数据。适用于"查看历史预报"、"过去某时段的预报"等场景。'
+                description: '根据时间范围查询历史的自动预报记录和结果数据。',
+                steps: [
+                    { id: 1, name: '解析会话参数', desc: '提取预报对象和历史降雨的大概起止时间' },
+                    { id: 2, name: '获取历史面雨量过程', desc: '调用 forecast_rain_ecmwf_avg 获取指定时段的面雨量过程' },
+                    { id: 3, name: '获取具体降雨起止时间', desc: '通过分析逐小时降雨数据，精准定位核心降雨时段' },
+                    { id: 4, name: '获取历史预报方案ID', desc: '寻找与降雨结束时间最接近的历史自动预报方案' },
+                    { id: 5, name: '获取历史预报结果', desc: '调用 get_history_autoforcast_res 获取该方案的详细洪水结果' },
+                    { id: 6, name: '结果信息整理', desc: '提取目标对象的历史预报数值' },
+                    { id: 7, name: '生成Web页面', desc: '调用对应模板生成历史预报结果展示页面' }
+                ]
             },
             {
                 name: 'flood_autoforecast_getresult',
                 displayName: '启动自动洪水预报',
-                description: '触发新的自动洪水预报计算流程，系统自动获取降雨数据并运行预报模型。适用于"开始预报"、"运行自动预报"等场景。'
+                description: '触发新的自动洪水预报计算流程，系统自动获取降雨数据并运行预报模型。',
+                steps: [
+                    { id: 1, name: '获取当前时间范围', desc: '确定预报所需的实测雨量和预报雨量的时间区间' },
+                    { id: 2, name: '获取ECMWF预报雨量', desc: '调用 forecast_rain_ecmwf 工具获取未来降雨' },
+                    { id: 3, name: '转换雨量格式', desc: '处理降雨数据格式以符合模型输入要求' },
+                    { id: 4, name: '启动预报方案', desc: '调用 start_modelplan 启动预报计算任务' },
+                    { id: 5, name: '查询计算结果', desc: '等待计算完成后获取最新的预报方案结果' },
+                    { id: 6, name: '生成展示页面', desc: '将预报结果推送至 Web 模板进行可视化展示' }
+                ]
             },
             {
                 name: 'get_manual_forecast_result',
                 displayName: '查询人工预报结果',
-                description: '获取人工设置参数的洪水预报计算结果。适用于"查询人工预报"、"获取手动预报结果"等场景。'
+                description: '获取人工设置参数的洪水预报计算结果。',
+                steps: [
+                    { id: 1, name: '解析会话参数', desc: '提取预报对象、时间范围或特定的人工方案描述' },
+                    { id: 2, name: '获取历史面雨量', desc: '调用 forecast_rain_ecmwf_avg 获取对应时段的面雨量过程' },
+                    { id: 3, name: '分析具体降雨时间', desc: '精准锁定降雨起止时间（若提供了方案描述则跳过此步）' },
+                    { id: 4, name: '获取人工方案列表', desc: '调用 model_plan_list_all 获取系统内所有人工预报方案' },
+                    { id: 5, name: '匹配目标方案ID', desc: '基于描述或降雨时间锁定具体的方案 plan_code' },
+                    { id: 6, name: '提取预报结果', desc: '调用 get_tjdata_result 工具获取该方案的详细洪水结果' },
+                    { id: 7, name: '生成Web页面', desc: '调用可视化模板展示该人工方案的洪水预报详情' }
+                ]
             },
             {
                 name: 'flood_manualforecast_getresult',
                 displayName: '启动人工洪水预报',
-                description: '创建并运行人工参数设定的洪水预报方案，支持自定义降雨等输入条件。适用于"人工预报"、"自定义预报"等场景。'
+                description: '创建并运行人工参数设定的洪水预报方案，支持自定义降雨等输入条件。',
+                steps: [
+                    { id: 1, name: '解析会话参数', desc: '提取预报对象、降雨量（如100mm）及预报起止时间' },
+                    { id: 2, name: '获取历史面雨量', desc: '（历史预报场景）调用接口获取对比用的实测降雨数据' },
+                    { id: 3, name: '分析降雨起止', desc: '根据面雨量过程精准确定模型计算的起始驱动时间' },
+                    { id: 4, name: '新建预报方案', desc: '调用 model_plan_add 创建一个全新的人工预报计算方案' },
+                    { id: 5, name: '解析降雨雨型', desc: '调用 model_rain_pattern_detail 获取降雨随时间的分布比例' },
+                    { id: 6, name: '设置方案降雨', desc: '根据雨型将总量分解至逐小时并写入方案驱动数据' },
+                    { id: 7, name: '设置边界条件', desc: '配置方案的模型边界，确保采用降雨径流模型计算' },
+                    { id: 8, name: '启动模型计算', desc: '调用 model_plan_calc 引擎开始后台分布式计算' },
+                    { id: 9, name: '获取预计时长', desc: '查询模型预计计算所需秒数，用于设置监控频率' },
+                    { id: 10, name: '监视计算状态', desc: '每5秒轮询一次计算进度，直至状态更新为“已完成”' },
+                    { id: 11, name: '读取计算结果', desc: '计算完成后从结果库中提取水位、流量等详细过程数据' },
+                    { id: 12, name: '结果信息整理', desc: '针对查询目标（全流域或特定站点）进行数据抽取' },
+                    { id: 13, name: '生成Web页面', desc: '将动态计算结果推送至可视化模板进行多维展示' }
+                ]
             }
         ];
 
@@ -1987,31 +2042,67 @@
          * 显示预定义工作流弹窗
          */
         function showPredefinedWorkflowsModal() {
-            let content = '<div style="margin-bottom: 15px; color: #64748b;">以下是系统内置的5个预定义工作流模板，用于处理常见的洪水预报业务场景：</div>';
+            let content = '<div style="margin-bottom: 15px; color: #64748b;">点击工作流查看详细执行步骤：</div>';
             
             predefinedWorkflows.forEach((wf, index) => {
                 content += `
-                    <div class="workflow-item">
+                    <div class="workflow-item" style="cursor: pointer;" onclick="showWorkflowSteps('${wf.name}')">
                         <div class="workflow-name">${index + 1}. ${wf.displayName}</div>
                         <div class="workflow-desc">${wf.description}</div>
-                        <div style="margin-top: 10px; font-family: 'Consolas', monospace; font-size: 0.85em; color: #6b7280;">
-                            工作流ID: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">${wf.name}</code>
+                        <div style="margin-top: 8px; display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-family: 'Consolas', monospace; font-size: 0.8em; color: #64748b;">ID: ${wf.name}</span>
+                            <span style="font-size: 0.85em; color: #6366f1;">查看步骤 →</span>
                         </div>
                     </div>
                 `;
             });
 
+            openModal('📋 预定义工作流清单', content);
+        }
+
+        /**
+         * 显示工作流步骤详情
+         * @param {string} workflowName - 工作流标识
+         */
+        function showWorkflowSteps(workflowName) {
+            const wf = predefinedWorkflows.find(w => w.name === workflowName);
+            if (!wf) return;
+
+            let content = `
+                <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #6366f1;">
+                    <p style="margin: 0; color: #475569; line-height: 1.6;">${wf.description}</p>
+                </div>
+                <div class="executor-flow" style="flex-direction: column; align-items: stretch; gap: 15px;">
+            `;
+
+            wf.steps.forEach((step, index) => {
+                content += `
+                    <div style="display: flex; align-items: flex-start; gap: 15px;">
+                        <div style="width: 28px; height: 28px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 0.9em;">
+                            ${step.id}
+                        </div>
+                        <div style="flex: 1; background: #f1f5f9; padding: 12px 15px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                            <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px;">${step.name}</div>
+                            <div style="font-size: 0.85em; color: #64748b; line-height: 1.5;">${step.desc}</div>
+                        </div>
+                    </div>
+                `;
+                
+                if (index < wf.steps.length - 1) {
+                    content += `
+                        <div style="margin-left: 14px; height: 15px; width: 2px; background: #e2e8f0;"></div>
+                    `;
+                }
+            });
+
             content += `
-                <div style="margin-top: 20px; padding: 15px; background: #f0fdf4; border-radius: 10px; border: 1px solid #86efac;">
-                    <strong style="color: #166534;">💡 使用说明：</strong>
-                    <p style="margin: 10px 0 0; color: #15803d; font-size: 0.9em;">
-                        当用户提问匹配到预定义工作流时，系统会自动选择对应模板执行。
-                        预定义工作流优先级高于动态生成的执行计划。
-                    </p>
+                </div>
+                <div style="margin-top: 25px; text-align: center;">
+                    <button class="modal-btn modal-btn-secondary" onclick="showPredefinedWorkflowsModal()">← 返回清单</button>
                 </div>
             `;
 
-            openModal('📋 预定义工作流模板', content);
+            openModal(`🔍 工作流：${wf.displayName}`, content);
         }
 
         // ============================================================================
@@ -2255,6 +2346,62 @@
         }
 
         // ============================================================================
+        // 7. Web模板弹窗与跳转
+        // ============================================================================
+        
+        /**
+         * 显示预定义模板列表弹窗
+         */
+        function showPredefinedTemplatesModal() {
+            const predefinedTemplates = [
+                {
+                    name: 'res_module',
+                    displayName: '监测结果详情模板',
+                    description: '用于展示水雨情监测站点的详细实时数据、历史曲线及基本信息。',
+                    path: '/ui/res_module/index.html'
+                }
+            ];
+
+            let content = '<div style="margin-bottom: 15px; color: #64748b;">以下是系统内置的预定义Web页面模板：</div>';
+            
+            predefinedTemplates.forEach((tpl, index) => {
+                content += `
+                    <div class="workflow-item" style="cursor: pointer;" onclick="window.open('${tpl.path}', '_blank'); closeModal();">
+                        <div class="workflow-name">${index + 1}. ${tpl.displayName}</div>
+                        <div class="workflow-desc">${tpl.description}</div>
+                        <div style="margin-top: 10px; font-family: 'Consolas', monospace; font-size: 0.85em; color: #6b7280;">
+                            目录名称: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">web/web_templates/${tpl.name}</code>
+                        </div>
+                    </div>
+                `;
+            });
+
+            openModal('📦 预定义Web模板清单', content);
+        }
+
+        /**
+         * 跳转到动态模板管理页面
+         */
+        function openDynamicTemplates() {
+            window.open('web_templates.html', '_blank');
+        }
+
+        /**
+         * 获取动态模板数量
+         */
+        async function loadDynamicTemplateCount() {
+            try {
+                const response = await fetch('/web-templates?page=1&size=1');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('dynamic-template-count').textContent = data.total || 0;
+                }
+            } catch (error) {
+                console.error('获取动态模板数量失败:', error);
+            }
+        }
+
+        // ============================================================================
         // 初始化和数据加载
         // ============================================================================
         
@@ -2300,6 +2447,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadDynamicWorkflowCount();
             loadToolsCount();
+            loadDynamicTemplateCount();
         });
     </script>
 </body>

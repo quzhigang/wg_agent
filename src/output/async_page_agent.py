@@ -56,7 +56,10 @@ class AsyncPageGeneratorAgent:
         report_type: str,
         data: Dict[str, Any],
         title: Optional[str] = None,
-        execution_summary: Optional[str] = None
+        execution_summary: Optional[str] = None,
+        user_message: Optional[str] = None,
+        sub_intent: Optional[str] = None,
+        save_as_dynamic_template: bool = False
     ) -> str:
         """
         提交页面生成任务
@@ -67,6 +70,9 @@ class AsyncPageGeneratorAgent:
             data: 报告数据
             title: 页面标题
             execution_summary: 执行结果摘要
+            user_message: 用户原始问题（用于动态模板）
+            sub_intent: 业务子意图（用于动态模板）
+            save_as_dynamic_template: 是否保存为动态模板
 
         Returns:
             任务ID
@@ -81,6 +87,9 @@ class AsyncPageGeneratorAgent:
             "data": data,
             "title": title,
             "execution_summary": execution_summary,
+            "user_message": user_message,
+            "sub_intent": sub_intent,
+            "save_as_dynamic_template": save_as_dynamic_template,
             "page_url": None,
             "error": None,
             "created_at": datetime.now().isoformat(),
@@ -127,6 +136,10 @@ class AsyncPageGeneratorAgent:
 
             logger.info(f"页面生成完成: {task_id} -> {page_url}")
 
+            # 如果需要保存为动态模板
+            if task_info.get("save_as_dynamic_template"):
+                await self._save_as_dynamic_template(task_info, page_url)
+
         except Exception as e:
             logger.error(f"页面生成失败: {task_id}, 错误: {e}")
             task_info["status"] = PageTaskStatus.FAILED.value
@@ -136,6 +149,48 @@ class AsyncPageGeneratorAgent:
         finally:
             # 清理后台任务引用
             self._background_tasks.pop(task_id, None)
+
+    async def _save_as_dynamic_template(self, task_info: Dict[str, Any], page_url: str):
+        """
+        将生成的页面保存为动态模板
+
+        Args:
+            task_info: 任务信息
+            page_url: 页面URL
+        """
+        try:
+            from .page_generator import get_page_generator
+            from .dynamic_template_service import get_dynamic_template_service
+
+            # 读取生成的HTML内容
+            generator = get_page_generator()
+            page_path = generator.get_page_path(page_url)
+
+            if not page_path.exists():
+                logger.warning(f"页面文件不存在，无法保存为动态模板: {page_url}")
+                return
+
+            with open(page_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+
+            # 保存为动态模板
+            dynamic_service = get_dynamic_template_service()
+            template_id = dynamic_service.save_dynamic_template(
+                html_content=html_content,
+                user_query=task_info.get("user_message", ""),
+                sub_intent=task_info.get("sub_intent", ""),
+                page_title=task_info.get("title", ""),
+                conversation_id=task_info.get("conversation_id", ""),
+                execution_summary=task_info.get("execution_summary", "")
+            )
+
+            if template_id:
+                logger.info(f"页面已保存为动态模板: {template_id}")
+            else:
+                logger.warning(f"保存动态模板失败: {page_url}")
+
+        except Exception as e:
+            logger.error(f"保存动态模板异常: {e}")
 
     def get_task_status(self, task_id: str) -> Optional[Dict[str, Any]]:
         """

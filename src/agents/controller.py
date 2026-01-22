@@ -11,6 +11,9 @@ from ..config.settings import settings
 from ..config.logging_config import get_logger
 from ..config.llm_prompt_logger import log_llm_call
 from .state import AgentState, OutputType
+from ..output.template_match_service import get_template_match_service
+from ..output.page_generator import get_page_generator
+from ..output.dynamic_template_service import get_dynamic_template_service
 
 logger = get_logger(__name__)
 
@@ -262,19 +265,19 @@ class Controller:
         execution_summary: str
     ) -> Dict[str, Any]:
         """
-        生成Web页面响应（异步模式）
+        生成Web页面响应（支持模板匹配）
 
-        页面生成由独立的异步智能体执行，不阻塞主对话流程。
-        返回任务ID，前端通过轮询或WebSocket获取页面URL。
+        优先尝试匹配预定义模板，如果匹配成功则使用模板生成页面；
+        否则回退到异步动态生成模式。
 
         Args:
             state: 当前状态
             execution_summary: 执行结果摘要
 
         Returns:
-            包含文本响应和页面任务ID的字典
+            包含文本响应和页面URL/任务ID的字典
         """
-        logger.info("准备异步生成Web页面...")
+        logger.info("准备生成Web页面...")
 
         # 先生成文字回复（不阻塞）
         text_response = None
@@ -332,17 +335,87 @@ class Controller:
 
 报告生成中，请稍候..."""
 
-        # 异步提交页面生成任务
+        # 整合所有执行结果数据
+        combined_data = {}
+        for result in results:
+            if result.get('success'):
+                output = result.get('output') or result.get('result')
+                if isinstance(output, dict):
+                    combined_data.update(output)
+
+        # 尝试模板匹配
+        try:
+            sub_intent = state.get('business_sub_intent', '')
+            user_message = state.get('user_message', '')
+
+            template_match_service = get_template_match_service()
+            matched_template = await template_match_service.match_template(
+                user_message=user_message,
+                sub_intent=sub_intent,
+                execution_results=results,
+                execution_summary=execution_summary
+            )
+
+            # 如果匹配到模板且置信度足够高，使用模板生成页面
+            if matched_template and matched_template.get('confidence', 0) >= 0.7:
+                logger.info(f"匹配到模板: {matched_template.get('display_name')}, 置信度: {matched_template.get('confidence')}")
+
+                # 检查是否为动态模板且有HTML内容（直接复用）
+                if matched_template.get('is_dynamic') and matched_template.get('html_content'):
+                    logger.info(f"复用动态模板HTML内容: {matched_template.get('display_name')}")
+
+                    # 保存HTML内容到文件
+                    page_generator = get_page_generator()
+                    page_url = await page_generator.save_html_content(
+                        html_content=matched_template['html_content'],
+                        title=matched_template.get('page_title') or self._generate_page_title(state)
+                    )
+
+                    # 更新模板使用计数
+                    template_match_service.increment_use_count(matched_template.get('id'), success=True)
+
+                    logger.info(f"动态模板复用成功: {page_url}")
+
+                    return {
+                        "text_response": text_response,
+                        "page_url": page_url,
+                        "page_task_id": None,
+                        "page_generating": False,
+                        "template_used": matched_template.get('display_name'),
+                        "template_reused": True
+                    }
+
+                # 预定义模板：使用模板生成页面
+                # 准备模板数据
+                template_data = self._prepare_template_data(state, combined_data, matched_template)
+
+                # 使用模板生成页面
+                page_generator = get_page_generator()
+                page_url = await page_generator.generate_page_with_template(
+                    template_info=matched_template,
+                    data=template_data,
+                    title=self._generate_page_title(state)
+                )
+
+                # 更新模板使用计数
+                template_match_service.increment_use_count(matched_template.get('id'), success=True)
+
+                logger.info(f"使用模板生成页面成功: {page_url}")
+
+                return {
+                    "text_response": text_response,
+                    "page_url": page_url,
+                    "page_task_id": None,
+                    "page_generating": False,
+                    "template_used": matched_template.get('display_name')
+                }
+
+        except Exception as template_error:
+            logger.warning(f"模板匹配或生成失败，回退到动态生成: {template_error}")
+
+        # 回退：异步提交页面生成任务
         try:
             from ..output.async_page_agent import get_async_page_agent
-
-            # 整合所有执行结果数据
-            combined_data = {}
-            for result in results:
-                if result.get('success'):
-                    output = result.get('output')
-                    if isinstance(output, dict):
-                        combined_data.update(output)
 
             # 确定报告类型
             report_type = "generic"
@@ -352,14 +425,17 @@ class Controller:
             elif '预案' in intent:
                 report_type = 'emergency_plan'
 
-            # 提交异步任务
+            # 提交异步任务（任务完成后会自动保存为动态模板）
             async_agent = get_async_page_agent()
             task_id = async_agent.submit_task(
                 conversation_id=state.get('conversation_id', ''),
                 report_type=report_type,
                 data=combined_data,
                 title=f"{intent}报告",
-                execution_summary=execution_summary
+                execution_summary=execution_summary,
+                user_message=user_message,
+                sub_intent=sub_intent,
+                save_as_dynamic_template=True  # 标记需要保存为动态模板
             )
 
             logger.info(f"页面生成任务已提交: {task_id}")
@@ -380,6 +456,114 @@ class Controller:
                 "page_generating": False,
                 "page_error": str(e)
             }
+
+    def _prepare_template_data(
+        self,
+        state: AgentState,
+        combined_data: Dict[str, Any],
+        template_info: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        准备模板所需的数据
+
+        根据模板类型和执行结果，构建符合模板要求的数据结构。
+
+        Args:
+            state: 当前状态
+            combined_data: 合并后的执行结果数据
+            template_info: 模板信息
+
+        Returns:
+            模板数据字典
+        """
+        template_name = template_info.get('name', '')
+        forecast_target = state.get('forecast_target', {})
+        extracted_result = state.get('extracted_result', {})
+
+        # 基础数据
+        data = {
+            "user_message": state.get('user_message', ''),
+            "intent": state.get('intent', ''),
+            "sub_intent": state.get('business_sub_intent', ''),
+        }
+
+        # 根据模板类型准备数据
+        if template_name == 'res_flood_forecast':
+            # 水库洪水预报模板
+            target_name = forecast_target.get('name', '盘石头水库')
+            data["reservoir_name"] = target_name
+
+            # 从 extracted_result 或 combined_data 获取水库预报数据
+            if extracted_result and extracted_result.get('data'):
+                reservoir_data = extracted_result.get('data', {})
+            else:
+                # 尝试从 combined_data 中提取
+                reservoir_result = combined_data.get('reservoir_result', {})
+                reservoir_data = reservoir_result.get(target_name, {})
+
+            data["reservoir_result"] = reservoir_data
+            data["result_desc"] = extracted_result.get('summary', '') or combined_data.get('result_desc', '')
+
+            # 降雨数据
+            data["rain_data"] = combined_data.get('rain_data', [])
+
+        elif template_name == 'station_flood_forecast':
+            # 站点洪水预报模板
+            target_name = forecast_target.get('name', '')
+            data["station_name"] = target_name
+
+            if extracted_result and extracted_result.get('data'):
+                data["station_result"] = extracted_result.get('data', {})
+            else:
+                data["station_result"] = combined_data.get('station_result', {})
+
+            data["result_desc"] = extracted_result.get('summary', '')
+
+        elif template_name == 'detention_basin_forecast':
+            # 蓄滞洪区预报模板
+            target_name = forecast_target.get('name', '')
+            data["detention_name"] = target_name
+
+            if extracted_result and extracted_result.get('data'):
+                data["detention_result"] = extracted_result.get('data', {})
+            else:
+                data["detention_result"] = combined_data.get('detention_result', {})
+
+            data["result_desc"] = extracted_result.get('summary', '')
+
+        else:
+            # 通用模板：直接传递合并数据
+            data.update(combined_data)
+            if extracted_result:
+                data["extracted_result"] = extracted_result
+
+        return data
+
+    def _generate_page_title(self, state: AgentState) -> str:
+        """
+        生成页面标题
+
+        Args:
+            state: 当前状态
+
+        Returns:
+            页面标题
+        """
+        forecast_target = state.get('forecast_target', {})
+        target_name = forecast_target.get('name', '')
+        intent = state.get('intent', '')
+        sub_intent = state.get('business_sub_intent', '')
+
+        if target_name:
+            if 'forecast' in sub_intent or '预报' in intent:
+                return f"{target_name}洪水预报结果"
+            else:
+                return f"{target_name}查询结果"
+
+        if intent:
+            return f"{intent}报告"
+
+        return "查询结果报告"
 
     async def _generate_text_response_for_workflow(
         self,

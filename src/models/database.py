@@ -112,7 +112,7 @@ class SavedWorkflow(Base):
 class ToolCallLog(Base):
     """工具调用日志表"""
     __tablename__ = "tool_call_logs"
-    
+
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=True, index=True)
     tool_name = Column(String(100), nullable=False, index=True)
@@ -122,9 +122,37 @@ class ToolCallLog(Base):
     execution_time_ms = Column(Integer, nullable=True)
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # 关系
     conversation = relationship("Conversation", back_populates="tool_call_logs")
+
+
+class WebTemplate(Base):
+    """Web模板元数据表（包含预定义模板和动态生成模板）"""
+    __tablename__ = "web_templates"
+
+    id = Column(String(36), primary_key=True)  # UUID
+    name = Column(String(100), nullable=False, unique=True)  # 英文标识
+    display_name = Column(String(100), nullable=False)  # 中文名称
+    description = Column(Text, nullable=True)  # 详细描述
+    template_path = Column(String(255), nullable=True)  # 模板路径(预定义模板用)
+    supported_sub_intents = Column(Text, nullable=False)  # 支持的子意图(JSON数组)
+    template_type = Column(String(50), default="full_page")  # 模板类型
+    data_schema = Column(Text, nullable=True)  # 数据要求(JSON)
+    trigger_pattern = Column(Text, nullable=True)  # 触发模式/关键词
+    features = Column(Text, nullable=True)  # 特性标签(JSON数组)
+    priority = Column(Integer, default=0)  # 优先级
+    use_count = Column(Integer, default=0)  # 使用次数
+    success_count = Column(Integer, default=0)  # 成功次数
+    is_active = Column(Boolean, default=True)  # 是否激活
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # 动态模板字段
+    is_dynamic = Column(Boolean, default=False)  # 是否为动态生成的模板
+    html_content = Column(Text, nullable=True)  # 动态模板的HTML内容
+    user_query = Column(Text, nullable=True)  # 触发生成的用户原始问题
+    page_title = Column(String(255), nullable=True)  # 页面标题
+    conversation_id = Column(String(36), nullable=True)  # 关联的会话ID
 
 
 # 数据库引擎和会话工厂
