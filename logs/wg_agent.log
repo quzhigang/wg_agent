@@ -1,7 +1,26 @@
-2026-01-21 17:03:35.731 | INFO     | src.agents.graph:run_agent_stream:739 | 流式运行智能体 - 会话: 4d44d923-b4ca-4fa7-b607-02040e46cfb9
-2026-01-21 17:03:35.732 | INFO     | src.agents.graph:create_agent_graph:530 | 创建智能体状态图...
-2026-01-21 17:03:35.735 | INFO     | src.agents.graph:create_agent_graph:599 | 智能体状态图创建完成
-2026-01-21 17:03:35.745 | INFO     | src.agents.graph:get_agent_graph:626 | 智能体图编译完成
-2026-01-21 17:03:35.998 | INFO     | src.agents.controller:__init__:119 | Controller初始化完成
-2026-01-21 17:03:36.044 | INFO     | src.agents.planner:__init__:599 | Planner初始化完成
-2026-01-21 17:03:36.045 | INFO     | src.agents.planner:analyze_intent:611 | 开始分析用户意图: 进行一次人工预报，假设未来24小时降雨100mm，看看盘石头水库洪水预报结果...
+2026-01-23 17:02:59.284 | INFO     | src.config.logging_config:setup_logging:88 | 日志系统初始化完成
+2026-01-23 17:02:59.284 | INFO     | src.config.logging_config:setup_logging:89 | 日志级别: INFO
+2026-01-23 17:02:59.285 | INFO     | src.config.logging_config:setup_logging:90 | 日志文件: ./logs/wg_agent.log
+2026-01-23 17:02:59.308 | INFO     | src.main:lifespan:29 | ==================================================
+2026-01-23 17:02:59.308 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2026-01-23 17:02:59.308 | INFO     | src.main:lifespan:31 | ==================================================
+2026-01-23 17:02:59.369 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2026-01-23 17:02:59.369 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2026-01-23 17:02:59.369 | INFO     | src.tools.registry:init_default_tools:395 | 初始化默认工具...
+2026-01-23 17:02:59.370 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2026-01-23 17:02:59.371 | INFO     | src.tools.basin_info:register_basin_info_tools:1100 | 流域基本信息工具注册完成，共注册14个工具
+2026-01-23 17:02:59.372 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1449 | 水雨情监测工具注册完成，共15个工具
+2026-01-23 17:02:59.373 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1367 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2026-01-23 17:02:59.375 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2026-01-23 17:02:59.377 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2026-01-23 17:02:59.377 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2026-01-23 17:02:59.378 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2026-01-23 17:02:59.380 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2026-01-23 17:02:59.380 | INFO     | src.tools.registry:init_default_tools:412 | 默认工具加载完成
+2026-01-23 17:02:59.380 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2026-01-23 17:02:59.380 | INFO     | src.tools.registry:init_default_tools:426 | RAG知识库搜索工具注册完成
+2026-01-23 17:02:59.381 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: generate_report_page
+2026-01-23 17:02:59.381 | INFO     | src.tools.registry:init_default_tools:440 | 页面生成工具注册完成
+2026-01-23 17:02:59.381 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2026-01-23 17:02:59.381 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2026-01-23 17:02:59.384 | WARNING  | src.main:lifespan:59 | 工作流初始化警告: expression expected after dictionary key and ':' (get_autoforecast_result.py, line 707)

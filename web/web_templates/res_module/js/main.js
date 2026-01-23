@@ -1,16 +1,20 @@
 
-// API Config
+// API 配置
 const API_URLS = {
     floodResult: 'http://172.16.16.253/wg_modelserver/hd_mike11server/Model_Ser.ashx',
-    rainProcess: 'http://10.20.2.153:8089/modelPlatf/model/modelRainArea/getByRsvr'
+    rainProcess: 'http://10.20.2.153/api/basin/modelPlatf/model/modelRainArea/getByRsvr',
+    currentStatus: 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
 };
 
+// 本模板所需参数，包括方案名称、水库名称、水库stcd和认证Token
 const DEFAULT_PARAMS = {
-    planCode: 'model_20250715112532',
-    stcd: '31005650'
+    planCode: 'model_20250513170039',
+    stcd: '31005650',
+    reservoirName: '盘石头水库', // 统一定义水库名称
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJmMjMwNzk1ZS05MjEzLTQwYmItODlkMS00NTIwOTFhMzhhODIiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njk3NjEwODQzNzcsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTE1NjI4NCwiZXhwIjoxNzY5NzYxMDg0fQ.1sbsr6w2lvXiNXUHieTy2AK6PwF4gS2N9LJekrwTUpCmWn9I7aBqJa_FNLxXulmMTq3B9f_ER3yjoJ__pbbkUg' // 认证Token
 };
 
-// Main entry point
+// 主入口函数
 async function init() {
     updateTime();
     setInterval(updateTime, 1000);
@@ -18,50 +22,24 @@ async function init() {
     const conclusionTextDom = document.getElementById('conclusionText');
 
     try {
-        let floodData, rainData;
+        if (conclusionTextDom) {
+            conclusionTextDom.innerText = "正在获取实时预报数据...";
+        }
 
-        // 检查是否有注入的数据 (window.PAGE_DATA)
-        if (window.PAGE_DATA) {
-            console.log("Using injected PAGE_DATA");
-            const pageData = window.PAGE_DATA;
+        // 全部采用 API 获取
+        const [floodData, rainData, currentStatus] = await Promise.all([
+            fetchFloodResult(),
+            fetchRainProcess(),
+            fetchCurrentStatus()
+        ]);
 
-            // 构建 floodData 结构
-            const reservoirName = pageData.reservoir_name || "盘石头水库";
-            floodData = {
-                reservoir_result: {
-                    [reservoirName]: pageData.reservoir_result || {}
-                },
-                result_desc: pageData.result_desc || ""
-            };
-
-            // 获取降雨数据
-            rainData = pageData.rain_data || [];
-
-            // 使用注入数据处理
-            if (floodData.reservoir_result[reservoirName]) {
-                processAllDataDynamic(floodData, rainData, reservoirName);
-            } else {
-                throw new Error("注入数据格式错误");
-            }
+        if (floodData) {
+            processAllData(floodData, rainData, currentStatus);
         } else {
-            // 原有的API获取逻辑
-            if (conclusionTextDom) {
-                conclusionTextDom.innerText = "正在获取实时预报数据...";
-            }
-
-            [floodData, rainData] = await Promise.all([
-                fetchFloodResult(),
-                fetchRainProcess()
-            ]);
-
-            if (floodData) {
-                processAllData(floodData, rainData);
-            } else {
-                throw new Error("未能获取洪水结果数据");
-            }
+            throw new Error("未能获取洪水结果数据");
         }
     } catch (error) {
-        console.error("Data loading error:", error);
+        console.error("数据加载错误:", error);
         if (conclusionTextDom) {
             conclusionTextDom.innerText = "数据获取失败，请检查网络或 API 服务。";
         }
@@ -70,65 +48,104 @@ async function init() {
     initMap();
 }
 
-// 支持动态水库名称的数据处理
-function processAllDataDynamic(floodRaw, rainData, reservoirName) {
-    if (!floodRaw.reservoir_result || !floodRaw.reservoir_result[reservoirName]) {
-        console.error(`Data for ${reservoirName} not found.`);
-        return;
-    }
-    const reservoirData = floodRaw.reservoir_result[reservoirName];
-    const description = floodRaw.result_desc || "";
-
-    renderChart(reservoirData, rainData);
-    renderConclusion(reservoirData, description);
-}
-
+/**
+ * 获取洪水预报结果
+ */
 async function fetchFloodResult() {
     const url = `${API_URLS.floodResult}?request_type=get_tjdata_result&request_pars=${DEFAULT_PARAMS.planCode}`;
     const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP 错误! 状态码: ${response.status}`);
     return await response.json();
 }
 
+/**
+ * 获取降雨过程，附带认证 Token
+ */
 async function fetchRainProcess() {
     const url = `${API_URLS.rainProcess}?planCode=${DEFAULT_PARAMS.planCode}&stcd=${DEFAULT_PARAMS.stcd}`;
     try {
-        const response = await fetch(url);
-        if (!response.ok) return getDefaultRainData();
+        const headers = {
+            'Accept': '*/*'
+        };
+
+        if (DEFAULT_PARAMS.token) {
+            // 根据成功案例，这里不需要加 "Bearer " 前缀，直接发送纯 Token
+            headers['Authorization'] = DEFAULT_PARAMS.token;
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: headers,
+            mode: 'cors',
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            console.error(`降雨接口响应异常: ${response.status} ${response.statusText}`);
+            return [];
+        }
+
         const result = await response.json();
-        return result.success ? result.data : (result.data || getDefaultRainData());
+        if (result.success && result.data && result.data.t) {
+            // 将 t (时间数组) 和 v (值数组) 组合成 [{time, value}, ...] 格式
+            return result.data.t.map((time, index) => ({
+                time: time,
+                value: parseFloat(result.data.v[index] || 0)
+            }));
+        }
+        return [];
     } catch (e) {
-        console.warn("Rain API failed (possibly CORS). Using default data from js/rain.js.", e);
-        return getDefaultRainData();
+        console.warn("降雨接口请求失败:", e);
+        return [];
     }
 }
 
-// 从 js/rain.js (window.rain_res) 获取默认降雨数据
-function getDefaultRainData() {
-    if (window.rain_res && window.rain_res.data && window.rain_res.data.t) {
-        const { t, v } = window.rain_res.data;
-        return t.map((time, index) => ({
-            time: time,
-            value: parseFloat(v[index] || 0)
-        }));
+/**
+ * 获取最新实时水情信息
+ */
+async function fetchCurrentStatus() {
+    const url = `${API_URLS.currentStatus}?stcd=${DEFAULT_PARAMS.stcd}`;
+    try {
+        const headers = { 'Accept': '*/*' };
+        if (DEFAULT_PARAMS.token) {
+            headers['Authorization'] = DEFAULT_PARAMS.token;
+        }
+        const response = await fetch(url, { headers });
+        if (!response.ok) return null;
+        const result = await response.json();
+        return (result.success && result.data && result.data.length > 0) ? result.data[0] : null;
+    } catch (e) {
+        console.warn("获取实时水情失败:", e);
+        return null;
     }
-    console.warn("Default rain data (js/rain.js) not found or invalid format.");
-    return [];
 }
 
-function processAllData(floodRaw, rainData) {
-    const reservoirName = "盘石头水库";
+/**
+ * 处理并展示所有数据
+ */
+function processAllData(floodRaw, rainData, currentStatus) {
+    const reservoirName = DEFAULT_PARAMS.reservoirName;
+
+    // 动态更新页面标题
+    const titleDom = document.getElementById('conclusionTitle');
+    if (titleDom) {
+        titleDom.innerText = `${reservoirName}洪水预报结果`;
+    }
+
     if (!floodRaw.reservoir_result || !floodRaw.reservoir_result[reservoirName]) {
-        console.error(`Data for ${reservoirName} not found.`);
+        console.error(`未找到 ${reservoirName} 的数据。`);
         return;
     }
     const reservoirData = floodRaw.reservoir_result[reservoirName];
     const description = floodRaw.result_desc || "";
 
     renderChart(reservoirData, rainData);
-    renderConclusion(reservoirData, description);
+    renderConclusion(reservoirData, description, currentStatus);
 }
 
+/**
+ * 更新当前显示时间
+ */
 function updateTime() {
     const now = new Date();
     const timeString = now.toLocaleString('zh-CN', {
@@ -146,25 +163,28 @@ function updateTime() {
     }
 }
 
+/**
+ * 渲染图表
+ */
 function renderChart(data, rainData) {
     const chartDom = document.getElementById('chartDiv');
     if (!chartDom) return;
 
     const myChart = echarts.init(chartDom, null, { renderer: 'svg' });
 
-    // 1. Process Reservoir Data (Inflow, Outflow, Level)
+    // 1. 处理水库数据 (流量, 水位)
     const timeKeys = Object.keys(data.InQ_Dic).sort();
     const inflowData = timeKeys.map(t => [new Date(t).getTime(), data.InQ_Dic[t]]);
     const outflowData = timeKeys.map(t => [new Date(t).getTime(), data.OutQ_Dic[t]]);
     const waterLevelData = timeKeys.map(t => [new Date(t).getTime(), data.Level_Dic[t]]);
 
-    // 2. Process Rain Data
+    // 2. 处理降雨数据
     let processedRainData = [];
     if (rainData && Array.isArray(rainData)) {
         processedRainData = rainData.map(d => [new Date(d.time).getTime(), d.value]);
     }
 
-    // Helper: Calculate axis range
+    // 计算轴范围
     const calcAxisRange = (dataList, interval, padding = 1) => {
         const values = dataList.flatMap(list => list.map(d => d[1])).filter(v => !isNaN(v));
         if (values.length === 0) return { min: 0, max: interval };
@@ -180,7 +200,7 @@ function renderChart(data, rainData) {
     const flowRange = calcAxisRange([inflowData, outflowData], 50, 10);
     const waterLevelRange = calcAxisRange([waterLevelData], 5, 2);
 
-    // Helper: Find peak
+    // 寻找峰值
     const findPeak = (data) => {
         if (!data || data.length === 0) return null;
         let peak = data[0];
@@ -198,17 +218,17 @@ function renderChart(data, rainData) {
     const option = {
         backgroundColor: '#fff',
         title: {
-            show: false // 去掉图表名称
+            show: false
         },
         legend: {
             data: ['降雨量', '入库流量', '出库流量', '库水位', '汛限水位', '防洪高水位'],
-            top: 2, // 尽量占用少的高度
+            top: 2,
             right: 70,
             orient: 'horizontal',
             textStyle: { fontWeight: 'bold', fontSize: 12 },
             itemGap: 15,
             selected: {
-                '防洪高水位': false  // 默认不显示防洪高水位
+                '防洪高水位': false
             }
         },
         tooltip: {
@@ -220,15 +240,15 @@ function renderChart(data, rainData) {
             label: { backgroundColor: '#777' }
         },
         grid: [
-            { top: 35, height: 130, left: 70, right: 70 }, // 降雨图表
-            { top: 240, bottom: 65, left: 70, right: 70 } // 进一步增加间距 (240 - (35+130) = 75px)
+            { top: 35, height: 130, left: 70, right: 70 },
+            { top: 240, bottom: 65, left: 70, right: 70 }
         ],
         xAxis: [
             {
                 type: 'time',
                 gridIndex: 0,
                 axisLabel: { show: false },
-                axisLine: { show: false }, // 去掉底边黑线
+                axisLine: { show: false },
                 axisTick: { show: false },
                 splitLine: { show: true, lineStyle: { type: 'dashed' } }
             },
@@ -287,9 +307,16 @@ function renderChart(data, rainData) {
                 data: processedRainData,
                 itemStyle: { color: '#5470c6' },
                 markPoint: peakRain ? {
-                    data: [{ coord: peakRain.coord, value: peakRain.coord[1] + 'mm' }],
-                    symbol: 'pin',
-                    symbolSize: 40
+                    data: [{ coord: peakRain.coord, value: peakRain.coord[1] }],
+                    symbol: 'none',
+                    label: {
+                        show: true,
+                        position: 'top',
+                        offset: [0, 10], // 向下偏移 10 像素，确保不被柱子压住
+                        color: '#5470c6',
+                        fontWeight: 'bold',
+                        formatter: '{c}mm'
+                    }
                 } : {}
             },
             {
@@ -304,7 +331,9 @@ function renderChart(data, rainData) {
                 lineStyle: { width: 3, color: 'orange' },
                 markPoint: peakInflow ? {
                     data: [{ coord: peakInflow.coord, value: peakInflow.coord[1] + ' m³/s' }],
-                    symbol: 'circle', symbolSize: 8, itemStyle: { color: 'orange' }
+                    symbol: 'circle', symbolSize: 6,
+                    itemStyle: { color: 'orange' },
+                    label: { show: true, position: 'top', fontWeight: 'bold' }
                 } : {}
             },
             {
@@ -319,7 +348,9 @@ function renderChart(data, rainData) {
                 lineStyle: { width: 3, color: 'green' },
                 markPoint: peakOutflow ? {
                     data: [{ coord: peakOutflow.coord, value: peakOutflow.coord[1] + ' m³/s' }],
-                    symbol: 'circle', symbolSize: 8, itemStyle: { color: 'green' }
+                    symbol: 'circle', symbolSize: 6,
+                    itemStyle: { color: 'green' },
+                    label: { show: true, position: 'top', fontWeight: 'bold' }
                 } : {}
             },
             {
@@ -334,7 +365,9 @@ function renderChart(data, rainData) {
                 lineStyle: { width: 3, color: 'blue', type: 'dashed' },
                 markPoint: peakWaterLevel ? {
                     data: [{ coord: peakWaterLevel.coord, value: peakWaterLevel.coord[1] + ' m' }],
-                    symbol: 'circle', symbolSize: 8, itemStyle: { color: 'blue' }
+                    symbol: 'circle', symbolSize: 6,
+                    itemStyle: { color: 'blue' },
+                    label: { show: true, position: 'top', fontWeight: 'bold' }
                 } : {}
             },
             {
@@ -382,7 +415,10 @@ function renderChart(data, rainData) {
     });
 }
 
-function renderConclusion(data, descText) {
+/**
+ * 渲染结论及统计数据
+ */
+function renderConclusion(data, descText, currentStatus) {
     const textDom = document.getElementById('conclusionText');
     if (textDom) {
         textDom.innerText = descText;
@@ -393,13 +429,6 @@ function renderConclusion(data, descText) {
 
     statsGrid.innerHTML = '';
 
-    // Get first values from Level_Dic and OutQ_Dic for current water level and outflow
-    const timeKeys = Object.keys(data.Level_Dic).sort();
-    const firstTime = timeKeys[0];
-    const currentWaterLevel = firstTime ? data.Level_Dic[firstTime] : '--';
-    const currentOutflow = firstTime ? data.OutQ_Dic[firstTime] : '--';
-
-    // SVG icons for each metric type
     const icons = {
         waterLevel: `<svg viewBox="0 0 24 24" fill="none" stroke="#2196F3" stroke-width="2">
             <path d="M12 2L12 22M12 2L8 6M12 2L16 6"/>
@@ -425,9 +454,8 @@ function renderConclusion(data, descText) {
         </svg>`
     };
 
-    const metrics = [
-        { label: '当前水位', value: currentWaterLevel, unit: 'm', icon: icons.waterLevel },
-        { label: '当前出库', value: currentOutflow, unit: 'm³/s', icon: icons.outflow },
+    // 预报统计指标
+    const forecastMetrics = [
         { label: '最高水位', value: data.Max_Level, unit: 'm', icon: icons.waterLevel },
         { label: '最高水位时间', value: formatShortTime(data.MaxLevel_Time), unit: '', icon: icons.time },
         { label: '入库洪峰', value: data.Max_InQ, unit: 'm³/s', icon: icons.inflow },
@@ -436,7 +464,34 @@ function renderConclusion(data, descText) {
         { label: '累计出库', value: data.Total_OutVolumn, unit: '万m³', icon: icons.volume }
     ];
 
-    metrics.forEach(m => {
+    // 实时水情指标 (来自新接口)
+    const realtimeMetrics = [
+        { label: '当前水位', value: currentStatus ? currentStatus.rz : '--', unit: 'm', icon: icons.waterLevel, isHighlight: true },
+        { label: '当前出库', value: currentStatus ? currentStatus.otq : '--', unit: 'm³/s', icon: icons.outflow, isHighlight: true }
+    ];
+
+    // 渲染预报部分
+    forecastMetrics.forEach(m => {
+        const card = document.createElement('div');
+        card.className = 'stat-card';
+        card.innerHTML = `
+            <div class="stat-icon">${m.icon}</div>
+            <div class="stat-info">
+                <div class="stat-label">${m.label}</div>
+                <div class="stat-value">${typeof m.value === 'number' ? formatNumber(m.value) : m.value}<span class="unit">${m.unit}</span></div>
+            </div>
+        `;
+        statsGrid.appendChild(card);
+    });
+
+    // 添加分隔标识
+    const divider = document.createElement('div');
+    divider.className = 'stats-divider';
+    divider.innerHTML = '<span>当前实测数据</span>';
+    statsGrid.appendChild(divider);
+
+    // 渲染实时水情部分
+    realtimeMetrics.forEach(m => {
         const card = document.createElement('div');
         card.className = 'stat-card';
         card.innerHTML = `
@@ -461,8 +516,6 @@ function formatShortTime(timeStr) {
     return `${m}/${d} ${h}:${min}`;
 }
 
-
-
 function formatNumber(num) {
     if (typeof num === 'number') {
         return parseFloat(num.toFixed(2));
@@ -470,14 +523,15 @@ function formatNumber(num) {
     return num;
 }
 
-// Map initialization
+/**
+ * 初始化地图
+ */
 function initMap() {
     require([
         "esri/Map",
         "esri/views/MapView",
-        "esri/widgets/BasemapToggle",
-        "esri/widgets/DistanceMeasurement2D"
-    ], function (Map, MapView, BasemapToggle, DistanceMeasurement2D) {
+        "esri/widgets/BasemapToggle"
+    ], function (Map, MapView, BasemapToggle) {
         const map = new Map({
             basemap: "topo-vector"
         });
@@ -485,11 +539,10 @@ function initMap() {
         const view = new MapView({
             container: "viewDiv",
             map: map,
-            center: [113.4, 35.5], // Approximate center for the region (adjust if needed)
+            center: [113.4, 35.5],
             zoom: 10
         });
 
-        // Add standard widgets
         const toggle = new BasemapToggle({
             view: view,
             nextBasemap: "hybrid"
@@ -498,5 +551,5 @@ function initMap() {
     });
 }
 
-// Start
+// 启动
 init();

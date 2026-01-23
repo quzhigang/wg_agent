@@ -113,6 +113,10 @@ class DynamicTemplateService:
 
                 logger.info(f"动态模板已保存: {display_name} (ID: {template_id})")
 
+            except Exception as db_err:
+                db.rollback()
+                logger.error(f"保存动态模板到数据库失败: {db_err}")
+                raise
             finally:
                 db.close()
 
@@ -125,9 +129,24 @@ class DynamicTemplateService:
                 "supported_sub_intents": [sub_intent] if sub_intent else ["other"],
                 "template_path": None,
                 "template_type": "dynamic",
-                "priority": 5
+                "priority": 5,
+                "is_dynamic": True  # 标记为动态模板
             }
-            self.vector_index.index_template(template_id, template_data)
+
+            # 向量化，如果失败则删除数据库记录保持一致性
+            if not self.vector_index.index_template(template_id, template_data):
+                logger.error(f"向量化失败，删除数据库记录以保持一致性: {template_id}")
+                db = SessionLocal()
+                try:
+                    tpl = db.query(WebTemplate).filter(WebTemplate.id == template_id).first()
+                    if tpl:
+                        db.delete(tpl)
+                        db.commit()
+                except Exception as del_err:
+                    logger.error(f"删除数据库记录失败: {del_err}")
+                finally:
+                    db.close()
+                return None
 
             logger.info(f"动态模板已向量化: {template_id}")
             return template_id
@@ -309,6 +328,111 @@ class DynamicTemplateService:
             logger.error(f"删除动态模板失败: {e}")
             db.rollback()
             return False
+        finally:
+            db.close()
+
+    def verify_vectorization_integrity(self) -> Dict[str, Any]:
+        """
+        验证向量化的完整性
+
+        检查数据库记录和向量索引是否一致
+
+        Returns:
+            完整性检查结果
+        """
+        db = SessionLocal()
+        try:
+            # 获取数据库中的所有动态模板
+            db_templates = db.query(WebTemplate).filter(
+                WebTemplate.is_dynamic == True,
+                WebTemplate.is_active == True
+            ).all()
+            db_ids = {t.id for t in db_templates}
+
+            # 获取向量索引中的所有动态模板
+            vector_results = self.vector_index.collection.get(
+                where={"is_dynamic": True}
+            )
+            vector_ids = set(vector_results["ids"]) if vector_results and vector_results.get("ids") else set()
+
+            # 检查不一致
+            orphaned_db = db_ids - vector_ids  # 有数据库记录但无向量
+            orphaned_vector = vector_ids - db_ids  # 有向量但无数据库记录
+
+            return {
+                "total_db_templates": len(db_ids),
+                "total_vector_templates": len(vector_ids),
+                "orphaned_db_records": list(orphaned_db),
+                "orphaned_vector_records": list(orphaned_vector),
+                "is_consistent": len(orphaned_db) == 0 and len(orphaned_vector) == 0
+            }
+        except Exception as e:
+            logger.error(f"验证向量化完整性失败: {e}")
+            return {
+                "error": str(e),
+                "is_consistent": False
+            }
+        finally:
+            db.close()
+
+    def repair_vectorization(self) -> Dict[str, Any]:
+        """
+        修复向量化不一致问题
+
+        1. 为缺少向量的数据库记录重新生成向量
+        2. 删除孤立的向量索引
+
+        Returns:
+            修复结果
+        """
+        integrity = self.verify_vectorization_integrity()
+        if integrity.get("error"):
+            return {"success": False, "error": integrity["error"]}
+
+        repaired_db = []
+        repaired_vector = []
+        failed = []
+
+        db = SessionLocal()
+        try:
+            # 1. 为缺少向量的数据库记录重新生成向量
+            for template_id in integrity.get("orphaned_db_records", []):
+                tpl = db.query(WebTemplate).filter(WebTemplate.id == template_id).first()
+                if tpl:
+                    template_data = {
+                        "name": tpl.name,
+                        "display_name": tpl.display_name,
+                        "description": tpl.description,
+                        "trigger_pattern": tpl.trigger_pattern,
+                        "supported_sub_intents": json.loads(tpl.supported_sub_intents) if tpl.supported_sub_intents else [],
+                        "template_path": tpl.template_path,
+                        "template_type": tpl.template_type,
+                        "priority": tpl.priority,
+                        "is_dynamic": True
+                    }
+                    if self.vector_index.index_template(template_id, template_data):
+                        repaired_db.append(template_id)
+                        logger.info(f"已修复向量索引: {template_id}")
+                    else:
+                        failed.append(template_id)
+                        logger.error(f"修复向量索引失败: {template_id}")
+
+            # 2. 删除孤立的向量索引
+            for template_id in integrity.get("orphaned_vector_records", []):
+                if self.vector_index.delete_template(template_id):
+                    repaired_vector.append(template_id)
+                    logger.info(f"已删除孤立向量: {template_id}")
+
+            return {
+                "success": True,
+                "repaired_db_records": repaired_db,
+                "deleted_orphan_vectors": repaired_vector,
+                "failed": failed
+            }
+
+        except Exception as e:
+            logger.error(f"修复向量化失败: {e}")
+            return {"success": False, "error": str(e)}
         finally:
             db.close()
 

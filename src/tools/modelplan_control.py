@@ -2,7 +2,7 @@
 模型及方案管理相关业务工具
 提供模拟方案管理、基础模型管理、模型实例管理、业务模型管理等功能
 基于防洪业务接口-模型及方案管理相关业务.md文档实现
-接口基础地址：http://10.20.2.153:8089/modelPlatf
+接口基础地址：http://10.20.2.153/api/basin/modelPlatf
 """
 
 from typing import Dict, Any, List, Optional

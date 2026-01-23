@@ -935,20 +935,195 @@ async def generate_report_page(
     report_type: str,
     data: Dict[str, Any],
     title: Optional[str] = None,
-    template: Optional[str] = None
+    template: Optional[str] = None,
+    user_message: str = "",
+    sub_intent: str = ""
 ) -> str:
     """
     生成报告页面的便捷函数
+
+    优先尝试匹配预定义Web模板，匹配成功则套用模板，否则动态生成页面。
 
     Args:
         report_type: 报告类型
         data: 报告数据
         title: 页面标题
         template: 模板名称（可选，用于指定特定模板）
+        user_message: 用户原始问题（用于模板匹配）
+        sub_intent: 业务子意图（用于模板匹配）
 
     Returns:
         页面URL
     """
     generator = get_page_generator()
-    # template参数目前保留用于未来扩展，当前根据report_type自动选择模板
+
+    # 1. 尝试匹配预定义Web模板
+    try:
+        from .template_match_service import get_template_match_service
+
+        template_service = get_template_match_service()
+
+        # 构建执行摘要用于模板匹配
+        execution_summary = _build_execution_summary(report_type, data)
+
+        # 如果没有传入user_message，尝试从data中提取
+        if not user_message:
+            target = data.get('target', {})
+            target_name = target.get('name', '')
+            summary = data.get('summary', '')
+            user_message = summary or f"{target_name}预报结果"
+
+        # 如果没有传入sub_intent，根据report_type推断
+        if not sub_intent:
+            sub_intent = _infer_sub_intent(report_type)
+
+        logger.info(f"尝试匹配预定义模板 - user_message: {user_message[:50]}..., sub_intent: {sub_intent}")
+
+        # 执行模板匹配
+        matched_template = await template_service.match_template(
+            user_message=user_message,
+            sub_intent=sub_intent,
+            execution_results=[{"type": report_type, "data": data}],
+            execution_summary=execution_summary
+        )
+
+        # 如果匹配到模板且置信度足够高，使用模板生成页面
+        if matched_template and matched_template.get('confidence', 0) >= 0.6:
+            logger.info(f"匹配到预定义模板: {matched_template.get('display_name')}, 置信度: {matched_template.get('confidence')}")
+
+            # 准备模板数据
+            template_data = _prepare_template_data(report_type, data, matched_template)
+
+            # 使用模板生成页面
+            page_url = await generator.generate_page_with_template(
+                template_info=matched_template,
+                data=template_data,
+                title=title or data.get('summary', '')
+            )
+
+            # 更新模板使用计数
+            template_service.increment_use_count(matched_template.get('id'), success=True)
+
+            logger.info(f"使用预定义模板生成页面成功: {page_url}")
+            return page_url
+
+        logger.info("未匹配到合适的预定义模板，使用动态生成")
+
+    except Exception as e:
+        logger.warning(f"模板匹配失败，回退到动态生成: {e}")
+
+    # 2. 回退：使用内置方法动态生成页面
     return generator.generate_page(report_type, data, title)
+
+
+def _build_execution_summary(report_type: str, data: Dict[str, Any]) -> str:
+    """构建执行摘要用于模板匹配"""
+    target = data.get('target', {})
+    target_type = target.get('type', '')
+    target_name = target.get('name', '')
+    summary = data.get('summary', '')
+
+    parts = []
+    if summary:
+        parts.append(summary)
+    if target_name:
+        parts.append(f"目标: {target_name}")
+    if target_type:
+        type_map = {
+            'reservoir': '水库',
+            'station': '站点',
+            'detention_basin': '蓄滞洪区',
+            'basin': '流域'
+        }
+        parts.append(f"类型: {type_map.get(target_type, target_type)}")
+    if report_type:
+        parts.append(f"报告类型: {report_type}")
+
+    return " ".join(parts)
+
+
+def _infer_sub_intent(report_type: str) -> str:
+    """根据报告类型推断业务子意图"""
+    intent_map = {
+        'auto_forecast': 'flood_forecast',
+        'manual_forecast': 'flood_forecast',
+        'flood_forecast': 'flood_forecast',
+        'emergency_plan': 'emergency_response',
+        'data_query': 'data_query'
+    }
+    return intent_map.get(report_type, 'flood_forecast')
+
+
+def _prepare_template_data(
+    report_type: str,
+    data: Dict[str, Any],
+    template_info: Dict[str, Any]
+) -> Dict[str, Any]:
+    """准备模板所需的数据"""
+    template_name = template_info.get('name', '')
+    target = data.get('target', {})
+    forecast_data = data.get('data', {})
+
+    # 基础数据
+    template_data = {
+        "report_type": report_type,
+        "target": target,
+        "summary": data.get('summary', ''),
+        "raw_data": forecast_data
+    }
+
+    # 根据模板类型准备特定数据
+    if template_name == 'res_flood_resultshow':
+        # 水库洪水预报结果展示模板
+        target_name = target.get('name', '')
+        template_data["reservoir_name"] = target_name
+        template_data["reservoir_code"] = forecast_data.get('Stcd', '')
+
+        # 关键指标
+        template_data["max_level"] = forecast_data.get('Max_Level')
+        template_data["max_level_time"] = forecast_data.get('MaxLevel_Time')
+        template_data["max_inflow"] = forecast_data.get('Max_InQ')
+        template_data["max_inflow_time"] = forecast_data.get('MaxInQ_Time')
+        template_data["max_outflow"] = forecast_data.get('Max_OutQ')
+        template_data["max_outflow_time"] = forecast_data.get('MaxOutQ_Time')
+        template_data["max_storage"] = forecast_data.get('Max_Volumn')
+        template_data["total_inflow"] = forecast_data.get('Total_InVolumn')
+        template_data["total_outflow"] = forecast_data.get('Total_OutVolumn')
+        template_data["end_level"] = forecast_data.get('EndTime_Level')
+        template_data["end_storage"] = forecast_data.get('EndTime_Volumn')
+
+        # 构建模板期望的 reservoir_result 结构
+        # 模板 JavaScript 期望: pageData.reservoir_result = { InQ_Dic, OutQ_Dic, Level_Dic, ... }
+        template_data["reservoir_result"] = {
+            "Stcd": forecast_data.get('Stcd', ''),
+            "Max_Level": forecast_data.get('Max_Level'),
+            "MaxLevel_Time": forecast_data.get('MaxLevel_Time'),
+            "Max_InQ": forecast_data.get('Max_InQ'),
+            "MaxInQ_Time": forecast_data.get('MaxInQ_Time'),
+            "Max_OutQ": forecast_data.get('Max_OutQ'),
+            "MaxOutQ_Time": forecast_data.get('MaxOutQ_Time'),
+            "Max_Volumn": forecast_data.get('Max_Volumn'),
+            "Total_InVolumn": forecast_data.get('Total_InVolumn'),
+            "Total_OutVolumn": forecast_data.get('Total_OutVolumn'),
+            "EndTime_Level": forecast_data.get('EndTime_Level'),
+            "EndTime_Volumn": forecast_data.get('EndTime_Volumn'),
+            # 时序数据（用于图表渲染）
+            "InQ_Dic": forecast_data.get('InQ_Dic', {}),
+            "OutQ_Dic": forecast_data.get('OutQ_Dic', {}),
+            "Level_Dic": forecast_data.get('Level_Dic', {}),
+            "Volumn_Dic": forecast_data.get('Volumn_Dic', {})
+        }
+
+        # 预报结果描述
+        template_data["result_desc"] = data.get('summary', '')
+
+        # 降雨数据（如果有）
+        template_data["rain_data"] = forecast_data.get('rain_data', [])
+
+        # 保留旧字段兼容性
+        template_data["inflow_series"] = forecast_data.get('InQ_Dic', {})
+        template_data["outflow_series"] = forecast_data.get('OutQ_Dic', {})
+        template_data["level_series"] = forecast_data.get('Level_Dic', {})
+        template_data["storage_series"] = forecast_data.get('Volumn_Dic', {})
+
+    return template_data

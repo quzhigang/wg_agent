@@ -107,6 +107,8 @@ class AsyncPageGeneratorAgent:
         """
         异步生成页面
 
+        优先尝试匹配预定义Web模板，匹配成功则套用模板，否则动态生成页面。
+
         Args:
             task_id: 任务ID
         """
@@ -120,13 +122,15 @@ class AsyncPageGeneratorAgent:
             task_info["status"] = PageTaskStatus.GENERATING.value
             logger.info(f"开始生成页面: {task_id}")
 
-            from .page_generator import get_page_generator
+            # 使用 generate_report_page 函数，它会先尝试匹配预定义模板
+            from .page_generator import generate_report_page
 
-            generator = get_page_generator()
-            page_url = generator.generate_page(
+            page_url = await generate_report_page(
                 report_type=task_info["report_type"],
                 data=task_info["data"],
-                title=task_info["title"]
+                title=task_info["title"],
+                user_message=task_info.get("user_message", ""),
+                sub_intent=task_info.get("sub_intent", "")
             )
 
             # 更新任务状态

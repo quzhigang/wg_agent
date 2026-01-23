@@ -76,6 +76,7 @@ def list_templates(
                 "use_count": t.use_count,
                 "success_count": t.success_count,
                 "is_active": t.is_active,
+                "is_dynamic": t.is_dynamic,
                 "created_at": t.created_at.isoformat() if t.created_at else None
             } for t in items]
         }

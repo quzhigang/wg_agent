@@ -17,17 +17,19 @@ logger = get_logger(__name__)
 class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
     """
     进行洪水自动预报并查询结果工作流
-    
+
     触发场景：当用户询问流域、水库或水文站点、蓄滞洪区的未来洪水预报情况，
     并明确要求启动一次新的自动预报计算时，或明确要求启动一次新的预报但未指明降雨等条件时。
-    
+
     包含以下步骤：
-    1. 解析会话参数 - 提取预报对象
-    2. 进行自动预报 - 调用auto_forcast工具
-    3. 监视自动预报计算进度 - 每5秒调用一次model_plan_detail工具
-    4. 获取最新洪水自动预报结果 - 调用get_tjdata_result工具
-    5. 结果信息提取整理 - 提取主要预报结果数据
-    6. 采用合适的Web页面模板进行结果输出
+    1. 登录系统获取认证token - 调用login_basin_system工具
+    2. 解析会话参数 - 提取预报对象
+    3. 进行自动预报 - 调用auto_forcast工具
+    4. 监视自动预报计算进度 - 每5秒调用一次model_plan_detail工具
+    5. 获取最新洪水自动预报结果 - 调用get_tjdata_result工具
+    6. 结果信息提取整理 - 提取主要预报结果数据
+
+    注意：Web页面生成由Controller统一处理，通过模板向量化检索+LLM匹配实现
     """
     
     @property
@@ -83,67 +85,63 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
         return [
             WorkflowStep(
                 step_id=1,
+                name="登录系统获取认证token",
+                description="调用login_basin_system工具登录卫共流域数字孪生系统，获取访问令牌用于后续接口调用鉴权",
+                tool_name="login_basin_system",
+                tool_args_template={},
+                depends_on=[],
+                is_async=False,
+                output_key="auth_token"
+            ),
+            WorkflowStep(
+                step_id=2,
                 name="解析会话参数",
                 description="从用户会话中提取预报对象，如果请求全流域洪水预报结果则输出全流域，如果请求指定水库水文站点蓄滞洪区预报结果则输出其中文名称",
                 tool_name=None,  # 无需调用工具，由LLM解析
                 tool_args_template=None,
-                depends_on=[],
+                depends_on=[1],
                 is_async=False,
                 output_key="forecast_target"
             ),
             WorkflowStep(
-                step_id=2,
+                step_id=3,
                 name="进行自动预报",
                 description="调用auto_forcast工具创建洪水自动预报模型方案并进行计算",
                 tool_name="auto_forcast",
                 tool_args_template={},  # 无需输入参数
-                depends_on=[1],
+                depends_on=[2],
                 is_async=True,
                 output_key="auto_forcast_result"
             ),
             WorkflowStep(
-                step_id=3,
+                step_id=4,
                 name="监视自动预报计算进度",
-                description="每5秒调用一次model_plan_detail工具，方案编码固定为model_auto，当state字段值为'已完成'时进行步骤4",
+                description="每5秒调用一次model_plan_detail工具，方案编码固定为model_auto，当state字段值为'已完成'时进行步骤5",
                 tool_name="model_plan_detail",
                 tool_args_template={"plan_code": "model_auto"},
-                depends_on=[2],
+                depends_on=[3],
                 is_async=False,
                 output_key="plan_detail"
             ),
             WorkflowStep(
-                step_id=4,
+                step_id=5,
                 name="获取最新洪水自动预报结果",
                 description="调用get_tjdata_result工具获取自动预报方案结果，包含水库、河道断面、蓄滞洪区洪水结果",
                 tool_name="get_tjdata_result",
                 tool_args_template={"plan_code": "model_auto"},  # 固定采用model_auto
-                depends_on=[3],
+                depends_on=[4],
                 is_async=False,
                 output_key="auto_forecast_result"
             ),
             WorkflowStep(
-                step_id=5,
+                step_id=6,
                 name="结果信息提取整理",
                 description="根据预报对象提取全流域或单一目标主要预报结果数据，包括结果概括描述和结果数据",
                 tool_name=None,  # 无需调用工具，由LLM处理
                 tool_args_template=None,
-                depends_on=[4],
-                is_async=False,
-                output_key="extracted_result"
-            ),
-            WorkflowStep(
-                step_id=6,
-                name="采用合适的Web页面模板进行结果输出",
-                description="全流域预报结果采用web模板1，单目标预报结果采用web模板2",
-                tool_name="generate_report_page",
-                tool_args_template={
-                    "report_type": "auto_forecast",
-                    "template": "$template_name",
-                    "data": "$extracted_result"
-                },
                 depends_on=[5],
                 is_async=False,
-                output_key="report_page_url"
+                output_key="extracted_result"
             )
         ]
     
@@ -167,28 +165,58 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
         user_message = state.get('user_message', '')
         entities = state.get('entities', {})  # 获取意图分析提取的实体
 
-        # 步骤1: 解析会话参数 - 提取预报对象
-        forecast_target = self._parse_forecast_target(user_message, params, entities)
-        results['forecast_target'] = forecast_target
-        logger.info(f"解析到预报对象: {forecast_target}")
-        
         execution_results = []
-        
-        execution_results.append({
-            'step_id': 1,
-            'step_name': '解析会话参数',
-            'tool_name': None,
-            'success': True,
-            'execution_time_ms': 0,
-            'data': forecast_target,
-            'error': None
-        })
-        
+
         try:
             import time
-            
-            # 步骤2: 进行自动预报
-            logger.info("执行步骤2: 进行自动预报")
+
+            # 步骤1: 登录系统获取认证token
+            logger.info("执行步骤1: 登录系统获取认证token")
+            start_time = time.time()
+
+            auth_result = await registry.execute("login_basin_system")
+
+            execution_time_ms = int((time.time() - start_time) * 1000)
+
+            step_result = {
+                'step_id': 1,
+                'step_name': '登录系统获取认证token',
+                'tool_name': 'login_basin_system',
+                'success': auth_result.success,
+                'execution_time_ms': execution_time_ms,
+                'data': auth_result.data if auth_result.success else None,
+                'error': auth_result.error if not auth_result.success else None
+            }
+            execution_results.append(step_result)
+
+            if not auth_result.success:
+                logger.error(f"登录系统失败: {auth_result.error}")
+                return {
+                    "execution_results": execution_results,
+                    "error": f"登录系统失败: {auth_result.error}",
+                    "next_action": "respond"
+                }
+
+            results['auth_token'] = auth_result.data.get('token') if auth_result.data else None
+            logger.info("登录系统成功，获取到认证token")
+
+            # 步骤2: 解析会话参数 - 提取预报对象
+            forecast_target = self._parse_forecast_target(user_message, params, entities)
+            results['forecast_target'] = forecast_target
+            logger.info(f"解析到预报对象: {forecast_target}")
+
+            execution_results.append({
+                'step_id': 2,
+                'step_name': '解析会话参数',
+                'tool_name': None,
+                'success': True,
+                'execution_time_ms': 0,
+                'data': forecast_target,
+                'error': None
+            })
+
+            # 步骤3: 进行自动预报
+            logger.info("执行步骤3: 进行自动预报")
             start_time = time.time()
             
             # 调用auto_forcast工具，无需参数
@@ -197,7 +225,7 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             execution_time_ms = int((time.time() - start_time) * 1000)
             
             step_result = {
-                'step_id': 2,
+                'step_id': 3,
                 'step_name': '进行自动预报',
                 'tool_name': 'auto_forcast',
                 'success': result.success,
@@ -218,8 +246,8 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             results['auto_forcast_result'] = result.data
             logger.info("自动预报已启动")
             
-            # 步骤3: 监视自动预报计算进度
-            logger.info("执行步骤3: 监视自动预报计算进度")
+            # 步骤4: 监视自动预报计算进度
+            logger.info("执行步骤4: 监视自动预报计算进度")
             
             # 获取预计计算时间
             expect_seconds = 60  # 默认60秒
@@ -264,7 +292,7 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
                     logger.warning(f"查询自动预报进度失败: {detail_result.error}")
             
             step_result = {
-                'step_id': 3,
+                'step_id': 4,
                 'step_name': '监视自动预报计算进度',
                 'tool_name': 'model_plan_detail',
                 'success': plan_completed,
@@ -286,8 +314,8 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             
             results['plan_detail'] = {'state': final_state, 'request_count': request_count}
             
-            # 步骤4: 获取最新洪水自动预报结果
-            logger.info("执行步骤4: 获取最新洪水自动预报结果")
+            # 步骤5: 获取最新洪水自动预报结果
+            logger.info("执行步骤5: 获取最新洪水自动预报结果")
             start_time = time.time()
             
             # 调用get_tjdata_result工具，plan_code固定为"model_auto"
@@ -296,7 +324,7 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             execution_time_ms = int((time.time() - start_time) * 1000)
             
             step_result = {
-                'step_id': 4,
+                'step_id': 5,
                 'step_name': '获取最新洪水自动预报结果',
                 'tool_name': 'get_tjdata_result',
                 'success': result.success,
@@ -316,8 +344,8 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             
             results['auto_forecast_result'] = result.data
             
-            # 步骤5: 结果信息提取整理
-            logger.info("执行步骤5: 结果信息提取整理")
+            # 步骤6: 结果信息提取整理
+            logger.info("执行步骤6: 结果信息提取整理")
             extracted_result = self._extract_forecast_result(
                 forecast_target, 
                 result.data
@@ -325,7 +353,7 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             results['extracted_result'] = extracted_result
             
             execution_results.append({
-                'step_id': 5,
+                'step_id': 6,
                 'step_name': '结果信息提取整理',
                 'tool_name': None,
                 'success': True,
@@ -333,44 +361,13 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
                 'data': extracted_result,
                 'error': None
             })
-            
-            # 步骤6: 生成Web页面
-            logger.info("执行步骤6: 采用合适的Web页面模板进行结果输出")
-            start_time = time.time()
-            
-            # 根据预报对象选择合适的模板
-            template = self._select_template(forecast_target)
-            
-            page_result = await registry.execute(
-                "generate_report_page",
-                report_type="auto_forecast",
-                template=template,
-                data=extracted_result
-            )
-            
-            execution_time_ms = int((time.time() - start_time) * 1000)
-            
-            step_result = {
-                'step_id': 6,
-                'step_name': '采用合适的Web页面模板进行结果输出',
-                'tool_name': 'generate_report_page',
-                'success': page_result.success,
-                'execution_time_ms': execution_time_ms,
-                'data': page_result.data if page_result.success else None,
-                'error': page_result.error if not page_result.success else None
-            }
-            execution_results.append(step_result)
-            
-            if page_result.success:
-                results['report_page_url'] = page_result.data
-            
+
             logger.info("进行洪水自动预报并查询结果工作流执行完成")
-            
+
             return {
                 "execution_results": execution_results,
                 "workflow_results": results,
                 "output_type": self.output_type,
-                "generated_page_url": results.get('report_page_url'),
                 "forecast_target": forecast_target,
                 "extracted_result": extracted_result,
                 "next_action": "respond"
@@ -809,27 +806,6 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
                             return data
 
         return {"message": f"未找到{detention_name}的预报数据"}
-    
-    def _select_template(self, forecast_target: Dict[str, Any]) -> str:
-        """
-        根据预报对象选择合适的Web页面模板
-        
-        根据文档：全流域预报结果采用web模板1，单目标预报结果采用web模板2
-        
-        Args:
-            forecast_target: 预报对象
-            
-        Returns:
-            模板名称
-        """
-        target_type = forecast_target.get("type", "basin")
-        
-        # 根据对象类型选择模板
-        if target_type == "basin":
-            return "index"  # 全流域使用web模板1（index）
-        else:
-            return "res_module"  # 单目标使用web模板2（res_module）
-
 
     # ==================== 单步执行模式支持 ====================
 
@@ -856,6 +832,7 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
         return {
             'workflow_context': {
                 'forecast_target': forecast_target,
+                'auth_token': None,  # 将在步骤1中获取
                 'results': {},
                 'expect_seconds': 60,
                 'max_poll_count': 0,
@@ -888,17 +865,17 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
 
         try:
             if step_id == 1:
-                return await self._step_1_parse_params(ctx, forecast_target)
+                return await self._step_1_login(ctx, registry)
             elif step_id == 2:
-                return await self._step_2_start_auto_forecast(ctx, registry)
+                return await self._step_2_parse_params(ctx, forecast_target)
             elif step_id == 3:
-                return await self._step_3_poll_status(ctx, registry)
+                return await self._step_3_start_auto_forecast(ctx, registry)
             elif step_id == 4:
-                return await self._step_4_get_result(ctx, registry)
+                return await self._step_4_poll_status(ctx, registry)
             elif step_id == 5:
-                return await self._step_5_extract_result(ctx, forecast_target)
+                return await self._step_5_get_result(ctx, registry)
             elif step_id == 6:
-                return await self._step_6_generate_page(ctx, forecast_target, registry)
+                return await self._step_6_extract_result(ctx, forecast_target)
             else:
                 return {'success': False, 'error': f'未知步骤: {step_id}'}
 
@@ -925,7 +902,6 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
         return {
             'workflow_status': 'completed',
             'output_type': self.output_type,
-            'generated_page_url': results.get('report_page_url'),
             'forecast_target': forecast_target,
             'extracted_result': results.get('extracted_result'),
             'next_action': 'respond'
@@ -933,8 +909,25 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
 
     # ==================== 各步骤的具体实现 ====================
 
-    async def _step_1_parse_params(self, ctx: Dict, forecast_target: Dict) -> Dict[str, Any]:
-        """步骤1: 解析会话参数"""
+    async def _step_1_login(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤1: 登录系统获取认证token"""
+        result = await registry.execute("login_basin_system")
+
+        if result.success:
+            token = result.data.get('token') if result.data else None
+            ctx['auth_token'] = token
+            ctx['results']['auth_token'] = token
+            logger.info("登录系统成功，获取到认证token")
+
+        return {
+            'success': result.success,
+            'result': result.data if result.success else None,
+            'error': result.error if not result.success else None,
+            'workflow_context': ctx
+        }
+
+    async def _step_2_parse_params(self, ctx: Dict, forecast_target: Dict) -> Dict[str, Any]:
+        """步骤2: 解析会话参数"""
         ctx['results']['forecast_target'] = forecast_target
         logger.info(f"解析到预报对象: {forecast_target}")
 
@@ -944,8 +937,8 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_2_start_auto_forecast(self, ctx: Dict, registry) -> Dict[str, Any]:
-        """步骤2: 进行自动预报"""
+    async def _step_3_start_auto_forecast(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤3: 进行自动预报"""
         result = await registry.execute("auto_forcast")
 
         if result.success:
@@ -970,8 +963,8 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_3_poll_status(self, ctx: Dict, registry) -> Dict[str, Any]:
-        """步骤3: 监视自动预报计算进度"""
+    async def _step_4_poll_status(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤4: 监视自动预报计算进度"""
         max_poll_count = ctx.get('max_poll_count', 42)
 
         poll_count = 0
@@ -1023,8 +1016,8 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_4_get_result(self, ctx: Dict, registry) -> Dict[str, Any]:
-        """步骤4: 获取最新洪水自动预报结果"""
+    async def _step_5_get_result(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤5: 获取最新洪水自动预报结果"""
         result = await registry.execute("get_tjdata_result", plan_code="model_auto")
 
         if result.success:
@@ -1037,8 +1030,8 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_5_extract_result(self, ctx: Dict, forecast_target: Dict) -> Dict[str, Any]:
-        """步骤5: 结果信息提取整理"""
+    async def _step_6_extract_result(self, ctx: Dict, forecast_target: Dict) -> Dict[str, Any]:
+        """步骤6: 结果信息提取整理"""
         forecast_data = ctx['results'].get('auto_forecast_result')
         extracted_result = self._extract_forecast_result(forecast_target, forecast_data)
         ctx['results']['extracted_result'] = extracted_result
@@ -1046,28 +1039,6 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
         return {
             'success': True,
             'result': extracted_result,
-            'workflow_context': ctx
-        }
-
-    async def _step_6_generate_page(self, ctx: Dict, forecast_target: Dict, registry) -> Dict[str, Any]:
-        """步骤6: 采用合适的Web页面模板进行结果输出"""
-        extracted_result = ctx['results'].get('extracted_result')
-        template = self._select_template(forecast_target)
-
-        page_result = await registry.execute(
-            "generate_report_page",
-            report_type="auto_forecast",
-            template=template,
-            data=extracted_result
-        )
-
-        if page_result.success:
-            ctx['results']['report_page_url'] = page_result.data
-
-        return {
-            'success': page_result.success,
-            'result': page_result.data if page_result.success else None,
-            'error': page_result.error if not page_result.success else None,
             'workflow_context': ctx
         }
 

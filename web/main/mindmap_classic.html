@@ -1104,7 +1104,7 @@
                     <div class="stat-label">🔄 动态工作流</div>
                 </div>
                 <div class="stat-card" id="card-llm-config" onclick="showLLMConfigModal()" title="点击配置LLM节点">
-                    <div class="stat-number">8</div>
+                    <div class="stat-number">9</div>
                     <div class="stat-label">🤖 LLM配置节点</div>
                 </div>
                 <div class="stat-card" id="card-intent" onclick="showIntentModal()" title="点击查看意图分类">
@@ -1641,7 +1641,7 @@
 
             <!-- LLM调用节点统计 -->
             <div class="llm-nodes-section">
-                <h3>🤖 LLM调用节点（8个独立配置）</h3>
+                <h3>🤖 LLM调用节点（9个独立配置）</h3>
                 <div class="llm-nodes-grid">
                     <div class="llm-node-card">
                         <div class="llm-node-name">intent_config</div>
@@ -1674,6 +1674,10 @@
                     <div class="llm-node-card">
                         <div class="llm-node-name">executor_config</div>
                         <div class="llm-node-desc">执行器LLM</div>
+                    </div>
+                    <div class="llm-node-card">
+                        <div class="llm-node-name">template_match_config</div>
+                        <div class="llm-node-desc">模板匹配</div>
                     </div>
                 </div>
             </div>
@@ -1804,7 +1808,8 @@
             { key: 'plan', name: 'plan_config', desc: '计划生成', icon: '📝' },
             { key: 'synthesis', name: 'synthesis_config', desc: '结果合成', icon: '✨' },
             { key: 'page_gen', name: 'page_gen_config', desc: '页面生成', icon: '🎨' },
-            { key: 'executor', name: 'executor_config', desc: '执行器LLM', icon: '⚡' }
+            { key: 'executor', name: 'executor_config', desc: '执行器LLM', icon: '⚡' },
+            { key: 'template_match', name: 'template_match_config', desc: 'Web模板匹配', icon: '🧩' }
         ];
 
         // ============================================================================
@@ -2162,11 +2167,11 @@
                 <div class="llm-config-grid">
             `;
 
-            llmNodes.forEach(node => {
+            llmNodes.forEach((node, index) => {
                 const nodeConfig = config[node.key] || {};
                 content += `
                     <div class="llm-config-card" id="config-card-${node.key}">
-                        <h4>${node.icon} ${node.desc} (${node.name})</h4>
+                        <h4>${index + 1}、${node.icon} ${node.desc} (${node.name})</h4>
                         <div class="config-row">
                             <div class="config-field">
                                 <label>API Base URL</label>
@@ -2190,9 +2195,22 @@
                             </div>
                             <div class="config-field">
                                 <label>API Key</label>
-                                <input type="password" id="cfg-${node.key}-api_key" 
-                                       value="${nodeConfig.api_key ? '********' : ''}" 
-                                       placeholder="使用默认API Key">
+                                <input type="text" id="cfg-${node.key}-api_key" 
+                                       value="${(() => {
+                                           const key = nodeConfig.api_key;
+                                           if (!key) return '';
+                                           if (key === '********') return '********'; // Handle cached masked value if any
+                                           if (key.length <= 7) return '********';
+                                           return key.substring(0, 3) + '************************' + key.substring(key.length - 4);
+                                       })()}" 
+                                       placeholder="使用默认API Key"
+                                       onfocus="if(this.value.includes('************************')) this.value='';" 
+                                       onblur="if(this.value==='') this.value='${(() => {
+                                           const key = nodeConfig.api_key;
+                                           if (!key) return '';
+                                           if (key.length <= 7) return '********';
+                                           return key.substring(0, 3) + '************************' + key.substring(key.length - 4);
+                                       })()}';">
                             </div>
                         </div>
                     </div>
@@ -2201,12 +2219,12 @@
 
             content += '</div>';
 
-            const footerContent = `
+             const footerContent = `
                 <button class="modal-btn modal-btn-secondary" onclick="closeModal()">取消</button>
                 <button class="modal-btn modal-btn-primary" onclick="saveLLMConfig()">💾 保存配置</button>
             `;
 
-            openModal('🤖 LLM节点配置 (8个独立配置节点)', content, true, footerContent);
+            openModal('🤖 LLM节点配置 (9个独立配置节点)', content, true, footerContent);
         }
 
         /**
@@ -2217,16 +2235,16 @@
                 <div style="margin-bottom: 20px; padding: 15px; background: #fef3c7; border-radius: 10px;">
                     <strong style="color: #92400e;">⚠️ 无法从服务器获取配置</strong>
                     <p style="margin: 10px 0 0; color: #92400e; font-size: 0.9em;">
-                        请确保后端服务正常运行。以下是系统的8个LLM配置节点说明：
+                        请确保后端服务正常运行。以下是系统的9个LLM配置节点说明：
                     </p>
                 </div>
                 <div class="llm-config-grid">
             `;
 
-            llmNodes.forEach(node => {
+            llmNodes.forEach((node, index) => {
                 content += `
                     <div class="llm-config-card">
-                        <h4>${node.icon} ${node.desc}</h4>
+                        <h4>${index + 1}、${node.icon} ${node.desc}</h4>
                         <div style="font-family: 'Consolas', monospace; font-size: 0.9em; color: #6366f1;">
                             ${node.name}
                         </div>
@@ -2238,7 +2256,7 @@
             });
 
             content += '</div>';
-            openModal('🤖 LLM节点配置 (8个独立配置节点)', content);
+            openModal('🤖 LLM节点配置 (9个独立配置节点)', content);
         }
 
         /**
@@ -2253,12 +2271,12 @@
                 const temperature = document.getElementById(`cfg-${node.key}-temperature`).value;
                 const api_key = document.getElementById(`cfg-${node.key}-api_key`).value;
 
-                if (api_base || model || temperature || (api_key && api_key !== '********')) {
+                if (api_base || model || temperature || (api_key && !api_key.includes('************************'))) {
                     configData[node.key] = {};
                     if (api_base) configData[node.key].api_base = api_base;
                     if (model) configData[node.key].model = model;
                     if (temperature) configData[node.key].temperature = parseFloat(temperature);
-                    if (api_key && api_key !== '********') configData[node.key].api_key = api_key;
+                    if (api_key && !api_key.includes('************************')) configData[node.key].api_key = api_key;
                 }
             });
 
@@ -2351,32 +2369,70 @@
         
         /**
          * 显示预定义模板列表弹窗
+         * 从后端API获取并筛选系统预定义的非动态模板
          */
-        function showPredefinedTemplatesModal() {
-            const predefinedTemplates = [
-                {
-                    name: 'res_module',
-                    displayName: '监测结果详情模板',
-                    description: '用于展示水雨情监测站点的详细实时数据、历史曲线及基本信息。',
-                    path: '/ui/res_module/index.html'
+        async function showPredefinedTemplatesModal() {
+            // 先显示加载动画
+            openModal('📦 预定义Web模板清单', `
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+                <p style="text-align: center; color: #64748b;">正在加载模板列表...</p>
+            `);
+
+            try {
+                // Fetch template list from backend
+                const response = await fetch('/web-templates?page=1&size=100'); 
+                if (!response.ok) throw new Error('获取模板列表失败');
+                
+                const data = await response.json();
+                const allTemplates = data.items || [];
+                
+                // Filter for predefined (not dynamic) templates
+                // We assume is_dynamic is boolean true/false. Using !t.is_dynamic handles false and null/undefined for backward compatibility
+                const predefinedTemplates = allTemplates.filter(t => !t.is_dynamic);
+
+                // Update the count on the card
+                const countElement = document.getElementById('card-predefined-templates').querySelector('.stat-number');
+                if (countElement) countElement.textContent = predefinedTemplates.length;
+
+                if (predefinedTemplates.length === 0) {
+                     openModal('📦 预定义Web模板清单', '<div style="padding: 20px; text-align: center; color: #64748b;">暂无预定义模板</div>');
+                     return;
                 }
-            ];
 
-            let content = '<div style="margin-bottom: 15px; color: #64748b;">以下是系统内置的预定义Web页面模板：</div>';
-            
-            predefinedTemplates.forEach((tpl, index) => {
-                content += `
-                    <div class="workflow-item" style="cursor: pointer;" onclick="window.open('${tpl.path}', '_blank'); closeModal();">
-                        <div class="workflow-name">${index + 1}. ${tpl.displayName}</div>
-                        <div class="workflow-desc">${tpl.description}</div>
-                        <div style="margin-top: 10px; font-family: 'Consolas', monospace; font-size: 0.85em; color: #6b7280;">
-                            目录名称: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">web/web_templates/${tpl.name}</code>
+                let content = '<div style="margin-bottom: 15px; color: #64748b;">以下是系统内置的预定义Web页面模板，来源于数据库 web_templates 表：</div>';
+                
+                predefinedTemplates.forEach((tpl, index) => {
+                     // Ensure path is valid
+                     let path = tpl.template_path;
+                     if (!path) path = '#';
+
+                    content += `
+                        <div class="workflow-item" style="cursor: pointer;" onclick="window.open('${path}', '_blank'); closeModal();">
+                            <div class="workflow-name">${index + 1}. ${tpl.display_name || tpl.name}</div>
+                            <div class="workflow-desc">${tpl.description || '暂无描述'}</div>
+                            <div style="margin-top: 10px; font-family: 'Consolas', monospace; font-size: 0.85em; color: #6b7280;">
+                                目录名称: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">web/web_templates/${tpl.name}</code>
+                            </div>
                         </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+                
+                openModal(`📦 预定义Web模板清单 (${predefinedTemplates.length}个)`, content);
 
-            openModal('📦 预定义Web模板清单', content);
+            } catch (error) {
+                console.error('加载模板列表失败:', error);
+                openModal('📦 预定义Web模板清单', `
+                    <div style="padding: 20px; background: #fef3c7; border-radius: 10px;">
+                        <p style="color: #92400e; margin: 0;">
+                            <strong>❌ 加载失败：</strong> 无法获取模板数据。<br>
+                            ${error.message}
+                            <br><small>请确保后端服务正常运行</small>
+                        </p>
+                    </div>
+                `);
+            }
         }
 
         /**

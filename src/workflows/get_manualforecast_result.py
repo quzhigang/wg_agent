@@ -17,18 +17,20 @@ logger = get_logger(__name__)
 class GetManualForecastResultWorkflow(BaseWorkflow):
     """
     人工洪水预报结果查询工作流
-    
+
     触发场景：当用户询问流域、水库或水文站点、蓄滞洪区某人工预报方案的洪水预报结果，
     也未明确要求启动一次新的预报计算时。
-    
+
     包含以下步骤：
-    1. 解析会话参数 - 提取预报对象、降雨大概起止时间、人工预报方案描述
-    2. 获取历史面雨量过程 - 调用forecast_rain_ecmwf_avg工具
-    3. 获取具体降雨起止时间 - 分析降雨过程数据
-    4. 获取人工预报方案ID - 调用model_plan_list_all工具
-    5. 获取人工预报结果 - 调用get_tjdata_result工具
-    6. 结果信息提取整理 - 提取主要预报结果数据
-    7. 采用合适的Web页面模板进行结果输出
+    1. 登录系统获取认证token - 调用login_basin_system工具
+    2. 解析会话参数 - 提取预报对象、降雨大概起止时间、人工预报方案描述
+    3. 获取历史面雨量过程 - 调用forecast_rain_ecmwf_avg工具
+    4. 获取具体降雨起止时间 - 分析降雨过程数据
+    5. 获取人工预报方案ID - 调用model_plan_list_all工具
+    6. 获取人工预报结果 - 调用get_tjdata_result工具
+    7. 结果信息提取整理 - 提取主要预报结果数据
+
+    注意：Web页面生成由Controller统一处理，通过模板向量化检索+LLM匹配实现
     """
     
     @property
@@ -79,77 +81,73 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
         return [
             WorkflowStep(
                 step_id=1,
+                name="登录系统获取认证token",
+                description="调用login_basin_system工具登录卫共流域数字孪生系统，获取访问令牌用于后续接口调用鉴权",
+                tool_name="login_basin_system",
+                tool_args_template={},
+                depends_on=[],
+                is_async=False,
+                output_key="auth_token"
+            ),
+            WorkflowStep(
+                step_id=2,
                 name="解析会话参数",
-                description="从用户会话中提取：1.预报对象（全流域/指定目标），2.降雨大概起止时间，3.人工预报方案描述（如果提及则跳过步骤2和3）",
+                description="从用户会话中提取：1.预报对象（全流域/指定目标），2.降雨大概起止时间，3.人工预报方案描述（如果提及则跳过步骤3和4）",
                 tool_name=None,  # 无需调用工具，由LLM解析
                 tool_args_template=None,
-                depends_on=[],
+                depends_on=[1],
                 is_async=False,
                 output_key="session_params"
             ),
             WorkflowStep(
-                step_id=2,
+                step_id=3,
                 name="获取历史面雨量过程",
                 description="调用forecast_rain_ecmwf_avg工具获取该时间段内的全流域平均历史逐小时面雨量过程",
                 tool_name="forecast_rain_ecmwf_avg",
                 tool_args_template={"st": "$rain_start_time", "ed": "$rain_end_time"},
-                depends_on=[1],
+                depends_on=[2],
                 is_async=False,
                 output_key="rain_process"
             ),
             WorkflowStep(
-                step_id=3,
+                step_id=4,
                 name="获取具体降雨起止时间",
                 description="通过分析输入的逐小时降雨过程数据，获取本场降雨的具体开始和结束时间，注意掐头去尾，去掉主要降雨时段前后零星的少量降雨",
                 tool_name=None,  # 无需调用工具，由LLM处理
                 tool_args_template=None,
-                depends_on=[2],
+                depends_on=[3],
                 is_async=False,
                 output_key="exact_rain_time"
             ),
             WorkflowStep(
-                step_id=4,
+                step_id=5,
                 name="获取人工预报方案ID",
                 description="调用model_plan_list_all工具获取人工预报方案ID清单，并根据方案描述或降雨起止时间匹配方案",
                 tool_name="model_plan_list_all",
                 tool_args_template={"business_code": "flood_forecast_wg"},
-                depends_on=[3],
+                depends_on=[4],
                 is_async=False,
                 output_key="plan_id"
             ),
             WorkflowStep(
-                step_id=5,
+                step_id=6,
                 name="获取人工预报结果",
                 description="调用get_tjdata_result工具获取人工预报方案结果，包含水库、河道断面、蓄滞洪区洪水结果",
                 tool_name="get_tjdata_result",
                 tool_args_template={"plan_code": "$plan_id"},
-                depends_on=[4],
+                depends_on=[5],
                 is_async=False,
                 output_key="manual_forecast_result"
             ),
             WorkflowStep(
-                step_id=6,
+                step_id=7,
                 name="结果信息提取整理",
                 description="根据预报对象提取全流域或单一目标主要预报结果数据，包括结果概括描述和结果数据",
                 tool_name=None,  # 无需调用工具，由LLM处理
                 tool_args_template=None,
-                depends_on=[5],
-                is_async=False,
-                output_key="extracted_result"
-            ),
-            WorkflowStep(
-                step_id=7,
-                name="采用合适的Web页面模板进行结果输出",
-                description="全流域预报结果采用web模板1，单目标预报结果采用web模板2",
-                tool_name="generate_report_page",
-                tool_args_template={
-                    "report_type": "manual_forecast",
-                    "template": "$template_name",
-                    "data": "$extracted_result"
-                },
                 depends_on=[6],
                 is_async=False,
-                output_key="report_page_url"
+                output_key="extracted_result"
             )
         ]
     
@@ -178,13 +176,43 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
         try:
             import time
 
-            # 步骤1: 解析会话参数
-            logger.info("执行步骤1: 解析会话参数")
+            # 步骤1: 登录系统获取认证token
+            logger.info("执行步骤1: 登录系统获取认证token")
+            start_time = time.time()
+
+            auth_result = await registry.execute("login_basin_system")
+
+            execution_time_ms = int((time.time() - start_time) * 1000)
+
+            step_result = {
+                'step_id': 1,
+                'step_name': '登录系统获取认证token',
+                'tool_name': 'login_basin_system',
+                'success': auth_result.success,
+                'execution_time_ms': execution_time_ms,
+                'data': auth_result.data if auth_result.success else None,
+                'error': auth_result.error if not auth_result.success else None
+            }
+            execution_results.append(step_result)
+
+            if not auth_result.success:
+                logger.error(f"登录系统失败: {auth_result.error}")
+                return {
+                    "execution_results": execution_results,
+                    "error": f"登录系统失败: {auth_result.error}",
+                    "next_action": "respond"
+                }
+
+            results['auth_token'] = auth_result.data.get('token') if auth_result.data else None
+            logger.info("登录系统成功，获取到认证token")
+
+            # 步骤2: 解析会话参数
+            logger.info("执行步骤2: 解析会话参数")
             session_params = self._parse_session_params(user_message, params, entities)
             results['session_params'] = session_params
             
             execution_results.append({
-                'step_id': 1,
+                'step_id': 2,
                 'step_name': '解析会话参数',
                 'tool_name': None,
                 'success': True,
@@ -206,8 +234,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             exact_rain_time = None
             
             if not skip_rain_analysis:
-                # 步骤2: 获取历史面雨量过程
-                logger.info("执行步骤2: 获取历史面雨量过程")
+                # 步骤3: 获取历史面雨量过程
+                logger.info("执行步骤3: 获取历史面雨量过程")
                 start_time = time.time()
                 
                 rain_start = rain_time_range.get('start', '')
@@ -223,7 +251,7 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                     execution_time_ms = int((time.time() - start_time) * 1000)
                     
                     step_result = {
-                        'step_id': 2,
+                        'step_id': 3,
                         'step_name': '获取历史面雨量过程',
                         'tool_name': 'forecast_rain_ecmwf_avg',
                         'success': result.success,
@@ -241,8 +269,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                             logger.info(f"步骤2返回数据字段: {list(result.data.keys())}")
                         logger.info(f"步骤2返回数据内容: {str(result.data)[:500]}")  # 打印前500字符
 
-                        # 步骤3: 获取具体降雨起止时间
-                        logger.info("执行步骤3: 获取具体降雨起止时间")
+                        # 步骤4: 获取具体降雨起止时间
+                        logger.info("执行步骤4: 获取具体降雨起止时间")
                         exact_rain_time = self._analyze_rain_time(result.data)
                         results['exact_rain_time'] = exact_rain_time
                         logger.info(f"步骤3分析结果 - 降雨起止时间: {exact_rain_time}")
@@ -257,7 +285,7 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                             logger.info(f"回退使用时间范围: {exact_rain_time}")
                         
                         execution_results.append({
-                            'step_id': 3,
+                            'step_id': 4,
                             'step_name': '获取具体降雨起止时间',
                             'tool_name': None,
                             'success': True,
@@ -268,12 +296,12 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                     else:
                         logger.warning(f"获取历史面雨量过程失败: {result.error}")
                 else:
-                    logger.warning("未提供降雨时间范围，跳过步骤2和3")
+                    logger.warning("未提供降雨时间范围，跳过步骤3和4")
             else:
-                logger.info("已提供方案描述，跳过步骤2和3")
+                logger.info("已提供方案描述，跳过步骤3和4")
             
-            # 步骤4: 获取人工预报方案ID
-            logger.info("执行步骤4: 获取人工预报方案ID")
+            # 步骤5: 获取人工预报方案ID
+            logger.info("执行步骤5: 获取人工预报方案ID")
             start_time = time.time()
             
             # 调用model_plan_list_all工具，只传business_code参数
@@ -285,7 +313,7 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             execution_time_ms = int((time.time() - start_time) * 1000)
             
             step_result = {
-                'step_id': 4,
+                'step_id': 5,
                 'step_name': '获取人工预报方案ID',
                 'tool_name': 'model_plan_list_all',
                 'success': result.success,
@@ -321,8 +349,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             
             logger.info(f"匹配到方案ID: {plan_id}")
             
-            # 步骤5: 获取人工预报结果
-            logger.info("执行步骤5: 获取人工预报结果")
+            # 步骤6: 获取人工预报结果
+            logger.info("执行步骤6: 获取人工预报结果")
             start_time = time.time()
             
             result = await registry.execute("get_tjdata_result", plan_code=plan_id)
@@ -330,7 +358,7 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             execution_time_ms = int((time.time() - start_time) * 1000)
             
             step_result = {
-                'step_id': 5,
+                'step_id': 6,
                 'step_name': '获取人工预报结果',
                 'tool_name': 'get_tjdata_result',
                 'success': result.success,
@@ -353,8 +381,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             logger.info(f"步骤5返回数据keys: {result.data.keys() if isinstance(result.data, dict) else 'N/A'}")
             logger.info(f"步骤5返回数据内容: {str(result.data)[:1000]}")  # 打印前1000字符
 
-            # 步骤6: 结果信息提取整理
-            logger.info("执行步骤6: 结果信息提取整理")
+            # 步骤7: 结果信息提取整理
+            logger.info("执行步骤7: 结果信息提取整理")
             extracted_result = self._extract_forecast_result(
                 forecast_target,
                 result.data
@@ -363,7 +391,7 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             logger.info(f"步骤6提取结果: {extracted_result}")
             
             execution_results.append({
-                'step_id': 6,
+                'step_id': 7,
                 'step_name': '结果信息提取整理',
                 'tool_name': None,
                 'success': True,
@@ -371,44 +399,13 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 'data': extracted_result,
                 'error': None
             })
-            
-            # 步骤7: 生成Web页面
-            logger.info("执行步骤7: 采用合适的Web页面模板进行结果输出")
-            start_time = time.time()
-            
-            # 根据预报对象选择合适的模板
-            template = self._select_template(forecast_target)
-            
-            page_result = await registry.execute(
-                "generate_report_page",
-                report_type="manual_forecast",
-                template=template,
-                data=extracted_result
-            )
-            
-            execution_time_ms = int((time.time() - start_time) * 1000)
-            
-            step_result = {
-                'step_id': 7,
-                'step_name': '采用合适的Web页面模板进行结果输出',
-                'tool_name': 'generate_report_page',
-                'success': page_result.success,
-                'execution_time_ms': execution_time_ms,
-                'data': page_result.data if page_result.success else None,
-                'error': page_result.error if not page_result.success else None
-            }
-            execution_results.append(step_result)
-            
-            if page_result.success:
-                results['report_page_url'] = page_result.data
-            
+
             logger.info("人工洪水预报结果查询工作流执行完成")
-            
+
             return {
                 "execution_results": execution_results,
                 "workflow_results": results,
                 "output_type": self.output_type,
-                "generated_page_url": results.get('report_page_url'),
                 "forecast_target": forecast_target,
                 "extracted_result": extracted_result,
                 "plan_id": plan_id,
@@ -1302,27 +1299,6 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                             return data
 
         return {"message": f"未找到{detention_name}的预报数据"}
-    
-    def _select_template(self, forecast_target: Dict[str, Any]) -> str:
-        """
-        根据预报对象选择合适的Web页面模板
-        
-        根据文档：全流域预报结果采用web模板1，单目标预报结果采用web模板2
-        
-        Args:
-            forecast_target: 预报对象
-            
-        Returns:
-            模板名称
-        """
-        target_type = forecast_target.get("type", "basin")
-        
-        # 根据对象类型选择模板
-        if target_type == "basin":
-            return "index"  # 全流域使用web模板1（index）
-        else:
-            return "res_module"  # 单目标使用web模板2（res_module）
-
 
     # ==================== 单步执行模式支持 ====================
 
@@ -1349,6 +1325,7 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
         return {
             'workflow_context': {
                 'session_params': session_params,
+                'auth_token': None,  # 将在步骤1中获取
                 'results': {},
                 'exact_rain_time': None,
                 'plan_id': None
@@ -1379,19 +1356,19 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
 
         try:
             if step_id == 1:
-                return await self._step_1_parse_params(ctx, session_params)
+                return await self._step_1_login(ctx, registry)
             elif step_id == 2:
-                return await self._step_2_get_history_rain(ctx, session_params, registry)
+                return await self._step_2_parse_params(ctx, session_params)
             elif step_id == 3:
-                return await self._step_3_analyze_rain_time(ctx, session_params)
+                return await self._step_3_get_history_rain(ctx, session_params, registry)
             elif step_id == 4:
-                return await self._step_4_get_plan_id(ctx, session_params, registry)
+                return await self._step_4_analyze_rain_time(ctx, session_params)
             elif step_id == 5:
-                return await self._step_5_get_result(ctx, registry)
+                return await self._step_5_get_plan_id(ctx, session_params, registry)
             elif step_id == 6:
-                return await self._step_6_extract_result(ctx, session_params)
+                return await self._step_6_get_result(ctx, registry)
             elif step_id == 7:
-                return await self._step_7_generate_page(ctx, session_params, registry)
+                return await self._step_7_extract_result(ctx, session_params)
             else:
                 return {'success': False, 'error': f'未知步骤: {step_id}'}
 
@@ -1419,7 +1396,6 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
         return {
             'workflow_status': 'completed',
             'output_type': self.output_type,
-            'generated_page_url': results.get('report_page_url'),
             'forecast_target': forecast_target,
             'extracted_result': results.get('extracted_result'),
             'plan_id': ctx.get('plan_id'),
@@ -1428,8 +1404,25 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
 
     # ==================== 各步骤的具体实现 ====================
 
-    async def _step_1_parse_params(self, ctx: Dict, session_params: Dict) -> Dict[str, Any]:
-        """步骤1: 解析会话参数"""
+    async def _step_1_login(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤1: 登录系统获取认证token"""
+        result = await registry.execute("login_basin_system")
+
+        if result.success:
+            token = result.data.get('token') if result.data else None
+            ctx['auth_token'] = token
+            ctx['results']['auth_token'] = token
+            logger.info("登录系统成功，获取到认证token")
+
+        return {
+            'success': result.success,
+            'result': result.data if result.success else None,
+            'error': result.error if not result.success else None,
+            'workflow_context': ctx
+        }
+
+    async def _step_2_parse_params(self, ctx: Dict, session_params: Dict) -> Dict[str, Any]:
+        """步骤2: 解析会话参数"""
         ctx['results']['session_params'] = session_params
         logger.info(f"解析到会话参数: {session_params}")
 
@@ -1439,8 +1432,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_2_get_history_rain(self, ctx: Dict, session_params: Dict, registry) -> Dict[str, Any]:
-        """步骤2: 获取历史面雨量过程"""
+    async def _step_3_get_history_rain(self, ctx: Dict, session_params: Dict, registry) -> Dict[str, Any]:
+        """步骤3: 获取历史面雨量过程"""
         plan_description = session_params.get('plan_description', '')
         rain_time_range = session_params.get('rain_time_range', {})
 
@@ -1596,30 +1589,6 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
         return {
             'success': True,
             'result': extracted_result,
-            'workflow_context': ctx
-        }
-
-    async def _step_7_generate_page(self, ctx: Dict, session_params: Dict, registry) -> Dict[str, Any]:
-        """步骤7: 采用合适的Web页面模板进行结果输出"""
-        forecast_target = session_params.get('forecast_target', {'type': 'basin', 'name': '全流域'})
-        extracted_result = ctx['results'].get('extracted_result')
-
-        template = self._select_template(forecast_target)
-
-        page_result = await registry.execute(
-            "generate_report_page",
-            report_type="manual_forecast",
-            template=template,
-            data=extracted_result
-        )
-
-        if page_result.success:
-            ctx['results']['report_page_url'] = page_result.data
-
-        return {
-            'success': page_result.success,
-            'result': page_result.data if page_result.success else None,
-            'error': page_result.error if not page_result.success else None,
             'workflow_context': ctx
         }
 

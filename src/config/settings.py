@@ -82,6 +82,12 @@ class Settings(BaseSettings):
     tool_select_model_name: Optional[str] = None
     tool_select_temperature: float = 0.3
 
+    # Web模板匹配节点
+    template_match_api_key: Optional[str] = None
+    template_match_api_base: Optional[str] = None
+    template_match_model_name: Optional[str] = None
+    template_match_temperature: float = 0.3
+
     # 获取各节点配置的辅助方法（未配置时使用默认值）
     def get_intent_config(self) -> dict:
         return {
@@ -147,7 +153,16 @@ class Settings(BaseSettings):
             "model": self.tool_select_model_name or self.openai_model_name,
             "temperature": self.tool_select_temperature
         }
-    
+
+    def get_template_match_config(self) -> dict:
+        """获取Web模板匹配节点配置（未配置时回退到工作流匹配配置）"""
+        return {
+            "api_key": self.template_match_api_key or self.workflow_api_key or self.openai_api_key,
+            "api_base": self.template_match_api_base or self.workflow_api_base or self.openai_api_base,
+            "model": self.template_match_model_name or self.workflow_model_name or self.openai_model_name,
+            "temperature": self.template_match_temperature
+        }
+
     # Embedding Model
     embedding_model_name: str = "bge-m3:latest"
     embedding_model_api_url: str = "http://10.20.2.135:11434"
@@ -193,8 +208,8 @@ class Settings(BaseSettings):
     # 基础数据服务接口地址
     wg_data_server_url: str = "http://10.20.2.153"
     # 防洪业务服务接口地址（Java Spring Boot）
-    wg_flood_server_url: str = "http://10.20.2.153:8089/modelPlatf"
-    wg_flood_server_url1: str = "http://10.20.2.153:8089"
+    wg_flood_server_url: str = "http://10.20.2.153/api/basin/modelPlatf"
+    wg_flood_server_url1: str = "http://10.20.2.153/api/basin"
     
     # ===========================================
     # Auth Configuration

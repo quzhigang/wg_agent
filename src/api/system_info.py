@@ -51,6 +51,7 @@ class LLMConfigUpdate(BaseModel):
     synthesis: Optional[LLMNodeConfig] = None
     page_gen: Optional[LLMNodeConfig] = None
     executor: Optional[LLMNodeConfig] = None
+    template_match: Optional[LLMNodeConfig] = None
 
 
 # ============================================================================
@@ -139,48 +140,63 @@ async def get_llm_config():
         synthesis_config = settings.get_synthesis_config()
         page_gen_config = settings.get_page_gen_config()
         executor_config = settings.get_executor_config()
+        template_match_config = settings.get_template_match_config()
         
         return {
             "default": default_config,
             "intent": {
                 "api_base": intent_config.get("api_base"),
                 "model": intent_config.get("model"),
-                "temperature": intent_config.get("temperature")
+                "temperature": intent_config.get("temperature"),
+                "api_key": intent_config.get("api_key")
             },
             "sub_intent": {
                 "api_base": sub_intent_config.get("api_base"),
                 "model": sub_intent_config.get("model"),
-                "temperature": sub_intent_config.get("temperature")
+                "temperature": sub_intent_config.get("temperature"),
+                "api_key": sub_intent_config.get("api_key")
             },
             "workflow": {
                 "api_base": workflow_config.get("api_base"),
                 "model": workflow_config.get("model"),
-                "temperature": workflow_config.get("temperature")
+                "temperature": workflow_config.get("temperature"),
+                "api_key": workflow_config.get("api_key")
             },
             "tool_select": {
                 "api_base": tool_select_config.get("api_base"),
                 "model": tool_select_config.get("model"),
-                "temperature": tool_select_config.get("temperature")
+                "temperature": tool_select_config.get("temperature"),
+                "api_key": tool_select_config.get("api_key")
             },
             "plan": {
                 "api_base": plan_config.get("api_base"),
                 "model": plan_config.get("model"),
-                "temperature": plan_config.get("temperature")
+                "temperature": plan_config.get("temperature"),
+                "api_key": plan_config.get("api_key")
             },
             "synthesis": {
                 "api_base": synthesis_config.get("api_base"),
                 "model": synthesis_config.get("model"),
-                "temperature": synthesis_config.get("temperature")
+                "temperature": synthesis_config.get("temperature"),
+                "api_key": synthesis_config.get("api_key")
             },
             "page_gen": {
                 "api_base": page_gen_config.get("api_base"),
                 "model": page_gen_config.get("model"),
-                "temperature": page_gen_config.get("temperature")
+                "temperature": page_gen_config.get("temperature"),
+                "api_key": page_gen_config.get("api_key")
             },
             "executor": {
                 "api_base": executor_config.get("api_base"),
                 "model": executor_config.get("model"),
-                "temperature": executor_config.get("temperature")
+                "temperature": executor_config.get("temperature"),
+                "api_key": executor_config.get("api_key")
+            },
+            "template_match": {
+                "api_base": template_match_config.get("api_base"),
+                "model": template_match_config.get("model"),
+                "temperature": template_match_config.get("temperature"),
+                "api_key": template_match_config.get("api_key")
             }
         }
         
@@ -255,7 +271,7 @@ async def get_system_stats():
             "tools_count": tools_count,
             "knowledge_bases": 10,  # 固定10个知识库
             "predefined_workflows": 5,  # 5个预定义工作流
-            "llm_nodes": 8,  # 8个LLM配置节点
+            "llm_nodes": 9,  # 9个LLM配置节点
             "intent_categories": {
                 "main": 3,  # 3大类意图
                 "sub": 6    # 6类业务子意图

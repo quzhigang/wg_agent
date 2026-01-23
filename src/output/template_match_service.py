@@ -76,19 +76,19 @@ class TemplateMatchService:
         # 初始化向量索引
         self.vector_index = get_template_vector_index()
 
-        # 初始化LLM（使用工作流匹配的配置）
+        # 初始化LLM（使用独立的模板匹配配置）
         extra_body = {"enable_thinking": settings.llm_enable_thinking}
-        workflow_cfg = settings.get_workflow_config()
+        template_match_cfg = settings.get_template_match_config()
         self.llm = ChatOpenAI(
-            api_key=workflow_cfg["api_key"],
-            base_url=workflow_cfg["api_base"],
-            model=workflow_cfg["model"],
-            temperature=workflow_cfg["temperature"],
+            api_key=template_match_cfg["api_key"],
+            base_url=template_match_cfg["api_base"],
+            model=template_match_cfg["model"],
+            temperature=template_match_cfg["temperature"],
             model_kwargs={"extra_body": extra_body}
         )
 
         self._initialized = True
-        logger.info("模板匹配服务初始化完成")
+        logger.info(f"模板匹配服务初始化完成，使用模型: {template_match_cfg['model']}")
 
     async def match_template(
         self,

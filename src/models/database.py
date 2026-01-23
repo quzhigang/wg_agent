@@ -73,20 +73,6 @@ class AsyncTask(Base):
     conversation = relationship("Conversation", back_populates="async_tasks")
 
 
-class GeneratedPage(Base):
-    """生成页面缓存表"""
-    __tablename__ = "generated_pages"
-    
-    id = Column(String(36), primary_key=True)
-    content_hash = Column(String(64), unique=True, index=True)  # 内容哈希，用于去重
-    page_type = Column(String(100), nullable=True)
-    template_used = Column(String(100), nullable=True)
-    file_path = Column(String(500), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_accessed_at = Column(DateTime, nullable=True)
-    access_count = Column(Integer, default=0)
-
-
 class SavedWorkflow(Base):
     """自动保存的动态流程表"""
     __tablename__ = "saved_workflows"

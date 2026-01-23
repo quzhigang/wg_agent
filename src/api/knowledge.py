@@ -269,7 +269,7 @@ async def get_kb_document_file(kb_id: str, doc_name: str):
                     content = f.read()
                 html = f'''<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>{doc_name}</title>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="/pages/js/marked.min.js"></script>
 <style>body{{max-width:900px;margin:40px auto;padding:0 20px;font-family:sans-serif;line-height:1.6}}
 pre{{background:#f4f4f4;padding:10px;overflow-x:auto}}code{{background:#f4f4f4;padding:2px 5px}}</style>
 </head><body><div id="content"></div>
