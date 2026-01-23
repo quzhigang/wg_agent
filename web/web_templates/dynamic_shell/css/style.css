@@ -1,0 +1,108 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #0d1117; /* 深色背景 */
+    color: #c9d1d9;
+}
+#app {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+.grid-row {
+    margin-bottom: 20px;
+}
+.component-wrapper {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 16px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+.component-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #58a6ff;
+    border-bottom: 1px solid #30363d;
+    padding-bottom: 8px;
+}
+.component-body {
+    flex: 1;
+    overflow: auto;
+    position: relative; /* For ECharts */
+}
+
+/* InfoCard Styles */
+.info-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+.info-item {
+    background: #21262d;
+    padding: 8px;
+    border-radius: 4px;
+}
+.info-item .label {
+    display: block;
+    color: #8b949e;
+    font-size: 12px;
+}
+.info-item .value {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #f0f6fc;
+}
+
+/* Table Styles */
+.simple-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.simple-table th, .simple-table td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid #30363d;
+}
+.simple-table th {
+    color: #8b949e;
+    font-weight: 600;
+}
+
+/* StatCard Styles */
+.stat-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #3fb950;
+}
+.stat-value .unit {
+    font-size: 14px;
+    color: #8b949e;
+    margin-left: 4px;
+}
+.stat-icon {
+    margin-left: 10px;
+}
+.stat-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.error {
+    color: #ff6b6b;
+    padding: 10px;
+    background: rgba(255, 107, 107, 0.1);
+    border-radius: 4px;
+}

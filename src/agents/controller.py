@@ -14,6 +14,8 @@ from .state import AgentState, OutputType
 from ..output.template_match_service import get_template_match_service
 from ..output.page_generator import get_page_generator
 from ..output.dynamic_template_service import get_dynamic_template_service
+from ..output.dynamic_page_generator import get_dynamic_page_generator
+from ..utils.conversation_context_collector import create_collector_from_state
 
 logger = get_logger(__name__)
 
@@ -609,38 +611,37 @@ class Controller:
         except Exception as template_error:
             logger.warning(f"模板匹配或生成失败，回退到动态生成: {template_error}")
 
-        # 回退：异步提交页面生成任务
+        # 回退：使用 DynamicPageGenerator 动态生成页面
         try:
-            from ..output.async_page_agent import get_async_page_agent
-
-            # 确定报告类型
-            report_type = "generic"
-            intent = state.get('intent', '')
-            if '洪水' in intent or '预报' in intent:
-                report_type = 'flood_forecast'
-            elif '预案' in intent:
-                report_type = 'emergency_plan'
-
-            # 提交异步任务（任务完成后会自动保存为动态模板）
-            async_agent = get_async_page_agent()
-            task_id = async_agent.submit_task(
-                conversation_id=state.get('conversation_id', ''),
-                report_type=report_type,
-                data=combined_data,
-                title=f"{intent}报告",
-                execution_summary=execution_summary,
-                user_message=user_message,
-                sub_intent=sub_intent,
-                save_as_dynamic_template=True  # 标记需要保存为动态模板
+            logger.info("未匹配到预定义模板，使用 DynamicPageGenerator 动态生成页面")
+            
+            # 1. 创建上下文收集器
+            collector = create_collector_from_state(state)
+            
+            # 2. 获取生成器实例
+            generator = get_dynamic_page_generator()
+            
+            # 3. 生成页面 (传递前端格式的上下文)
+            page_url = await generator.generate(
+                conversation_context=collector.to_frontend_format()
             )
+            
+            return {
+                "text_response": text_response or "已为您生成详细的分析报告页面，请点击查看。",
+                "page_url": page_url,
+                "page_task_id": None,
+                "page_generating": False,
+                "template_used": "dynamic_generated"
+            }
 
-            logger.info(f"页面生成任务已提交: {task_id}")
-
+        except Exception as e:
+            logger.error(f"动态页面生成失败: {e}")
             return {
                 "text_response": text_response,
-                "page_url": None,  # 页面URL稍后通过任务状态获取
-                "page_task_id": task_id,
-                "page_generating": True
+                "page_url": None,
+                "page_task_id": None,
+                "page_generating": False,
+                "page_error": str(e)
             }
 
         except Exception as e:

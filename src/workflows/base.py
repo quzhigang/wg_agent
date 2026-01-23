@@ -10,14 +10,22 @@
 - 替代方案：主工具失败时切换到 fallback_tools
 - 回滚机制：错误时逆序执行已完成步骤的回滚操作
 - 条件跳转：根据步骤结果动态修改计划或跳过步骤
+
+数据传递机制：
+- 使用 WorkflowContext 管理工作流执行过程中的数据
+- 支持轻量化数据传递（Token, ID, Path），不传递重型数据
+- 通过 replacement_config 配置将 Context 数据注入到 Web 模板
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field
 from enum import Enum
 
 from ..config.logging_config import get_logger
+
+if TYPE_CHECKING:
+    from ..utils.workflow_context import WorkflowContext
 
 logger = get_logger(__name__)
 
@@ -71,40 +79,50 @@ class WorkflowDefinition(BaseModel):
 
 class BaseWorkflow(ABC):
     """工作流基类"""
-    
+
     @property
     @abstractmethod
     def name(self) -> str:
         """工作流名称"""
         pass
-    
+
     @property
     @abstractmethod
     def description(self) -> str:
         """工作流描述"""
         pass
-    
+
     @property
     def trigger_intents(self) -> List[str]:
         """触发意图"""
         return []
-    
+
     @property
     def trigger_keywords(self) -> List[str]:
         """触发关键词"""
         return []
-    
+
     @property
     @abstractmethod
     def steps(self) -> List[WorkflowStep]:
         """工作流步骤"""
         pass
-    
+
     @property
     def output_type(self) -> str:
         """输出类型"""
         return "text"
-    
+
+    @property
+    def template_name(self) -> Optional[str]:
+        """
+        关联的 Web 模板名称
+
+        如果工作流需要输出 Web 页面，返回对应的模板名称。
+        模板配置器会根据此名称查找模板的 replacement_config。
+        """
+        return None
+
     def get_definition(self) -> WorkflowDefinition:
         """获取工作流定义"""
         return WorkflowDefinition(
@@ -280,4 +298,34 @@ class BaseWorkflow(ABC):
             'workflow_status': WorkflowStatus.COMPLETED.value,
             'next_action': 'respond'
         }
+
+    def populate_context(self, context: 'WorkflowContext', step_name: str, result: Dict[str, Any]):
+        """
+        将步骤执行结果填充到 Context 中
+
+        子类可以重写此方法来自定义数据提取逻辑。
+        默认实现会将整个 result 存入 context.steps[step_name]。
+
+        Args:
+            context: 工作流上下文
+            step_name: 步骤名称（用作 Context 中的键）
+            result: 步骤执行结果
+        """
+        context.set_step_result(step_name, result)
+
+    def get_context_for_template(self, context: 'WorkflowContext') -> Dict[str, Any]:
+        """
+        从 Context 中提取模板所需的数据
+
+        子类可以重写此方法来自定义数据提取逻辑。
+        默认实现返回整个 Context 数据。
+
+        Args:
+            context: 工作流上下文
+
+        Returns:
+            模板所需的数据字典
+        """
+        return context.to_dict()
+
 

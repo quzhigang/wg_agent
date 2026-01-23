@@ -62,7 +62,7 @@ description: "通过深度的代码库分析和研究，创建全面的功能实
 
 - 编目与该功能相关的外部库
 - 了解库是如何集成的 (核查 import 语句和配置)
-- 在 `docs/`、`ai_docs/`、`.agents/reference` 或 `ai-wiki` (如果存在) 中查找相关文档
+- 在 `docs/`、`ai_docs/`、`.claude/reference` 或 `ai-wiki` (如果存在) 中查找相关文档
 - 记录库的版本及兼容性要求
 
 **4. 测试模式 (Testing Patterns)**
@@ -374,12 +374,12 @@ description: "通过深度的代码库分析和研究，创建全面的功能实
 
 ## 输出格式 (Output Format)
 
-**文件名**: `.agents/plans/{用连字符分隔的描述性名称}.md`
+**文件名**: `.claude/plans/{用连字符分隔的描述性名称}.md`
 
 - 将 `{用连字符分隔的描述性名称}` 替换为简短、具有描述性的功能名称
 - 示例：`add-user-authentication.md`, `implement-search-api.md`, `refactor-database-layer.md`
 
-**目录**: 如果 `.agents/plans/` 不存在，请创建它
+**目录**: 如果 `.claude/plans/` 不存在，请创建它
 
 ## 质量标准 (Quality Criteria)
 

@@ -132,11 +132,18 @@ class TemplateMatchService:
 
             logger.info(f"向量检索返回 {len(candidates)} 个候选模板")
 
-            # 如果只有一个候选且分数很高，直接返回
+            # 如果只有一个候选且分数很高，直接返回（但需要获取完整信息）
             if len(candidates) == 1 and candidates[0].get('score', 0) > 0.8:
+                template_id = candidates[0].get('id')
+                # 获取完整的模板信息（包含 replacement_config）
+                full_template = self.get_template_by_id(template_id)
+                if full_template:
+                    full_template['confidence'] = candidates[0].get('score', 0)
+                    logger.info(f"单一高分候选，直接选择: {full_template.get('display_name')}")
+                    return full_template
+                # 如果获取失败，回退到候选信息
                 template = candidates[0]
                 template['confidence'] = template.get('score', 0)
-                logger.info(f"单一高分候选，直接选择: {template.get('display_name')}")
                 return template
 
             # 第二阶段：LLM精选
@@ -149,17 +156,21 @@ class TemplateMatchService:
 
             if selected:
                 # 从候选中找到完整的模板信息
-                for candidate in candidates:
-                    if candidate.get('id') == selected.get('selected_template_id'):
-                        candidate['confidence'] = selected.get('confidence', 0)
-                        logger.info(f"LLM选择模板: {candidate.get('display_name')}, 置信度: {candidate['confidence']}")
-                        # 如果是动态模板，获取完整信息（包含html_content）
-                        if candidate.get('is_dynamic'):
-                            full_template = self.get_template_by_id(candidate['id'])
-                            if full_template:
-                                full_template['confidence'] = candidate['confidence']
-                                return full_template
-                        return candidate
+                selected_id = selected.get('selected_template_id')
+                if selected_id:
+                    # 获取完整的模板信息（包含 replacement_config）
+                    full_template = self.get_template_by_id(selected_id)
+                    if full_template:
+                        full_template['confidence'] = selected.get('confidence', 0)
+                        logger.info(f"LLM选择模板: {full_template.get('display_name')}, 置信度: {full_template['confidence']}")
+                        return full_template
+
+                    # 如果获取失败，回退到候选信息
+                    for candidate in candidates:
+                        if candidate.get('id') == selected_id:
+                            candidate['confidence'] = selected.get('confidence', 0)
+                            logger.info(f"LLM选择模板(回退): {candidate.get('display_name')}, 置信度: {candidate['confidence']}")
+                            return candidate
 
             logger.info("LLM未选择任何模板")
             return None
@@ -280,7 +291,9 @@ class TemplateMatchService:
                     "data_schema": json.loads(tpl.data_schema) if tpl.data_schema else None,
                     "features": json.loads(tpl.features) if tpl.features else [],
                     "priority": tpl.priority,
-                    "is_dynamic": tpl.is_dynamic
+                    "is_dynamic": tpl.is_dynamic,
+                    # 添加 replacement_config 字段
+                    "replacement_config": json.loads(tpl.replacement_config) if tpl.replacement_config else None
                 }
 
                 # 动态模板包含HTML内容
@@ -333,7 +346,10 @@ class TemplateMatchService:
                     "name": tpl.name,
                     "display_name": tpl.display_name,
                     "template_path": tpl.template_path,
-                    "template_type": tpl.template_type
+                    "template_type": tpl.template_type,
+                    "is_dynamic": tpl.is_dynamic,
+                    # 添加 replacement_config 字段
+                    "replacement_config": json.loads(tpl.replacement_config) if tpl.replacement_config else None
                 }
             finally:
                 db.close()

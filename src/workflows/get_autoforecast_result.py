@@ -1,12 +1,18 @@
 """
 洪水自动预报结果查询工作流
 根据需求查询最新自动预报的洪水结果
+
+数据传递机制：
+- 使用 WorkflowContext 管理执行过程中的数据
+- 步骤执行结果自动填充到 Context
+- 通过 replacement_config 将 Context 数据注入到 Web 模板
 """
 
 from typing import Dict, Any, List
 
 from ..config.logging_config import get_logger
 from ..tools.registry import get_tool_registry
+from ..utils.workflow_context import WorkflowContext, create_context_from_state
 from .base import BaseWorkflow, WorkflowStep, WorkflowStatus
 from .registry import register_workflow
 
@@ -77,6 +83,11 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
     @property
     def output_type(self) -> str:
         return "web_page"
+
+    @property
+    def template_name(self) -> str:
+        """关联的 Web 模板名称"""
+        return "res_flood_resultshow"
     
     @property
     def steps(self) -> List[WorkflowStep]:
@@ -138,6 +149,9 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
         registry = get_tool_registry()
         results = {}
 
+        # 创建工作流上下文
+        context = create_context_from_state(state)
+
         # 从状态中提取参数
         params = state.get('extracted_params', {})
         user_message = state.get('user_message', '')
@@ -174,12 +188,28 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
                     "next_action": "respond"
                 }
 
-            results['auth_token'] = auth_result.data.get('token') if auth_result.data else None
+            token = auth_result.data.get('token') if auth_result.data else None
+            results['auth_token'] = token
+
+            # 填充 Context: 登录结果
+            context.set_step_result("login", {
+                "token": token,
+                "success": True
+            })
+
             logger.info("登录系统成功，获取到认证token")
 
             # 步骤2: 解析会话参数 - 提取预报对象
             forecast_target = self._parse_forecast_target(user_message, params, entities)
             results['forecast_target'] = forecast_target
+
+            # 填充 Context: 预报目标
+            context.set_step_result("parse_target", {
+                "target": forecast_target,
+                "target_type": forecast_target.get("type"),
+                "target_name": forecast_target.get("name")
+            })
+
             logger.info(f"解析到预报对象: {forecast_target}")
 
             # 步骤3: 获取最新洪水自动预报结果
@@ -211,6 +241,14 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
                 }
 
             results['auto_forecast_result'] = result.data
+
+            # 填充 Context: 预报结果
+            context.set_step_result("forecast", {
+                "planCode": "model_auto",
+                "raw_data": result.data,
+                "success": True
+            })
+
             logger.info(f"获取到自动预报结果数据: {type(result.data)}, 数据内容: {str(result.data)[:500] if result.data else 'None'}")
 
             # 步骤4: 结果信息提取整理
@@ -220,6 +258,14 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
                 result.data
             )
             results['extracted_result'] = extracted_result
+
+            # 填充 Context: 提取后的结果
+            context.set_step_result("extract", {
+                "summary": extracted_result.get("summary"),
+                "data": extracted_result.get("data"),
+                "stcd": extracted_result.get("data", {}).get("Stcd")
+            })
+
             logger.info(f"提取后的结果: {extracted_result}")
 
             execution_results.append({
@@ -237,7 +283,9 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
             return {
                 "execution_results": execution_results,
                 "workflow_results": results,
+                "workflow_context": context.to_dict(),  # 返回 Context 供模板配置使用
                 "output_type": self.output_type,
+                "template_name": self.template_name,  # 返回模板名称
                 "forecast_target": forecast_target,
                 "extracted_result": extracted_result,
                 "next_action": "respond"
@@ -700,11 +748,15 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
         # 解析预报对象
         forecast_target = self._parse_forecast_target(user_message, params, entities)
 
+        # 创建工作流上下文
+        context = create_context_from_state(state)
+
         return {
             'workflow_context': {
                 'forecast_target': forecast_target,
                 'auth_token': None,  # 将在步骤1中获取
-                'results': ,
+                'results': {},
+                'context_data': context.to_dict(),  # 保存 Context 数据
             },
             'workflow_status': 'running'
         }
@@ -756,15 +808,18 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
         """
         完成工作流执行（收尾阶段）
         """
-        ctx = state.get('workflow_context', {})
+        ctx = state.get('workflow_context', )
         results = ctx.get('results', {})
         forecast_target = ctx.get('forecast_target', {})
+        context_data = ctx.get('context_data', {})
 
         logger.info("自动预报结果查询工作流执行完成，生成最终响应")
 
         return {
             'workflow_status': 'completed',
+            'workflow_context': context_data,  # 返回 Context 数据供模板配置使用
             'output_type': self.output_type,
+            'template_name': self.template_name,  # 返回模板名称
             'forecast_target': forecast_target,
             'extracted_result': results.get('extracted_result'),
             'next_action': 'respond'
@@ -780,6 +835,15 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
             token = result.data.get('token') if result.data else None
             ctx['auth_token'] = token
             ctx['results']['auth_token'] = token
+
+            # 更新 Context 数据
+            context_data = ctx.get('context_data', {'inputs': {}, 'steps': {}, 'state': {}})
+            context_data['steps']['login'] = {
+                'token': token,
+                'success': True
+            }
+            ctx['context_data'] = context_data
+
             logger.info("登录系统成功，获取到认证token")
 
         return {
@@ -792,6 +856,16 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
     async def _step_2_parse_params(self, ctx: Dict, forecast_target: Dict) -> Dict[str, Any]:
         """步骤2: 解析会话参数"""
         ctx['results']['forecast_target'] = forecast_target
+
+        # 更新 Context 数据
+        context_data = ctx.get('context_data', {'inputs': {}, 'steps': {}, 'state': {}})
+        context_data['steps']['parse_target'] = {
+            'target': forecast_target,
+            'target_type': forecast_target.get('type'),
+            'target_name': forecast_target.get('name')
+        }
+        ctx['context_data'] = context_data
+
         logger.info(f"解析到预报对象: {forecast_target}")
 
         return {
@@ -806,6 +880,16 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
 
         if result.success:
             ctx['results']['auto_forecast_result'] = result.data
+
+            # 更新 Context 数据
+            context_data = ctx.get('context_data', {'inputs': {}, 'steps': {}, 'state': {}})
+            context_data['steps']['forecast'] = {
+                'planCode': 'model_auto',
+                'raw_data': result.data,
+                'success': True
+            }
+            ctx['context_data'] = context_data
+
             logger.info(f"获取到自动预报结果数据")
 
         return {
@@ -820,6 +904,16 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
         forecast_data = ctx['results'].get('auto_forecast_result')
         extracted_result = self._extract_forecast_result(forecast_target, forecast_data)
         ctx['results']['extracted_result'] = extracted_result
+
+        # 更新 Context 数据
+        context_data = ctx.get('context_data', {'inputs': {}, 'steps': {}, 'state': {}})
+        context_data['steps']['extract'] = {
+            'summary': extracted_result.get('summary'),
+            'data': extracted_result.get('data'),
+            'stcd': extracted_result.get('data', {}).get('Stcd')
+        }
+        ctx['context_data'] = context_data
+
         logger.info(f"提取后的结果: {extracted_result}")
 
         return {

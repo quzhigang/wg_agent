@@ -142,6 +142,9 @@ class AgentState(TypedDict):
     # 意图识别阶段信息（用于流式输出）
     intent_stages: Optional[List[Dict[str, Any]]]  # 意图识别各阶段结果，按顺序存储
 
+    # 对话上下文记录（用于DynamicPageGenerator）
+    conversation_context: Optional[Dict[str, Any]]
+
 
 def create_initial_state(
     conversation_id: str,
@@ -235,7 +238,10 @@ def create_initial_state(
         executing_step_id=None,
 
         # 意图识别阶段信息
-        intent_stages=[]
+        intent_stages=[],
+
+        # 对话上下文
+        conversation_context=None
     )
 
 

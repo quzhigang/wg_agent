@@ -33,7 +33,48 @@ INITIAL_TEMPLATES = [
         "template_type": "full_page",
         "trigger_pattern": "单一水库预报预演结果 洪水预报 洪水预演 入库流量 出库流量 水位变化 预报方案结果 水库水情 水库洪水 盘石头水库 水库调度",
         "features": ["map", "chart", "realtime", "reservoir", "echarts"],
-        "priority": 10
+        "priority": 10,
+        # 数据注入配置：定义如何从 WorkflowContext 提取数据并注入到模板
+        "replacement_config": {
+            "mode": "regex_replace",
+            "target_file": "js/main.js",
+            "mappings": [
+                {
+                    "context_path": "steps.login.token",
+                    "target_key": "DEFAULT_PARAMS.token",
+                    "pattern": r"token:\s*['\"][^'\"]*['\"]",
+                    "replacement_template": "token: '{value}'"
+                },
+                {
+                    "context_path": "steps.forecast.planCode",
+                    "target_key": "DEFAULT_PARAMS.planCode",
+                    "pattern": r"planCode:\s*['\"][^'\"]*['\"]",
+                    "replacement_template": "planCode: '{value}'"
+                },
+                {
+                    "context_path": "steps.extract.stcd",
+                    "target_key": "DEFAULT_PARAMS.stcd",
+                    "pattern": r"stcd:\s*['\"][^'\"]*['\"]",
+                    "replacement_template": "stcd: '{value}'"
+                },
+                {
+                    "context_path": "steps.parse_target.target_name",
+                    "target_key": "DEFAULT_PARAMS.reservoirName",
+                    "pattern": r"reservoirName:\s*['\"][^'\"]*['\"]",
+                    "replacement_template": "reservoirName: '{value}'"
+                }
+            ],
+            "default_values": {
+                "DEFAULT_PARAMS.token": "__TOKEN_PLACEHOLDER__",
+                "DEFAULT_PARAMS.planCode": "__PLANCODE_PLACEHOLDER__",
+                "DEFAULT_PARAMS.stcd": "__STCD_PLACEHOLDER__",
+                "DEFAULT_PARAMS.reservoirName": "__RESERVOIR_PLACEHOLDER__"
+            },
+            "required_context_keys": [
+                "steps.login.token",
+                "steps.forecast.planCode"
+            ]
+        }
     },
     # 预留：站点洪水预报模板
     # {
@@ -95,6 +136,9 @@ def init_templates():
                 existing.features = json.dumps(tpl_data["features"], ensure_ascii=False)
                 existing.priority = tpl_data["priority"]
                 existing.is_active = True
+                # 更新 replacement_config
+                if "replacement_config" in tpl_data:
+                    existing.replacement_config = json.dumps(tpl_data["replacement_config"], ensure_ascii=False)
 
                 db.commit()
 
@@ -127,7 +171,8 @@ def init_templates():
                     trigger_pattern=tpl_data["trigger_pattern"],
                     features=json.dumps(tpl_data["features"], ensure_ascii=False),
                     priority=tpl_data["priority"],
-                    is_active=True
+                    is_active=True,
+                    replacement_config=json.dumps(tpl_data.get("replacement_config"), ensure_ascii=False) if tpl_data.get("replacement_config") else None
                 )
 
                 db.add(template)

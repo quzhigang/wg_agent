@@ -829,26 +829,99 @@ class PageGenerator:
         self,
         template_info: Dict[str, Any],
         data: Dict[str, Any],
-        title: str = ""
+        title: str = "",
+        workflow_context: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         使用预定义模板生成页面
 
+        新逻辑：
+        1. 如果模板有 replacement_config，使用 TemplateConfigurator 直接修改模板文件
+        2. 返回模板的固定路径，不再复制模板文件
+        3. 如果没有 replacement_config，回退到旧的复制+注入逻辑
+
         Args:
-            template_info: 模板信息，包含 template_path, name 等
-            data: 要注入的数据
+            template_info: 模板信息，包含 template_path, name, replacement_config 等
+            data: 要注入的数据（旧逻辑使用）
             title: 页面标题
+            workflow_context: 工作流上下文数据（新逻辑使用）
 
         Returns:
             生成的页面URL
+        """
+        import re
+
+        template_path = template_info.get('template_path', '')
+        template_name = template_info.get('name', 'template')
+        replacement_config = template_info.get('replacement_config')
+
+        logger.info(f"使用模板生成页面: {template_name}, 模板路径: {template_path}")
+
+        # 新逻辑：如果有 replacement_config 且有 workflow_context，使用配置器
+        if replacement_config and workflow_context:
+            try:
+                return await self._generate_with_configurator(
+                    template_path=template_path,
+                    replacement_config=replacement_config,
+                    workflow_context=workflow_context
+                )
+            except Exception as e:
+                logger.warning(f"配置器模式失败，回退到旧逻辑: {e}")
+
+        # 旧逻辑：复制模板文件并注入数据
+        return await self._generate_with_copy(
+            template_info=template_info,
+            data=data,
+            title=title
+        )
+
+    async def _generate_with_configurator(
+        self,
+        template_path: str,
+        replacement_config: Dict[str, Any],
+        workflow_context: Dict[str, Any]
+    ) -> str:
+        """
+        使用配置器模式生成页面
+
+        直接修改模板文件中的配置值，不复制模板。
+        """
+        from ..utils.template_configurator import get_template_configurator
+        from ..utils.workflow_context import WorkflowContext
+
+        logger.info("使用配置器模式生成页面")
+
+        # 从字典恢复 WorkflowContext
+        context = WorkflowContext()
+        context.from_dict(workflow_context)
+
+        # 使用配置器注入数据
+        configurator = get_template_configurator()
+        page_url = configurator.configure(
+            template_path=template_path,
+            context=context,
+            replacement_config=replacement_config
+        )
+
+        logger.info(f"配置器模式生成页面成功: {page_url}")
+        return page_url
+
+    async def _generate_with_copy(
+        self,
+        template_info: Dict[str, Any],
+        data: Dict[str, Any],
+        title: str = ""
+    ) -> str:
+        """
+        使用复制模式生成页面（旧逻辑）
+
+        复制模板文件到输出目录，并注入数据到 HTML。
         """
         import re
         import shutil
 
         template_path = template_info.get('template_path', '')
         template_name = template_info.get('name', 'template')
-
-        logger.info(f"使用模板生成页面: {template_name}, 模板路径: {template_path}")
 
         try:
             # 1. 确定模板目录和文件
@@ -937,7 +1010,8 @@ async def generate_report_page(
     title: Optional[str] = None,
     template: Optional[str] = None,
     user_message: str = "",
-    sub_intent: str = ""
+    sub_intent: str = "",
+    workflow_context: Optional[Dict[str, Any]] = None
 ) -> str:
     """
     生成报告页面的便捷函数
@@ -951,6 +1025,7 @@ async def generate_report_page(
         template: 模板名称（可选，用于指定特定模板）
         user_message: 用户原始问题（用于模板匹配）
         sub_intent: 业务子意图（用于模板匹配）
+        workflow_context: 工作流上下文数据（用于配置器模式）
 
     Returns:
         页面URL
@@ -991,14 +1066,15 @@ async def generate_report_page(
         if matched_template and matched_template.get('confidence', 0) >= 0.6:
             logger.info(f"匹配到预定义模板: {matched_template.get('display_name')}, 置信度: {matched_template.get('confidence')}")
 
-            # 准备模板数据
+            # 准备模板数据（旧逻辑使用）
             template_data = _prepare_template_data(report_type, data, matched_template)
 
-            # 使用模板生成页面
+            # 使用模板生成页面（支持新旧两种模式）
             page_url = await generator.generate_page_with_template(
                 template_info=matched_template,
                 data=template_data,
-                title=title or data.get('summary', '')
+                title=title or data.get('summary', ''),
+                workflow_context=workflow_context  # 传递工作流上下文
             )
 
             # 更新模板使用计数

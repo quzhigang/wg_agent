@@ -101,7 +101,7 @@ description: 分析实施过程与计划的偏差，以改进开发流程
 
 ## 输出格式 (Output Format)
 
-将您的分析保存至：`.agents/system-reviews/[feature-name]-review.md`
+将您的分析保存至：`.claude/system-reviews/[feature-name]-review.md`
 
 ### 报告结构
 

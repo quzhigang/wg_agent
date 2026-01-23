@@ -139,6 +139,8 @@ class WebTemplate(Base):
     user_query = Column(Text, nullable=True)  # 触发生成的用户原始问题
     page_title = Column(String(255), nullable=True)  # 页面标题
     conversation_id = Column(String(36), nullable=True)  # 关联的会话ID
+    # 数据注入配置（JSON格式，定义如何从Context提取数据并注入模板）
+    replacement_config = Column(Text, nullable=True)  # 数据替换配置(JSON)
 
 
 # 数据库引擎和会话工厂
