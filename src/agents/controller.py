@@ -236,28 +236,224 @@ class Controller:
     async def _should_generate_web_page(self, state: AgentState) -> bool:
         """
         判断是否需要生成Web页面
-        
+
+        基于内容语义判断，而非简单的数据结构判断。
+
+        生成页面的条件（满足任一）：
+        1. 包含时序数据（过程曲线）
+        2. 包含需要图表展示的多维数据
+        3. 包含地理坐标/地图数据
+        4. 包含图片/文件路径
+        5. 数据量大（列表>5条表格数据）
+        6. 包含预报/预测结果
+
+        不生成页面的条件：
+        1. 单个数值结果（水位、流量等）
+        2. 简单的是/否判断
+        3. 短文本描述
+        4. 纯文本知识库检索结果
+
         Args:
             state: 当前状态
-            
+
         Returns:
             是否需要生成Web页面
         """
+        # 1. 检查执行结果（意图3：BUSINESS）
         execution_results = state.get('execution_results', [])
-        
-        # 快速判断：如果结果中包含大量数据，可能需要Web页面
         for result in execution_results:
-            output = result.get('output')
-            if isinstance(output, (list, dict)):
-                # 如果是列表且长度超过10，或包含时序数据关键字
-                if isinstance(output, list) and len(output) > 10:
+            output = result.get('output') or result.get('result')
+            if self._check_need_web_page(output):
+                logger.debug(f"检测到需要Web页面展示的数据（来自执行结果）")
+                return True
+
+        # 2. 检查知识库检索结果（意图2：KNOWLEDGE）
+        # 知识库检索结果通常是纯文本，不需要页面展示
+        # 但如果检索到的内容包含结构化数据（如表格、图片路径等），则需要页面
+        retrieved_documents = state.get('retrieved_documents', [])
+        if retrieved_documents:
+            # 检查检索结果数量：如果检索到大量文档（>5条），可能需要页面展示
+            if len(retrieved_documents) > 5:
+                logger.debug(f"检索到大量文档（{len(retrieved_documents)}条），建议页面展示")
+                return True
+
+            # 检查文档内容是否包含需要页面展示的数据
+            for doc in retrieved_documents:
+                content = doc.get('content', '')
+                metadata = doc.get('metadata', {})
+
+                # 检查是否包含图片
+                if metadata.get('has_images') or self._content_has_images(content):
+                    logger.debug("检索文档包含图片，需要页面展示")
                     return True
-                if isinstance(output, dict):
-                    # 检查是否包含图表相关的数据结构
-                    if any(key in output for key in ['data', 'series', 'values', 'time_series']):
-                        return True
-        
+
+                # 检查是否包含表格数据（Markdown表格格式）
+                if self._content_has_table(content):
+                    logger.debug("检索文档包含表格，需要页面展示")
+                    return True
+
         return False
+
+    def _content_has_images(self, content: str) -> bool:
+        """检查文本内容是否包含图片引用"""
+        if not content:
+            return False
+        # 检查Markdown图片语法或图片路径
+        image_patterns = ['![', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']
+        content_lower = content.lower()
+        return any(pattern in content_lower for pattern in image_patterns)
+
+    def _content_has_table(self, content: str) -> bool:
+        """检查文本内容是否包含表格"""
+        if not content:
+            return False
+        # 检查Markdown表格语法（至少3行包含|分隔符）
+        lines = content.split('\n')
+        table_lines = [line for line in lines if '|' in line and line.strip().startswith('|')]
+        return len(table_lines) >= 3
+
+    def _check_need_web_page(self, data: Any, depth: int = 0) -> bool:
+        """
+        递归检查数据是否需要Web页面展示
+
+        Args:
+            data: 要检查的数据
+            depth: 递归深度，防止无限递归
+
+        Returns:
+            是否需要Web页面
+        """
+        if depth > 5:  # 防止过深递归
+            return False
+
+        # 1. 空值或简单类型 - 不需要页面
+        if data is None:
+            return False
+        if isinstance(data, bool):
+            return False
+        if isinstance(data, (int, float)):
+            return False
+        if isinstance(data, str):
+            # 检查是否包含图片路径
+            if self._is_image_path(data):
+                return True
+            # 短文本不需要页面
+            return False
+
+        # 2. 列表类型
+        if isinstance(data, list):
+            if len(data) == 0:
+                return False
+            # 表格数据：列表中的元素是字典，且长度>5
+            if len(data) > 5 and isinstance(data[0], dict):
+                return True
+            # 时序数据：检查是否包含时间字段
+            if len(data) > 3 and isinstance(data[0], dict):
+                if self._has_time_series_fields(data[0]):
+                    return True
+            # 递归检查列表元素
+            for item in data[:10]:  # 只检查前10个元素
+                if self._check_need_web_page(item, depth + 1):
+                    return True
+            return False
+
+        # 3. 字典类型
+        if isinstance(data, dict):
+            # 检查是否包含需要图表展示的关键字段
+            if self._has_chart_data_fields(data):
+                return True
+            # 检查是否包含地图数据
+            if self._has_map_data_fields(data):
+                return True
+            # 检查是否包含预报/预测数据
+            if self._has_forecast_fields(data):
+                return True
+            # 检查是否包含图片
+            if self._has_image_fields(data):
+                return True
+            # 检查是否包含时序数据字典
+            if self._has_timeseries_dict_values(data):
+                return True
+            # 递归检查字典值
+            for key, value in data.items():
+                if self._check_need_web_page(value, depth + 1):
+                    return True
+            return False
+
+        return False
+
+    def _has_time_series_fields(self, data: dict) -> bool:
+        """检查是否包含时序数据字段"""
+        time_fields = {'time', 'datetime', 'date', 'timestamp', 'tm', 'dt',
+                       '时间', '日期', 'TM', 'DATETIME'}
+        value_fields = {'value', 'values', 'z', 'q', 'p', 'water_level', 'flow',
+                        'rainfall', '水位', '流量', '雨量', 'Z', 'Q', 'P'}
+
+        keys_lower = {str(k).lower() for k in data.keys()}
+        keys_original = set(str(k) for k in data.keys())
+        all_keys = keys_lower | keys_original
+
+        has_time = bool(time_fields & all_keys)
+        has_value = bool(value_fields & all_keys)
+
+        return has_time and has_value
+
+    def _has_chart_data_fields(self, data: dict) -> bool:
+        """检查是否包含图表数据字段"""
+        chart_fields = {'series', 'datasets', 'chart_data', 'xaxis', 'yaxis',
+                        'categories', 'legend', 'echarts', 'chart'}
+        keys_lower = {str(k).lower() for k in data.keys()}
+        return bool(chart_fields & keys_lower)
+
+    def _has_map_data_fields(self, data: dict) -> bool:
+        """检查是否包含地图数据字段"""
+        map_fields = {'lat', 'lng', 'latitude', 'longitude', 'coordinates',
+                      'coord', 'latlng', 'geo', 'geometry',
+                      '经度', '纬度', 'lgtd', 'lttd'}
+        keys_lower = {str(k).lower() for k in data.keys()}
+        return bool(map_fields & keys_lower)
+
+    def _has_forecast_fields(self, data: dict) -> bool:
+        """检查是否包含预报/预测数据字段"""
+        forecast_fields = {'forecast', 'prediction', 'predicted', 'forecast_data',
+                          'forecast_result', 'predict_result', '预报', '预测',
+                          'future', 'expected', 'projected',
+                          # 水文预报特有字段
+                          'max_inq', 'max_outq', 'max_level', 'max_qischarge',
+                          'inq_dic', 'outq_dic', 'level_dic', 'q_dic', 'z_dic'}
+        keys_lower = {str(k).lower() for k in data.keys()}
+        return bool(forecast_fields & keys_lower)
+
+    def _has_image_fields(self, data: dict) -> bool:
+        """检查是否包含图片字段"""
+        image_fields = {'image', 'img', 'picture', 'photo', 'image_url',
+                        'img_url', 'thumbnail', '图片', '图像'}
+        keys_lower = {str(k).lower() for k in data.keys()}
+        if image_fields & keys_lower:
+            return True
+
+        # 检查值是否为图片路径
+        for value in data.values():
+            if isinstance(value, str) and self._is_image_path(value):
+                return True
+        return False
+
+    def _has_timeseries_dict_values(self, data: dict) -> bool:
+        """检查字典值中是否包含时序数据字典（如 InQ_Dic, Level_Dic 等）"""
+        timeseries_key_patterns = {'_dic', 'dic_', 'series', 'history', 'process'}
+        for key, value in data.items():
+            key_lower = str(key).lower()
+            # 检查键名是否符合时序数据模式
+            if any(pattern in key_lower for pattern in timeseries_key_patterns):
+                if isinstance(value, dict) and len(value) > 3:
+                    return True
+        return False
+
+    def _is_image_path(self, path: str) -> bool:
+        """检查是否为图片路径"""
+        image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp'}
+        path_lower = path.lower()
+        return any(path_lower.endswith(ext) for ext in image_extensions)
     
     async def _generate_web_page_response(
         self,
