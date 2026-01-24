@@ -1473,8 +1473,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_3_analyze_rain_time(self, ctx: Dict, session_params: Dict) -> Dict[str, Any]:
-        """步骤3: 获取具体降雨起止时间"""
+    async def _step_4_analyze_rain_time(self, ctx: Dict, session_params: Dict) -> Dict[str, Any]:
+        """步骤4: 获取具体降雨起止时间"""
         plan_description = session_params.get('plan_description', '')
 
         # 如果有明确的方案描述，跳过此步骤
@@ -1515,8 +1515,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_4_get_plan_id(self, ctx: Dict, session_params: Dict, registry) -> Dict[str, Any]:
-        """步骤4: 获取人工预报方案ID"""
+    async def _step_5_get_plan_id(self, ctx: Dict, session_params: Dict, registry) -> Dict[str, Any]:
+        """步骤5: 获取人工预报方案ID"""
         result = await registry.execute(
             "model_plan_list_all",
             business_code="flood_forecast_wg"
@@ -1554,8 +1554,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_5_get_result(self, ctx: Dict, registry) -> Dict[str, Any]:
-        """步骤5: 获取人工预报结果"""
+    async def _step_6_get_result(self, ctx: Dict, registry) -> Dict[str, Any]:
+        """步骤6: 获取人工预报结果"""
         plan_id = ctx.get('plan_id')
 
         if not plan_id:
@@ -1578,8 +1578,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
             'workflow_context': ctx
         }
 
-    async def _step_6_extract_result(self, ctx: Dict, session_params: Dict) -> Dict[str, Any]:
-        """步骤6: 结果信息提取整理"""
+    async def _step_7_extract_result(self, ctx: Dict, session_params: Dict) -> Dict[str, Any]:
+        """步骤7: 结果信息提取整理"""
         forecast_target = session_params.get('forecast_target', {'type': 'basin', 'name': '全流域'})
         forecast_data = ctx['results'].get('manual_forecast_result')
 

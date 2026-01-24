@@ -13,6 +13,7 @@ from ..config.settings import settings
 from ..config.logging_config import get_logger
 from .base import BaseTool, ToolCategory, ToolParameter, ToolResult
 from .registry import register_tool
+from .auth import LoginTool
 
 logger = get_logger(__name__)
 
@@ -482,7 +483,7 @@ class ModelPlanListAllTool(BaseTool):
         """执行查询全部模拟方案列表"""
         try:
             url = f"{MODEL_PLATFORM_BASE_URL}/model/modelPlan/listAll"
-            
+
             params = {}
             if kwargs.get("plan_code"):
                 params["planCode"] = kwargs.get("plan_code")
@@ -492,9 +493,12 @@ class ModelPlanListAllTool(BaseTool):
                 params["businessCode"] = kwargs.get("business_code")
             if kwargs.get("state"):
                 params["state"] = kwargs.get("state")
-            
+
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
             

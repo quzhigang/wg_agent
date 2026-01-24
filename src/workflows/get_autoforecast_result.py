@@ -822,6 +822,7 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
             'template_name': self.template_name,  # 返回模板名称
             'forecast_target': forecast_target,
             'extracted_result': results.get('extracted_result'),
+            'plan_id': 'model_auto',  # 自动预报固定使用 model_auto
             'next_action': 'respond'
         }
 

@@ -128,6 +128,207 @@ class Controller:
 
         logger.info("Controller初始化完成")
     
+    def prepare_response_context(self, state: AgentState) -> Dict[str, Any]:
+        """
+        准备响应上下文数据
+
+        Args:
+            state: 当前智能体状态
+
+        Returns:
+            包含所有上下文数据的字典
+        """
+        # 格式化执行结果（传入plan用于过滤内部工具）
+        execution_summary = self._format_execution_results(
+            state.get('execution_results', []),
+            state.get('plan', [])
+        )
+
+        # 格式化计划摘要（传入执行结果以推断步骤状态）
+        plan_summary = self._format_plan_summary(
+            state.get('plan', []),
+            state.get('execution_results', [])
+        )
+
+        # 格式化检索文档
+        docs_summary = self._format_documents(
+            state.get('retrieved_documents', [])
+        )
+
+        # 格式化聊天历史（限制最近2轮对话）
+        chat_history_str = self._format_chat_history(state.get('chat_history', []))
+
+        # 整合所有执行结果数据（用于模板数据准备）
+        results = state.get('execution_results', [])
+        combined_data = {}
+        for result in results:
+            if result.get('success'):
+                output = result.get('output') or result.get('result')
+                if isinstance(output, dict):
+                    combined_data.update(output)
+
+        return {
+            "execution_summary": execution_summary,
+            "plan_summary": plan_summary,
+            "docs_summary": docs_summary,
+            "chat_history_str": chat_history_str,
+            "combined_data": combined_data,
+            "results": results
+        }
+
+    async def generate_text_only(self, state: AgentState, context: Dict[str, Any]) -> str:
+        """
+        仅生成文字回复（独立方法，用于并行执行）
+
+        Args:
+            state: 当前智能体状态
+            context: 预先准备的上下文数据
+
+        Returns:
+            文字回复内容
+        """
+        # 检查是否有可复用的文字回复
+        results = context.get('results', [])
+        if results:
+            last_result = results[-1]
+            last_output = last_result.get('output')
+            if last_result.get('success') and isinstance(last_output, str) and len(last_output) > 20:
+                logger.info("复用执行步骤中的LLM总结，跳过重复生成")
+                return last_output
+
+        # 准备上下文变量
+        context_vars = {
+            "chat_history": context.get('chat_history_str') or "无",
+            "user_message": state.get('user_message', ''),
+            "intent": state.get('intent', 'unknown'),
+            "plan_summary": context.get('plan_summary') or "无执行计划",
+            "execution_results": context.get('execution_summary') or "无执行结果",
+            "retrieved_documents": context.get('docs_summary') or "无相关知识"
+        }
+
+        try:
+            import time
+            _start = time.time()
+            response = await self.response_chain.ainvoke(context_vars)
+            _elapsed = time.time() - _start
+
+            # 记录LLM调用日志
+            full_prompt = RESPONSE_GENERATION_PROMPT.format(**context_vars)
+            log_llm_call(
+                step_name="文字响应生成",
+                module_name="Controller.generate_text_only",
+                prompt_template_name="RESPONSE_GENERATION_PROMPT",
+                context_variables=context_vars,
+                full_prompt=full_prompt,
+                response=response.content,
+                elapsed_time=_elapsed
+            )
+
+            logger.info("LLM生成文字回复成功")
+            return response.content
+
+        except Exception as e:
+            logger.warning(f"LLM生成文字回复失败: {e}")
+            return f"根据您的查询，系统已完成处理。\n\n{context.get('execution_summary', '')}"
+
+    async def generate_page_only(self, state: AgentState, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        仅生成页面（独立方法，用于并行执行）
+
+        Args:
+            state: 当前智能体状态
+            context: 预先准备的上下文数据
+
+        Returns:
+            包含页面URL或错误信息的字典
+        """
+        try:
+            results = context.get('results', [])
+            combined_data = context.get('combined_data', {})
+            execution_summary = context.get('execution_summary', '')
+
+            sub_intent = state.get('business_sub_intent', '')
+            user_message = state.get('user_message', '')
+
+            template_match_service = get_template_match_service()
+            matched_template = await template_match_service.match_template(
+                user_message=user_message,
+                sub_intent=sub_intent,
+                execution_results=results,
+                execution_summary=execution_summary
+            )
+
+            # 如果匹配到模板且置信度足够高，使用模板生成页面
+            if matched_template and matched_template.get('confidence', 0) >= 0.7:
+                logger.info(f"匹配到模板: {matched_template.get('display_name')}, 置信度: {matched_template.get('confidence')}")
+
+                # 检查是否为动态模板且有HTML内容（直接复用）
+                if matched_template.get('is_dynamic') and matched_template.get('html_content'):
+                    logger.info(f"复用动态模板HTML内容: {matched_template.get('display_name')}")
+
+                    page_generator = get_page_generator()
+                    page_url = await page_generator.save_html_content(
+                        html_content=matched_template['html_content'],
+                        title=matched_template.get('page_title') or self._generate_page_title(state)
+                    )
+
+                    template_match_service.increment_use_count(matched_template.get('id'), success=True)
+                    logger.info(f"动态模板复用成功: {page_url}")
+
+                    return {
+                        "page_url": page_url,
+                        "template_used": matched_template.get('display_name'),
+                        "template_reused": True,
+                        "success": True
+                    }
+
+                # 预定义模板：使用模板生成页面
+                template_data = self._prepare_template_data(state, combined_data, matched_template)
+
+                page_generator = get_page_generator()
+                page_url = await page_generator.generate_page_with_template(
+                    template_info=matched_template,
+                    data=template_data,
+                    title=self._generate_page_title(state)
+                )
+
+                template_match_service.increment_use_count(matched_template.get('id'), success=True)
+                logger.info(f"使用模板生成页面成功: {page_url}")
+
+                return {
+                    "page_url": page_url,
+                    "template_used": matched_template.get('display_name'),
+                    "success": True
+                }
+
+            # 未匹配到模板，使用动态生成
+            logger.info("未匹配到预定义模板，使用 DynamicPageGenerator 动态生成页面")
+
+            # 创建上下文收集器
+            collector = create_collector_from_state(state)
+
+            # 获取生成器实例
+            generator = get_dynamic_page_generator()
+
+            # 生成页面
+            page_url = await generator.generate(
+                conversation_context=collector.to_frontend_format()
+            )
+
+            return {
+                "page_url": page_url,
+                "template_used": "dynamic_generated",
+                "success": True
+            }
+
+        except Exception as e:
+            logger.error(f"页面生成失败: {e}")
+            return {
+                "page_url": None,
+                "success": False,
+                "error": str(e)
+            }
+
     async def synthesize_response(self, state: AgentState) -> Dict[str, Any]:
         """
         合成最终响应
@@ -141,25 +342,9 @@ class Controller:
         logger.info("开始合成最终响应...")
 
         try:
-            # 格式化执行结果（传入plan用于过滤内部工具）
-            execution_summary = self._format_execution_results(
-                state.get('execution_results', []),
-                state.get('plan', [])
-            )
-
-            # 格式化计划摘要（传入执行结果以推断步骤状态）
-            plan_summary = self._format_plan_summary(
-                state.get('plan', []),
-                state.get('execution_results', [])
-            )
-
-            # 格式化检索文档
-            docs_summary = self._format_documents(
-                state.get('retrieved_documents', [])
-            )
-
-            # 格式化聊天历史（限制最近2轮对话）
-            chat_history_str = self._format_chat_history(state.get('chat_history', []))
+            # 准备上下文数据
+            context = self.prepare_response_context(state)
+            execution_summary = context['execution_summary']
 
             # 检查工作流是否已经生成了页面URL
             workflow_page_url = state.get('generated_page_url')
@@ -178,51 +363,39 @@ class Controller:
             # 检查是否需要生成Web页面
             output_type = state.get('output_type', 'text')
 
-            if output_type == OutputType.WEB_PAGE.value or await self._should_generate_web_page(state):
-                # 需要生成Web页面（异步模式）
-                response = await self._generate_web_page_response(state, execution_summary)
+            # 使用短路求值：如果 output_type 已经是 web_page，就不需要调用 _should_generate_web_page
+            if output_type == OutputType.WEB_PAGE.value:
+                need_web_page = True
+            else:
+                need_web_page = await self._should_generate_web_page(state)
+
+            if need_web_page:
+                # 需要生成Web页面 - 返回标记，让 graph 并行处理
+                # 将需要的状态字段添加到返回值中，供 generate_page_only 使用
                 return {
                     "output_type": OutputType.WEB_PAGE.value,
-                    "final_response": response['text_response'],
-                    "generated_page_url": response.get('page_url'),
-                    "page_task_id": response.get('page_task_id'),
-                    "page_generating": response.get('page_generating', False),
-                    "next_action": "end"
+                    "need_parallel_generation": True,
+                    "response_context": context,
+                    "next_action": "parallel_generate",
+                    # 传递 generate_page_only 需要的状态字段
+                    "business_sub_intent": state.get('business_sub_intent', ''),
+                    "user_message": state.get('user_message', ''),
+                    "forecast_target": state.get('forecast_target', {}),
+                    "extracted_result": state.get('extracted_result', {}),
+                    "workflow_context": state.get('workflow_context', {}),
+                    "intent": state.get('intent', ''),
+                    # 传递方案ID（所有工作流统一输出为 plan_id）
+                    "plan_id": state.get('plan_id'),
                 }
 
-            # 准备上下文变量
-            context_vars = {
-                "chat_history": chat_history_str or "无",
-                "user_message": state.get('user_message', ''),
-                "intent": state.get('intent', 'unknown'),
-                "plan_summary": plan_summary or "无执行计划",
-                "execution_results": execution_summary or "无执行结果",
-                "retrieved_documents": docs_summary or "无相关知识"
-            }
+            # 不需要页面，只生成文字回复
+            text_response = await self.generate_text_only(state, context)
 
-            # 生成文本响应
-            import time
-            _start = time.time()
-            response = await self.response_chain.ainvoke(context_vars)
-            _elapsed = time.time() - _start
-
-            # 记录LLM调用日志
-            full_prompt = RESPONSE_GENERATION_PROMPT.format(**context_vars)
-            log_llm_call(
-                step_name="响应合成",
-                module_name="Controller.synthesize_response",
-                prompt_template_name="RESPONSE_GENERATION_PROMPT",
-                context_variables=context_vars,
-                full_prompt=full_prompt,
-                response=response.content,
-                elapsed_time=_elapsed
-            )
-
-            logger.info("响应合成完成")
+            logger.info("响应合成完成（纯文字）")
 
             return {
                 "output_type": OutputType.TEXT.value,
-                "final_response": response.content,
+                "final_response": text_response,
                 "next_action": "end"
             }
 
@@ -456,203 +629,6 @@ class Controller:
         image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp'}
         path_lower = path.lower()
         return any(path_lower.endswith(ext) for ext in image_extensions)
-    
-    async def _generate_web_page_response(
-        self,
-        state: AgentState,
-        execution_summary: str
-    ) -> Dict[str, Any]:
-        """
-        生成Web页面响应（支持模板匹配）
-
-        优先尝试匹配预定义模板，如果匹配成功则使用模板生成页面；
-        否则回退到异步动态生成模式。
-
-        Args:
-            state: 当前状态
-            execution_summary: 执行结果摘要
-
-        Returns:
-            包含文本响应和页面URL/任务ID的字典
-        """
-        logger.info("准备生成Web页面...")
-
-        # 先生成文字回复（不阻塞）
-        text_response = None
-        results = state.get('execution_results', [])
-
-        # 检查最后一步是否已经是LLM生成的文字总结
-        if results:
-            last_result = results[-1]
-            last_output = last_result.get('output')
-            if last_result.get('success') and isinstance(last_output, str) and len(last_output) > 20:
-                text_response = last_output
-                logger.info("复用执行步骤中的LLM总结，跳过重复生成")
-
-        if not text_response:
-            # 需要LLM生成文字回复
-            docs_summary = self._format_documents(state.get('retrieved_documents', []))
-            plan_summary = self._format_plan_summary(
-                state.get('plan', []),
-                state.get('execution_results', [])
-            )
-
-            try:
-                chat_history_str = self._format_chat_history(state.get('chat_history', []))
-                web_context_vars = {
-                    "chat_history": chat_history_str or "无",
-                    "user_message": state.get('user_message', ''),
-                    "intent": state.get('intent', 'unknown'),
-                    "plan_summary": plan_summary or "无执行计划",
-                    "execution_results": execution_summary or "无执行结果",
-                    "retrieved_documents": docs_summary or "无相关知识"
-                }
-
-                import time
-                _start = time.time()
-                llm_response = await self.response_chain.ainvoke(web_context_vars)
-                _elapsed = time.time() - _start
-                text_response = llm_response.content
-
-                full_prompt = RESPONSE_GENERATION_PROMPT.format(**web_context_vars)
-                log_llm_call(
-                    step_name="Web页面响应合成",
-                    module_name="Controller._generate_web_page_response",
-                    prompt_template_name="RESPONSE_GENERATION_PROMPT",
-                    context_variables=web_context_vars,
-                    full_prompt=full_prompt,
-                    response=text_response,
-                    elapsed_time=_elapsed
-                )
-                logger.info("LLM生成文字回复成功")
-            except Exception as llm_error:
-                logger.warning(f"LLM生成文字回复失败，使用默认模板: {llm_error}")
-                text_response = f"""根据您的查询，系统正在为您生成详细报告。
-
-{execution_summary}
-
-报告生成中，请稍候..."""
-
-        # 整合所有执行结果数据
-        combined_data = {}
-        for result in results:
-            if result.get('success'):
-                output = result.get('output') or result.get('result')
-                if isinstance(output, dict):
-                    combined_data.update(output)
-
-        # 尝试模板匹配
-        try:
-            sub_intent = state.get('business_sub_intent', '')
-            user_message = state.get('user_message', '')
-
-            template_match_service = get_template_match_service()
-            matched_template = await template_match_service.match_template(
-                user_message=user_message,
-                sub_intent=sub_intent,
-                execution_results=results,
-                execution_summary=execution_summary
-            )
-
-            # 如果匹配到模板且置信度足够高，使用模板生成页面
-            if matched_template and matched_template.get('confidence', 0) >= 0.7:
-                logger.info(f"匹配到模板: {matched_template.get('display_name')}, 置信度: {matched_template.get('confidence')}")
-
-                # 检查是否为动态模板且有HTML内容（直接复用）
-                if matched_template.get('is_dynamic') and matched_template.get('html_content'):
-                    logger.info(f"复用动态模板HTML内容: {matched_template.get('display_name')}")
-
-                    # 保存HTML内容到文件
-                    page_generator = get_page_generator()
-                    page_url = await page_generator.save_html_content(
-                        html_content=matched_template['html_content'],
-                        title=matched_template.get('page_title') or self._generate_page_title(state)
-                    )
-
-                    # 更新模板使用计数
-                    template_match_service.increment_use_count(matched_template.get('id'), success=True)
-
-                    logger.info(f"动态模板复用成功: {page_url}")
-
-                    return {
-                        "text_response": text_response,
-                        "page_url": page_url,
-                        "page_task_id": None,
-                        "page_generating": False,
-                        "template_used": matched_template.get('display_name'),
-                        "template_reused": True
-                    }
-
-                # 预定义模板：使用模板生成页面
-                # 准备模板数据
-                template_data = self._prepare_template_data(state, combined_data, matched_template)
-
-                # 使用模板生成页面
-                page_generator = get_page_generator()
-                page_url = await page_generator.generate_page_with_template(
-                    template_info=matched_template,
-                    data=template_data,
-                    title=self._generate_page_title(state)
-                )
-
-                # 更新模板使用计数
-                template_match_service.increment_use_count(matched_template.get('id'), success=True)
-
-                logger.info(f"使用模板生成页面成功: {page_url}")
-
-                return {
-                    "text_response": text_response,
-                    "page_url": page_url,
-                    "page_task_id": None,
-                    "page_generating": False,
-                    "template_used": matched_template.get('display_name')
-                }
-
-        except Exception as template_error:
-            logger.warning(f"模板匹配或生成失败，回退到动态生成: {template_error}")
-
-        # 回退：使用 DynamicPageGenerator 动态生成页面
-        try:
-            logger.info("未匹配到预定义模板，使用 DynamicPageGenerator 动态生成页面")
-            
-            # 1. 创建上下文收集器
-            collector = create_collector_from_state(state)
-            
-            # 2. 获取生成器实例
-            generator = get_dynamic_page_generator()
-            
-            # 3. 生成页面 (传递前端格式的上下文)
-            page_url = await generator.generate(
-                conversation_context=collector.to_frontend_format()
-            )
-            
-            return {
-                "text_response": text_response or "已为您生成详细的分析报告页面，请点击查看。",
-                "page_url": page_url,
-                "page_task_id": None,
-                "page_generating": False,
-                "template_used": "dynamic_generated"
-            }
-
-        except Exception as e:
-            logger.error(f"动态页面生成失败: {e}")
-            return {
-                "text_response": text_response,
-                "page_url": None,
-                "page_task_id": None,
-                "page_generating": False,
-                "page_error": str(e)
-            }
-
-        except Exception as e:
-            logger.error(f"提交页面生成任务失败: {e}")
-            return {
-                "text_response": text_response,
-                "page_url": None,
-                "page_task_id": None,
-                "page_generating": False,
-                "page_error": str(e)
-            }
 
     def _prepare_template_data(
         self,
@@ -664,6 +640,7 @@ class Controller:
         准备模板所需的数据
 
         根据模板类型和执行结果，构建符合模板要求的数据结构。
+        包含预定义模板所需的关键参数（planCode, token, stcd 等）。
 
         Args:
             state: 当前状态
@@ -676,6 +653,7 @@ class Controller:
         template_name = template_info.get('name', '')
         forecast_target = state.get('forecast_target', {})
         extracted_result = state.get('extracted_result', {})
+        workflow_context = state.get('workflow_context', {})
 
         # 基础数据
         data = {
@@ -684,10 +662,46 @@ class Controller:
             "sub_intent": state.get('business_sub_intent', ''),
         }
 
+        # 从 workflow_context 中提取关键参数（用于预定义模板）
+        # workflow_context 可能有多种结构：
+        # 1. ctx 结构: {'auth_token': ..., 'results': {...}, 'context_data': {'steps': {...}}}
+        # 2. context_data 结构: {'inputs': {}, 'steps': {...}, 'state': {}}
+        steps_data = {}
+        if isinstance(workflow_context, dict):
+            # 尝试从 context_data.steps 获取（ctx 结构）
+            if 'context_data' in workflow_context:
+                steps_data = workflow_context.get('context_data', {}).get('steps', {})
+            # 尝试直接从 steps 获取（context_data 结构）
+            elif 'steps' in workflow_context:
+                steps_data = workflow_context.get('steps', {})
+
+            # 如果 steps_data 为空，尝试从 results 中提取 token
+            if not steps_data.get('login') and 'results' in workflow_context:
+                results = workflow_context.get('results', {})
+                if results.get('auth_token'):
+                    data['token'] = results['auth_token']
+
+        # 提取 token
+        login_data = steps_data.get('login', {})
+        if login_data.get('token'):
+            data['token'] = login_data['token']
+
+        # 提取 planCode（所有工作流统一输出为 plan_id）
+        plan_id = state.get('plan_id')
+        logger.info(f"提取 planCode: plan_id={plan_id}")
+        if plan_id:
+            data['planCode'] = plan_id
+        else:
+            # 回退：尝试从 steps_data 中获取
+            forecast_step = steps_data.get('forecast', {})
+            if forecast_step.get('planCode'):
+                data['planCode'] = forecast_step['planCode']
+
         # 根据模板类型准备数据
-        if template_name == 'res_flood_forecast':
+        if template_name in ['res_flood_forecast', 'res_flood_resultshow']:
             # 水库洪水预报模板
             target_name = forecast_target.get('name', '盘石头水库')
+            data["reservoirName"] = target_name
             data["reservoir_name"] = target_name
 
             # 从 extracted_result 或 combined_data 获取水库预报数据
@@ -698,8 +712,13 @@ class Controller:
                 reservoir_result = combined_data.get('reservoir_result', {})
                 reservoir_data = reservoir_result.get(target_name, {})
 
+            data["data"] = reservoir_data
             data["reservoir_result"] = reservoir_data
             data["result_desc"] = extracted_result.get('summary', '') or combined_data.get('result_desc', '')
+
+            # 提取 stcd
+            if reservoir_data.get('Stcd'):
+                data['stcd'] = reservoir_data['Stcd']
 
             # 降雨数据
             data["rain_data"] = combined_data.get('rain_data', [])
@@ -1216,15 +1235,16 @@ class Controller:
 
             if success:
                 # 检查是否需要轻量化处理
+                # 对于所有包含大量时序数据的结果都进行轻量化处理
                 need_lightweight = tool_name in LIGHTWEIGHT_TOOLS
 
                 # 格式化输出
                 if isinstance(output, dict):
                     # 过滤敏感字段
                     filtered_output = self._filter_sensitive_fields(output)
-                    # 对特定工具进行轻量化处理
-                    if need_lightweight:
-                        filtered_output = self._lightweight_timeseries_data(filtered_output)
+                    # 对所有字典类型的输出进行轻量化处理（不仅仅是特定工具）
+                    # 这样可以避免大量时序数据导致的性能问题
+                    filtered_output = self._lightweight_timeseries_data(filtered_output)
                     output_str = self._format_dict_output(filtered_output)
                 elif isinstance(output, list):
                     output_str = self._format_list_output(output)

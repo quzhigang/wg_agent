@@ -243,6 +243,23 @@ async def chat_stream(request: ChatRequest, db: Session = Depends(get_db)):
                         event_data["step_id"] = event.get("step_id", 0)
                         event_data["success"] = event.get("success", True)
                         event_data["result_summary"] = event.get("result_summary", "")
+                    elif event_type == "page_generating":
+                        # 页面开始生成事件
+                        event_data["generating"] = event.get("generating", True)
+                    elif event_type == "final_text":
+                        # 文字回复完成事件 - 立即发送给前端
+                        full_response = event.get("response", "")
+                        output_type = event.get("output_type", "web_page")
+                        event_data["data"] = full_response
+                        event_data["output_type"] = output_type
+                    elif event_type == "final_page":
+                        # 页面生成完成事件
+                        page_url = event.get("page_url")
+                        event_data["page_url"] = page_url
+                        event_data["template_used"] = event.get("template_used", "")
+                    elif event_type == "page_error":
+                        # 页面生成失败事件
+                        event_data["error"] = event.get("error", "页面生成失败")
                     
                     step_data = json.dumps(event_data, ensure_ascii=False)
                     yield f"data: {step_data}\n\n"

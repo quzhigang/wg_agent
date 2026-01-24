@@ -10,8 +10,8 @@
 </head>
 <body>
     <div class="layout-grid">
-        <div class="iframe-container">
-            <iframe id="mainContentFrame" src="res_module/index.html" frameborder="0"></iframe>
+        <div class="iframe-container collapsed">
+            <iframe id="mainContentFrame" src="about:blank" frameborder="0"></iframe>
         </div>
         <div class="resizer resizer-h" id="resizer-sidebar"></div>
         <aside class="left-sidebar">
@@ -362,10 +362,42 @@
                         }
                         break;
                     case 'content':
+                        // 兼容旧逻辑（文字+页面一起返回）
                         if (data.data) {
                             ui.finalAnswer.innerHTML = renderMarkdown(data.data);
-                            if (data.page_url) mainContentFrame.src = data.page_url;
                         }
+                        if (data.page_url) {
+                            mainContentFrame.src = data.page_url;
+                            // 触发展开动画
+                            if (window.expandIframePanel) {
+                                window.expandIframePanel();
+                            }
+                        }
+                        break;
+                    case 'page_generating':
+                        // 页面开始生成，可以显示loading提示（可选）
+                        console.log('[DEBUG] 页面生成中...');
+                        break;
+                    case 'final_text':
+                        // 文字回复完成，立即显示（不等待页面）
+                        if (data.data) {
+                            ui.finalAnswer.innerHTML = renderMarkdown(data.data);
+                            scrollToBottom();
+                        }
+                        break;
+                    case 'final_page':
+                        // 页面生成完成，更新iframe并展开
+                        if (data.page_url) {
+                            mainContentFrame.src = data.page_url;
+                            // 触发展开动画
+                            if (window.expandIframePanel) {
+                                window.expandIframePanel();
+                            }
+                        }
+                        break;
+                    case 'page_error':
+                        // 页面生成失败，显示提示
+                        console.warn('[WARN] 页面生成失败:', data.error);
                         break;
                     case 'done':
                         if (ui.executionProcess) ui.executionProcess.classList.add('collapsed');
@@ -386,7 +418,11 @@
             document.getElementById('newChatBtn').addEventListener('click', () => {
                 currentConversationId = null;
                 logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 开启新对话...</span></li>';
-                mainContentFrame.src = 'res_module/index.html';
+                mainContentFrame.src = 'about:blank';
+                // 新对话时折叠左侧iframe
+                if (window.collapseIframePanel) {
+                    window.collapseIframePanel();
+                }
             });
 
             document.getElementById('historyBtn').addEventListener('click', async () => {

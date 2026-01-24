@@ -35,7 +35,7 @@ QUICK_CHAT_PROMPT = """你是卫共流域数字孪生系统的智能助手"小�
 请用简洁友好的语气回复用户，回复不要太长（控制在100字以内）。"""
 
 
-def should_continue(state: AgentState) -> Literal["plan", "execute", "workflow", "respond", "wait_async", "end"]:
+def should_continue(state: AgentState) -> Literal["plan", "execute", "workflow", "respond", "wait_async", "generate_text", "end"]:
     """
     路由函数：决定下一步动作
 
@@ -59,6 +59,10 @@ def should_continue(state: AgentState) -> Literal["plan", "execute", "workflow",
     # 支持 workflow 节点的循环执行
     if next_action == 'workflow':
         return "workflow"
+
+    # 支持并行生成路由
+    if next_action == 'parallel_generate':
+        return "generate_text"
 
     return next_action
 
@@ -505,6 +509,43 @@ async def async_wait_node(state: AgentState) -> Dict[str, Any]:
     }
 
 
+async def generate_text_node(state: AgentState) -> Dict[str, Any]:
+    """
+    文字生成节点（独立节点，用于并行执行）
+
+    仅负责生成文字回复，与页面生成并行执行。
+    """
+    logger.info("执行文字生成节点...")
+
+    controller = get_controller()
+
+    # 获取预先准备的上下文（由 respond 节点传递）
+    context = state.get('response_context', {})
+
+    # 如果没有上下文，重新准备
+    if not context:
+        context = controller.prepare_response_context(state)
+
+    try:
+        text_response = await controller.generate_text_only(state, context)
+        logger.info("文字生成节点完成")
+
+        return {
+            "final_response": text_response,
+            "text_generated": True,
+            "next_action": "end"
+        }
+
+    except Exception as e:
+        logger.error(f"文字生成节点失败: {e}")
+        return {
+            "final_response": f"抱歉，生成回复时遇到问题: {str(e)}",
+            "text_generated": True,
+            "error": str(e),
+            "next_action": "end"
+        }
+
+
 def plan_router(state: AgentState) -> str:
     """
     规划节点路由函数（第1阶段：意图分类后的路由）
@@ -567,6 +608,8 @@ def create_agent_graph() -> StateGraph:
     - 第3类 business:
         - plan → sub_intent → workflow_match → workflow → respond → END (模板匹配)
         - plan → sub_intent → workflow_match → execute → respond → END (动态规划)
+    - 需要页面时的并行生成:
+        - respond → generate_text → END (文字回复，页面在流式输出中异步生成)
 
     Returns:
         配置好的StateGraph实例
@@ -586,6 +629,7 @@ def create_agent_graph() -> StateGraph:
     workflow.add_node("execute", executor_node)
     workflow.add_node("wait_async", async_wait_node)
     workflow.add_node("respond", controller_node)
+    workflow.add_node("generate_text", generate_text_node)     # 文字生成节点（并行）
 
     # 设置入口点
     workflow.set_entry_point("plan")
@@ -630,6 +674,7 @@ def create_agent_graph() -> StateGraph:
             "wait_async": "wait_async", # 等待异步任务
             "respond": "respond",       # 工作流执行完成，直接响应
             "plan": "plan",
+            "generate_text": "generate_text",  # 并行生成文字
             "end": END
         }
     )
@@ -644,6 +689,7 @@ def create_agent_graph() -> StateGraph:
             "wait_async": "wait_async",
             "respond": "respond",
             "plan": "plan",
+            "generate_text": "generate_text",  # 并行生成文字
             "end": END
         }
     )
@@ -651,8 +697,24 @@ def create_agent_graph() -> StateGraph:
     # 异步等待后生成响应
     workflow.add_edge("wait_async", "respond")
 
-    # 响应节点结束
-    workflow.add_edge("respond", END)
+    # 响应节点的条件路由（支持并行生成）
+    def respond_router(state: AgentState) -> str:
+        """响应节点路由：判断是否需要并行生成"""
+        if state.get('need_parallel_generation'):
+            return "generate_text"
+        return "end"
+
+    workflow.add_conditional_edges(
+        "respond",
+        respond_router,
+        {
+            "generate_text": "generate_text",
+            "end": END
+        }
+    )
+
+    # 文字生成节点完成后结束（页面生成在流式输出中异步处理）
+    workflow.add_edge("generate_text", END)
 
     logger.info("智能体状态图创建完成")
 
@@ -819,13 +881,49 @@ async def run_agent_stream(
     }
     
     controller = get_controller()
-    
+
     # 用于跟踪已发送的步骤
     sent_steps = set()
     last_step_index = -1
-    
+
+    # 用于存储并行页面生成任务
+    pending_page_task = None
+    page_result_sent = False  # 标记页面结果是否已发送
+
     try:
         async for event in graph.astream(initial_state, config):
+            # 在每次迭代开始时，检查页面任务是否已完成（实现页面先于文字返回）
+            if pending_page_task is not None and not page_result_sent and pending_page_task.done():
+                try:
+                    page_result = pending_page_task.result()
+                    if page_result.get('success') and page_result.get('page_url'):
+                        yield {
+                            "type": "final_page",
+                            "node": "generate_page",
+                            "page_url": page_result.get('page_url'),
+                            "template_used": page_result.get('template_used'),
+                            "progress": {"type": "progress", "data": {"status": "page_ready"}},
+                            "state": {
+                                "page_generated": True
+                            }
+                        }
+                    else:
+                        yield {
+                            "type": "page_error",
+                            "node": "generate_page",
+                            "error": page_result.get('error', '页面生成失败'),
+                            "progress": {"type": "progress", "data": {"status": "page_error"}}
+                        }
+                except Exception as page_err:
+                    logger.error(f"页面生成任务异常: {page_err}")
+                    yield {
+                        "type": "page_error",
+                        "node": "generate_page",
+                        "error": str(page_err),
+                        "progress": {"type": "progress", "data": {"status": "page_error"}}
+                    }
+                page_result_sent = True
+
             # 获取当前节点和状态
             for node_name, node_output in event.items():
                 # 格式化流式响应
@@ -1021,9 +1119,29 @@ async def run_agent_stream(
                         }
 
                 elif node_name == "respond":
-                    # 响应节点 - 发送最终响应
-                    if node_output.get('final_response'):
-                        # 结束LLM提示词日志会话
+                    # 响应节点 - 检查是否需要并行生成
+                    if node_output.get('need_parallel_generation'):
+                        # 需要并行生成，发送 page_generating 事件
+                        yield {
+                            "type": "page_generating",
+                            "node": node_name,
+                            "generating": True,
+                            "progress": progress,
+                            "state": {
+                                "intent": node_output.get('intent'),
+                                "next_action": "parallel_generate"
+                            }
+                        }
+                        # 启动异步页面生成任务
+                        import asyncio
+                        _page_context = node_output.get('response_context', {})
+                        # 创建页面生成任务（不等待），存储到外层变量
+                        pending_page_task = asyncio.create_task(
+                            controller.generate_page_only(node_output, _page_context)
+                        )
+                        page_result_sent = False  # 标记页面结果是否已发送
+                    elif node_output.get('final_response'):
+                        # 直接有最终响应（不需要并行生成）
                         end_session()
                         yield {
                             "node": "final",
@@ -1033,6 +1151,95 @@ async def run_agent_stream(
                             "page_task_id": node_output.get('page_task_id'),
                             "page_generating": node_output.get('page_generating', False)
                         }
+
+                elif node_name == "generate_text":
+                    # 文字生成节点 - 发送 final_text 事件
+                    text_generated = False
+                    if node_output.get('final_response'):
+                        # 在发送文字前，先检查页面是否已完成（页面可能比文字快）
+                        if pending_page_task is not None and not page_result_sent:
+                            if pending_page_task.done():
+                                # 页面已完成，先发送页面结果
+                                try:
+                                    page_result = pending_page_task.result()
+                                    if page_result.get('success') and page_result.get('page_url'):
+                                        yield {
+                                            "type": "final_page",
+                                            "node": "generate_page",
+                                            "page_url": page_result.get('page_url'),
+                                            "template_used": page_result.get('template_used'),
+                                            "progress": progress,
+                                            "state": {
+                                                "page_generated": True
+                                            }
+                                        }
+                                    else:
+                                        yield {
+                                            "type": "page_error",
+                                            "node": "generate_page",
+                                            "error": page_result.get('error', '页面生成失败'),
+                                            "progress": progress
+                                        }
+                                except Exception as page_err:
+                                    logger.error(f"页面生成任务异常: {page_err}")
+                                    yield {
+                                        "type": "page_error",
+                                        "node": "generate_page",
+                                        "error": str(page_err),
+                                        "progress": progress
+                                    }
+                                page_result_sent = True
+
+                        # 发送文字回复
+                        yield {
+                            "type": "final_text",
+                            "node": node_name,
+                            "response": node_output.get('final_response'),
+                            "output_type": "web_page",
+                            "progress": progress,
+                            "state": {
+                                "intent": node_output.get('intent'),
+                                "text_generated": True,
+                                "next_action": node_output.get('next_action')
+                            }
+                        }
+                        text_generated = True
+
+                        # 如果页面还没发送，等待页面完成
+                        if pending_page_task is not None and not page_result_sent:
+                            try:
+                                # 等待页面生成完成
+                                page_result = await pending_page_task
+                                if page_result.get('success') and page_result.get('page_url'):
+                                    yield {
+                                        "type": "final_page",
+                                        "node": "generate_page",
+                                        "page_url": page_result.get('page_url'),
+                                        "template_used": page_result.get('template_used'),
+                                        "progress": progress,
+                                        "state": {
+                                            "page_generated": True
+                                        }
+                                    }
+                                else:
+                                    yield {
+                                        "type": "page_error",
+                                        "node": "generate_page",
+                                        "error": page_result.get('error', '页面生成失败'),
+                                        "progress": progress
+                                    }
+                            except Exception as page_err:
+                                logger.error(f"页面生成任务异常: {page_err}")
+                                yield {
+                                    "type": "page_error",
+                                    "node": "generate_page",
+                                    "error": str(page_err),
+                                    "progress": progress
+                                }
+                            page_result_sent = True
+
+                        # 结束会话
+                        end_session()
 
                 elif node_name == "workflow":
                     # 工作流节点 - 发送步骤完成事件（前端自动处理闪烁）

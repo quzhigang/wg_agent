@@ -1377,7 +1377,7 @@ class GetHistoryAutoForecastResultWorkflow(BaseWorkflow):
             'workflow_status': 'completed',
             'output_type': self.output_type,
             'forecast_target': forecast_target,
-            'history_plan_id': ctx.get('history_plan_id'),
+            'plan_id': ctx.get('history_plan_id'),  # 统一输出为 plan_id
             'extracted_result': results.get('extracted_result'),
             'next_action': 'respond'
         }

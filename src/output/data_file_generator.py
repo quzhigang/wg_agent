@@ -618,7 +618,7 @@ class PageConfigBuilder:
             "layout": {},
             "components": {},
             "api_config": {},
-            "static_data": ,
+            "static_data": {},
             "context_data": {}
         }
 

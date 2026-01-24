@@ -835,16 +835,16 @@ class PageGenerator:
         """
         使用预定义模板生成页面
 
-        新逻辑：
-        1. 如果模板有 replacement_config，使用 TemplateConfigurator 直接修改模板文件
-        2. 返回模板的固定路径，不再复制模板文件
-        3. 如果没有 replacement_config，回退到旧的复制+注入逻辑
+        核心逻辑：
+        1. 预定义模板（is_dynamic=False）：直接修改模板的 main.js 参数，返回模板固定路径
+        2. 动态模板（is_dynamic=True）：复制模板并注入数据
+        3. 如果有 replacement_config + workflow_context，使用 TemplateConfigurator
 
         Args:
-            template_info: 模板信息，包含 template_path, name, replacement_config 等
-            data: 要注入的数据（旧逻辑使用）
+            template_info: 模板信息，包含 template_path, name, replacement_config, is_dynamic 等
+            data: 要注入的数据
             title: 页面标题
-            workflow_context: 工作流上下文数据（新逻辑使用）
+            workflow_context: 工作流上下文数据
 
         Returns:
             生成的页面URL
@@ -854,10 +854,11 @@ class PageGenerator:
         template_path = template_info.get('template_path', '')
         template_name = template_info.get('name', 'template')
         replacement_config = template_info.get('replacement_config')
+        is_dynamic = template_info.get('is_dynamic', False)
 
-        logger.info(f"使用模板生成页面: {template_name}, 模板路径: {template_path}")
+        logger.info(f"使用模板生成页面: {template_name}, 模板路径: {template_path}, is_dynamic: {is_dynamic}")
 
-        # 新逻辑：如果有 replacement_config 且有 workflow_context，使用配置器
+        # 方式1：如果有 replacement_config 且有 workflow_context，使用配置器
         if replacement_config and workflow_context:
             try:
                 return await self._generate_with_configurator(
@@ -866,9 +867,19 @@ class PageGenerator:
                     workflow_context=workflow_context
                 )
             except Exception as e:
-                logger.warning(f"配置器模式失败，回退到旧逻辑: {e}")
+                logger.warning(f"配置器模式失败，回退到其他逻辑: {e}")
 
-        # 旧逻辑：复制模板文件并注入数据
+        # 方式2：预定义模板（非动态），直接修改 main.js 参数，返回固定路径
+        if not is_dynamic and data:
+            try:
+                return await self._update_predefined_template(
+                    template_info=template_info,
+                    data=data
+                )
+            except Exception as e:
+                logger.warning(f"预定义模板参数更新失败，回退到复制模式: {e}")
+
+        # 方式3：回退到复制模板文件并注入数据（旧逻辑）
         return await self._generate_with_copy(
             template_info=template_info,
             data=data,
@@ -904,6 +915,171 @@ class PageGenerator:
         )
 
         logger.info(f"配置器模式生成页面成功: {page_url}")
+        return page_url
+
+    async def _update_predefined_template(
+        self,
+        template_info: Dict[str, Any],
+        data: Dict[str, Any]
+    ) -> str:
+        """
+        更新预定义模板的参数（不复制模板）
+
+        直接修改模板目录下的 main.js 文件中的 DEFAULT_PARAMS，
+        然后返回模板的固定访问路径。
+
+        Args:
+            template_info: 模板信息
+            data: 包含要注入的参数数据
+
+        Returns:
+            模板的固定访问URL
+        """
+        import re
+        import time
+
+        template_path = template_info.get('template_path', '')
+        template_name = template_info.get('name', 'template')
+
+        logger.info(f"更新预定义模板参数: {template_name}")
+
+        # 1. 确定模板目录
+        template_base_dir = Path(settings.web_templates_dir)
+        template_html_path = template_base_dir / template_path
+
+        if not template_html_path.exists():
+            raise FileNotFoundError(f"模板文件不存在: {template_path}")
+
+        template_dir = template_html_path.parent
+        main_js_path = template_dir / 'js' / 'main.js'
+
+        if not main_js_path.exists():
+            raise FileNotFoundError(f"main.js 文件不存在: {main_js_path}")
+
+        # 2. 读取 main.js 内容
+        with open(main_js_path, 'r', encoding='utf-8') as f:
+            js_content = f.read()
+
+        # 3. 从 data 中提取需要更新的参数
+        # 支持的参数映射：data 中的字段 -> main.js 中的 DEFAULT_PARAMS 字段
+        param_mappings = {
+            'planCode': ['planCode', 'plan_code'],  # data 中可能的字段名
+            'stcd': ['stcd', 'Stcd', 'station_code'],
+            'reservoirName': ['reservoirName', 'ResName', 'reservoir_name', 'name'],
+            'token': ['token', 'auth_token', 'Token']
+        }
+
+        # 从 data 中提取参数值
+        params_to_update = {}
+
+        # 尝试从 data 的不同层级提取数据
+        forecast_data = data.get('data', data)  # 可能在 data.data 中
+        target_info = data.get('target', {})
+
+        for js_param, data_keys in param_mappings.items():
+            for key in data_keys:
+                # 先从 forecast_data 中查找
+                if key in forecast_data:
+                    params_to_update[js_param] = forecast_data[key]
+                    break
+                # 再从 target_info 中查找
+                if key in target_info:
+                    params_to_update[js_param] = target_info[key]
+                    break
+                # 最后从顶层 data 中查找
+                if key in data:
+                    params_to_update[js_param] = data[key]
+                    break
+
+        if not params_to_update:
+            logger.warning("未找到可更新的参数，跳过模板更新")
+            # 返回模板固定路径 - 根据服务器静态文件挂载配置
+            # res_module 挂载在 /ui/res_module
+            # 添加时间戳参数防止浏览器缓存
+            cache_buster = int(time.time() * 1000)
+            template_dir_name = template_html_path.parent.name
+            if template_dir_name == "res_module":
+                return f"/ui/res_module/index.html?_t={cache_buster}"
+            else:
+                # 其他模板使用通用路径（如果有挂载的话）
+                return f"/ui/{template_dir_name}/index.html?_t={cache_buster}"
+
+        logger.info(f"准备更新参数: {list(params_to_update.keys())}")
+
+        # 4. 使用正则表达式更新 DEFAULT_PARAMS 中的值
+        modified = False
+        for param_name, param_value in params_to_update.items():
+            # 处理不同类型的值
+            if isinstance(param_value, str):
+                # 字符串值需要加引号，并转义内部的单引号
+                escaped_value = param_value.replace("'", "\\'")
+                value_str = f"'{escaped_value}'"
+            elif isinstance(param_value, bool):
+                value_str = 'true' if param_value else 'false'
+            elif param_value is None:
+                value_str = 'null'
+            else:
+                value_str = str(param_value)
+
+            # 匹配 DEFAULT_PARAMS 中的参数定义
+            # 关键：使用 [^'\n]* 或 [^"\n]* 来匹配值，确保不跨行
+            # 支持格式: paramName: 'value' 或 paramName: "value"
+            # 注意：不使用 re.DOTALL，确保只在单行内匹配
+            pattern = rf"({param_name}\s*:\s*)(['\"])([^'\"\n]*)\2(\s*[,}}/])"
+
+            def replacer(match):
+                prefix = match.group(1)
+                quote = match.group(2)  # 保持原有的引号类型
+                suffix = match.group(4)
+                # 如果原来是双引号，转换 value_str 的引号
+                if quote == '"':
+                    inner_value = param_value.replace('"', '\\"') if isinstance(param_value, str) else str(param_value)
+                    return f'{prefix}"{inner_value}"{suffix}'
+                return f"{prefix}{value_str}{suffix}"
+
+            new_content, count = re.subn(pattern, replacer, js_content)
+            if count > 0:
+                js_content = new_content
+                modified = True
+                logger.info(f"更新参数 {param_name} = {value_str[:50]}...")
+
+        # 5. 写回 main.js
+        if modified:
+            with open(main_js_path, 'w', encoding='utf-8') as f:
+                f.write(js_content)
+            logger.info(f"预定义模板参数更新完成: {main_js_path}")
+
+            # 5.1 更新 index.html 中 main.js 的引用，添加时间戳防止缓存
+            index_html_path = template_dir / 'index.html'
+            if index_html_path.exists():
+                cache_ts = int(time.time() * 1000)
+                with open(index_html_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                # 替换 main.js 引用，添加或更新时间戳参数
+                # 匹配 js/main.js 或 js/main.js?_t=xxx
+                html_content = re.sub(
+                    r'(src=["\']js/main\.js)(\?_t=\d+)?(["\'])',
+                    rf'\1?_t={cache_ts}\3',
+                    html_content
+                )
+                with open(index_html_path, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+                logger.info(f"更新 index.html 中 main.js 引用的缓存时间戳: {cache_ts}")
+        else:
+            logger.warning("未能匹配到任何参数进行更新")
+
+        # 6. 返回模板的固定访问路径 - 根据服务器静态文件挂载配置
+        # res_module 挂载在 /ui/res_module
+        # 添加时间戳参数防止浏览器缓存
+        cache_buster = int(time.time() * 1000)
+        template_dir_name = template_html_path.parent.name
+        if template_dir_name == "res_module":
+            page_url = f"/ui/res_module/index.html?_t={cache_buster}"
+        else:
+            # 其他模板使用通用路径（如果有挂载的话）
+            page_url = f"/ui/{template_dir_name}/index.html?_t={cache_buster}"
+        logger.info(f"预定义模板复用成功: {page_url}")
+
         return page_url
 
     async def _generate_with_copy(

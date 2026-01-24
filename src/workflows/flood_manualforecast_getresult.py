@@ -1744,7 +1744,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
             'output_type': self.output_type,
             'forecast_target': session_params.get('forecast_target'),
             'extracted_result': results.get('extracted_result'),
-            'plan_code': ctx.get('plan_code'),
+            'plan_id': ctx.get('plan_code'),  # 统一输出为 plan_id
             'next_action': 'respond'
         }
 

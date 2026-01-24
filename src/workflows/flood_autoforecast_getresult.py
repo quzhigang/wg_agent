@@ -904,6 +904,7 @@ class FloodAutoForecastGetResultWorkflow(BaseWorkflow):
             'output_type': self.output_type,
             'forecast_target': forecast_target,
             'extracted_result': results.get('extracted_result'),
+            'plan_id': 'model_auto',  # 自动预报固定使用 model_auto
             'next_action': 'respond'
         }
 

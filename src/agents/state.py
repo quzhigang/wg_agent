@@ -103,6 +103,7 @@ class AgentState(TypedDict):
     # 工作流执行结果数据
     extracted_result: Optional[Dict[str, Any]]  # 工作流提取的结果数据
     forecast_target: Optional[Dict[str, Any]]  # 预报目标信息（水库/流域等）
+    plan_id: Optional[str]  # 方案ID（统一字段，各工作流内部映射到此字段）
 
     # 执行计划
     plan: List[Dict[str, Any]]  # List[PlanStep] 序列化后的形式
@@ -132,6 +133,10 @@ class AgentState(TypedDict):
 
     # 流程控制
     next_action: Optional[str]  # 下一步动作: "plan", "execute", "respond", "wait_async", "end"
+
+    # 并行生成控制
+    need_parallel_generation: Optional[bool]  # 是否需要并行生成（文字+页面）
+    response_context: Optional[Dict[str, Any]]  # 响应上下文（用于并行生成）
 
     # 工作流单步执行上下文
     workflow_context: Optional[Dict[str, Any]]  # 工作流执行过程中的上下文数据
@@ -230,6 +235,10 @@ def create_initial_state(
 
         # 流程控制
         next_action="plan",
+
+        # 并行生成控制
+        need_parallel_generation=False,
+        response_context=None,
 
         # 工作流单步执行上下文
         workflow_context=None,
