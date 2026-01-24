@@ -8,10 +8,10 @@ const API_URLS = {
 
 // 本模板所需参数，包括方案名称、水库名称、水库stcd和认证Token
 const DEFAULT_PARAMS = {
-    planCode: 'model_20250702121848',
+    planCode: 'model_20260124180520',
     stcd: '31005650',
     reservoirName: '盘石头水库', // 统一定义水库名称
-    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI5NjM0ZWQzMS1hZmMzLTQ0YjAtOWJlNi1kMjk1YjA4MGQ3NmIiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njk4NDc3MTcyMzcsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTI0MjkxNywiZXhwIjoxNzY5ODQ3NzE3fQ.eUGwTQP8SdYPC9LW1wqmbh9SNXX9C0507n1BAo2RdrFgpp9DxytieN4IXG6m-2m_JWk5XG151vesus3RrWUVcg' // 认证Token
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJkYTU3OTE5MS03Zjk3LTRlODUtODlmYy1mYmM3MmRmZWE2MGIiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njk4NTM0OTk4NDEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTI0ODY5OSwiZXhwIjoxNzY5ODUzNDk5fQ.FyiMy8k_3suhqRko_Ap8Ca9TIU3ct1PHl0q-Jl1yHmqrIuo8CaCT9a80AqIZF3I_Us0bQxlNE7m5ZuWg83aZDw' // 认证Token
 };
 
 // 主入口函数
@@ -184,6 +184,22 @@ function renderChart(data, rainData) {
         processedRainData = rainData.map(d => [new Date(d.time).getTime(), d.value]);
     }
 
+    // 3. 计算统一的时间范围（并集）
+    const allTimestamps = [
+        ...inflowData.map(d => d[0]),
+        ...outflowData.map(d => d[0]),
+        ...waterLevelData.map(d => d[0]),
+        ...processedRainData.map(d => d[0])
+    ];
+
+    let minTime = undefined;
+    let maxTime = undefined;
+
+    if (allTimestamps.length > 0) {
+        minTime = Math.min(...allTimestamps);
+        maxTime = Math.max(...allTimestamps);
+    }
+
     // 计算轴范围
     const calcAxisRange = (dataList, interval, padding = 1) => {
         const values = dataList.flatMap(list => list.map(d => d[1])).filter(v => !isNaN(v));
@@ -247,6 +263,8 @@ function renderChart(data, rainData) {
             {
                 type: 'time',
                 gridIndex: 0,
+                min: minTime,
+                max: maxTime,
                 axisLabel: { show: false },
                 axisLine: { show: false },
                 axisTick: { show: false },
@@ -255,6 +273,8 @@ function renderChart(data, rainData) {
             {
                 type: 'time',
                 gridIndex: 1,
+                min: minTime,
+                max: maxTime,
                 axisLabel: {
                     fontWeight: 'bold',
                     formatter: '{MM}/{dd}\n{HH}:{mm}',

@@ -110,7 +110,7 @@ class ModelPlanAddTool(BaseTool):
         """执行新增模拟方案"""
         try:
             url = f"{MODEL_PLATFORM_BASE_URL}/model/modelPlan/add"
-            
+
             # 必填参数
             payload = {
                 "planName": kwargs.get("plan_name"),
@@ -118,7 +118,7 @@ class ModelPlanAddTool(BaseTool):
                 "startTime": kwargs.get("start_time"),
                 "endTime": kwargs.get("end_time")
             }
-            
+
             # 可选参数
             if kwargs.get("plan_desc"):
                 payload["planDesc"] = kwargs.get("plan_desc")
@@ -132,12 +132,15 @@ class ModelPlanAddTool(BaseTool):
                 payload["viewPoint"] = kwargs.get("view_point")
             if kwargs.get("model_object"):
                 payload["modelObject"] = kwargs.get("model_object")
-            
+
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.post(url, json=payload)
+                response = await client.post(url, json=payload, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
-            
+
             if data.get("success"):
                 return ToolResult(success=True, data=data)
             else:
@@ -366,17 +369,20 @@ class ModelPlanDetailTool(BaseTool):
         try:
             url = f"{MODEL_PLATFORM_BASE_URL}/model/modelPlan/detail"
             params = {"planCode": kwargs.get("plan_code")}
-            
+
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
-            
+
             if data.get("success"):
                 return ToolResult(success=True, data=data.get("data"))
             else:
                 return ToolResult(success=False, error=data.get("message", "查询失败"))
-                
+
         except httpx.HTTPError as e:
             logger.error(f"查询方案详情HTTP错误: {e}")
             return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")
@@ -554,21 +560,22 @@ class ModelPlanCalcTool(BaseTool):
         try:
             url = f"{MODEL_PLATFORM_BASE_URL}/model/modelPlan/calc"
             params = {"planCode": kwargs.get("plan_code")}
-            
+
+            auth_headers = await LoginTool.get_auth_headers()
             async with httpx.AsyncClient(timeout=60) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
-            
+
             if data.get("success"):
                 return ToolResult(
-                    success=True, 
+                    success=True,
                     data=data.get("data"),
                     metadata={"is_async_task": True}
                 )
             else:
                 return ToolResult(success=False, error=data.get("message", "计算启动失败"))
-                
+
         except httpx.HTTPError as e:
             logger.error(f"启动方案计算HTTP错误: {e}")
             return ToolResult(success=False, error=f"HTTP请求错误: {str(e)}")

@@ -12,6 +12,7 @@ from ..config.settings import settings
 from ..config.logging_config import get_logger
 from .base import BaseTool, ToolCategory, ToolParameter, ToolResult
 from .registry import register_tool
+from .auth import LoginTool
 
 logger = get_logger(__name__)
 
@@ -772,12 +773,15 @@ class ModelRainPatternDetailTool(BaseTool):
         try:
             url = f"{RAIN_CONTROL_BASE_URL}/model/modelRainPattern/detail"
             params = {"id": kwargs.get("id")}
-            
+
+            # 获取认证头
+            auth_headers = await LoginTool.get_auth_headers()
+
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
-            
+
             if data.get("success"):
                 return ToolResult(success=True, data=data.get("data"))
             else:
@@ -1301,12 +1305,13 @@ class ModelRainAreaAddEcmwfTool(BaseTool):
         try:
             url = f"{RAIN_CONTROL_BASE_URL}/model/modelRainArea/add/ecmwf"
             params = {"planCode": kwargs.get("plan_code")}
-            
+
+            auth_headers = await LoginTool.get_auth_headers()
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=auth_headers)
                 response.raise_for_status()
                 data = response.json()
-            
+
             if data.get("success"):
                 return ToolResult(success=True, data={"message": "根据格网预报设置方案降雨过程成功"})
             else:
@@ -1407,8 +1412,9 @@ class ModelRainAreaAddManualTool(BaseTool):
 
             logger.info(f"手动设置方案降雨请求: planCode={payload.get('planCode')}, bsnCode={payload.get('bsnCode')}, source={payload.get('source')}")
 
+            auth_headers = await LoginTool.get_auth_headers()
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.post(url, json=payload)
+                response = await client.post(url, json=payload, headers=auth_headers)
                 # 先获取响应内容，再检查状态码
                 try:
                     data = response.json()
