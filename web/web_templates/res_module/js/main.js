@@ -8,10 +8,10 @@ const API_URLS = {
 
 // 本模板所需参数，包括方案名称、水库名称、水库stcd和认证Token
 const DEFAULT_PARAMS = {
-    planCode: 'model_20260124180520',
+    planCode: 'model_20260124183336',
     stcd: '31005650',
     reservoirName: '盘石头水库', // 统一定义水库名称
-    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJkYTU3OTE5MS03Zjk3LTRlODUtODlmYy1mYmM3MmRmZWE2MGIiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njk4NTM0OTk4NDEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTI0ODY5OSwiZXhwIjoxNzY5ODUzNDk5fQ.FyiMy8k_3suhqRko_Ap8Ca9TIU3ct1PHl0q-Jl1yHmqrIuo8CaCT9a80AqIZF3I_Us0bQxlNE7m5ZuWg83aZDw' // 认证Token
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiIyN2FhZTAwZC0wYzk0LTQ2ZDYtOWE5Zi04NmFkZGYyNjg5NGUiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3Njk4NTUyODIwMTgsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTI1MDQ4MiwiZXhwIjoxNzY5ODU1MjgyfQ._fnv3SSnhj6npG_jnsUDSKoHPO4Yz26R2nAXUweAFko0JxBrojCDaYNWI4-F4wqT9XTLQLhg6chvuvDCGxwapQ' // 认证Token
 };
 
 // 主入口函数
@@ -52,7 +52,18 @@ async function init() {
  * 获取洪水预报结果
  */
 async function fetchFloodResult() {
-    const url = `${API_URLS.floodResult}?request_type=get_tjdata_result&request_pars=${DEFAULT_PARAMS.planCode}`;
+    // 判断是否为历史自动预报方案（方案ID包含"_auto_"字符串）
+    const isHistoryAutoPlan = DEFAULT_PARAMS.planCode.includes('_auto_');
+
+    let url;
+    if (isHistoryAutoPlan) {
+        // 历史自动预报使用 get_history_autoforcast_res 接口
+        url = `${API_URLS.floodResult}?request_type=get_history_autoforcast_res&request_pars=${DEFAULT_PARAMS.planCode}`;
+    } else {
+        // 自动预报、人工预报使用 get_tjdata_result 接口
+        url = `${API_URLS.floodResult}?request_type=get_tjdata_result&request_pars=${DEFAULT_PARAMS.planCode}`;
+    }
+
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP 错误! 状态码: ${response.status}`);
     return await response.json();
