@@ -178,6 +178,13 @@ class WebTemplateVectorIndex:
             # 提取模板所需参数信息（从 replacement_config）
             required_params_str = self._extract_required_params(template_data.get('replacement_config'))
 
+            # 提取必须匹配的对象类型
+            required_object_types = template_data.get('required_object_types', [])
+            if isinstance(required_object_types, list):
+                required_object_types_str = ','.join(required_object_types)
+            else:
+                required_object_types_str = str(required_object_types) if required_object_types else ''
+
             # 构建元数据
             metadata = {
                 "name": template_data.get('name', ''),
@@ -190,6 +197,7 @@ class WebTemplateVectorIndex:
                 "priority": template_data.get('priority', 0),
                 "is_dynamic": template_data.get('is_dynamic', False),
                 "required_params": required_params_str,
+                "required_object_types": required_object_types_str,
                 "indexed_at": datetime.now().isoformat()
             }
 
@@ -292,6 +300,7 @@ class WebTemplateVectorIndex:
                         "priority": metadata.get("priority", 0),
                         "is_dynamic": metadata.get("is_dynamic", False),
                         "required_params": metadata.get("required_params", ""),
+                        "required_object_types": [t for t in metadata.get("required_object_types", "").split(',') if t],
                         "score": score
                     })
 

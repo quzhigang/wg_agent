@@ -1231,14 +1231,15 @@ async def generate_report_page(
         logger.info(f"尝试匹配预定义模板 - user_message: {user_message[:50]}..., sub_intent: {sub_intent}")
 
         # 从 workflow_context 提取参数摘要（分为对象识别参数和工作流参数）
-        entity_params, workflow_params = _build_available_params(workflow_context, data)
+        entity_params, workflow_params, object_type = _build_available_params(workflow_context, data)
 
         # 执行模板匹配
         matched_template = await template_service.match_template(
             user_message=user_message,
             sub_intent=sub_intent,
             entity_params=entity_params,
-            workflow_params=workflow_params
+            workflow_params=workflow_params,
+            object_type=object_type
         )
 
         # 如果匹配到模板且置信度足够高，使用模板生成页面
@@ -1297,7 +1298,7 @@ def _build_execution_summary(report_type: str, data: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
-def _build_available_params(workflow_context: Optional[Dict[str, Any]], data: Dict[str, Any]) -> tuple[str, str]:
+def _build_available_params(workflow_context: Optional[Dict[str, Any]], data: Dict[str, Any]) -> tuple[str, str, str]:
     """
     从 workflow_context 和 data 中提取参数摘要，分为两类：
     1. 对象识别参数（来自实体解析阶段：数据库查询+知识库查询+LLM匹配）
@@ -1312,10 +1313,11 @@ def _build_available_params(workflow_context: Optional[Dict[str, Any]], data: Di
         data: 报告数据
 
     Returns:
-        (entity_params, workflow_params) 元组
+        (entity_params, workflow_params, object_type) 元组
     """
     entity_params = []  # 对象识别参数（实体解析阶段）
     workflow_params = []  # 工作流参数（工作流执行结果）
+    object_type = ""  # 对象类型
 
     if workflow_context:
         steps = workflow_context.get('steps', {})
@@ -1336,7 +1338,7 @@ def _build_available_params(workflow_context: Optional[Dict[str, Any]], data: Di
         if stcd:
             entity_params.append(f"- stcd: {stcd} (站点代码)")
 
-        # reservoirName 来自实体解析阶段
+        # object_name 来自实体解析阶段（通用对象名称）
         target_name = None
         # 方式1: WorkflowContext 类结构
         parse_step = steps.get('parse_target', {})
@@ -1349,7 +1351,12 @@ def _build_available_params(workflow_context: Optional[Dict[str, Any]], data: Di
                 target_name = ft.get('name')
 
         if target_name:
-            entity_params.append(f"- reservoirName: {target_name} (预报目标名称)")
+            entity_params.append(f"- object_name: {target_name} (对象名称)")
+
+        # object_type 来自实体解析阶段（具体的对象类型，如"河道水文站"、"水库"等）
+        object_type = entities.get('object_type', '') if isinstance(entities, dict) else ''
+        if object_type:
+            entity_params.append(f"- object_type: {object_type} (对象类型)")
 
         # ========== 工作流参数（来自工作流执行结果）==========
         # token 来自登录认证步骤
@@ -1385,8 +1392,8 @@ def _build_available_params(workflow_context: Optional[Dict[str, Any]], data: Di
             target_name_from_data = target.get('name', '')
             if target_type:
                 entity_params.append(f"- forecast_target_type: {target_type}")
-            if target_name_from_data and not any('reservoirName' in p for p in entity_params):
-                entity_params.append(f"- reservoirName: {target_name_from_data} (来自报告数据)")
+            if target_name_from_data and not any('object_name' in p for p in entity_params):
+                entity_params.append(f"- object_name: {target_name_from_data} (来自报告数据)")
 
         # 从 data 中提取 stcd（兼容大小写）
         stcd_from_data = data.get('stcd') or data.get('Stcd')
@@ -1397,7 +1404,7 @@ def _build_available_params(workflow_context: Optional[Dict[str, Any]], data: Di
     entity_params_str = "\n".join(entity_params) if entity_params else "无"
     workflow_params_str = "\n".join(workflow_params) if workflow_params else "无"
 
-    return entity_params_str, workflow_params_str
+    return entity_params_str, workflow_params_str, object_type
 
 
 def _infer_sub_intent(report_type: str) -> str:

@@ -843,8 +843,17 @@ class Planner:
 
         # 如果object_type已知但缺少stcd，仍需要查询数据库获取stcd
         need_stcd_only = not force and object_type and object_type != 'null' and object_type.lower() != 'null' and not existing_stcd
+
+        # 定义泛化类型列表（这些类型不够精确，需要被更精确的类型替换）
+        generic_types = {'监测站点', '站点', '工程', '水利工程', '监测', '站'}
+        # 检查当前 object_type 是否为泛化类型
+        is_generic_type = object_type and object_type in generic_types
+
         if need_stcd_only:
-            logger.info(f"对象类型已知({object_type})但缺少stcd，查询数据库获取stcd...")
+            if is_generic_type:
+                logger.info(f"对象类型为泛化类型({object_type})且缺少stcd，查询数据库获取精确类型和stcd...")
+            else:
+                logger.info(f"对象类型已知({object_type})但缺少stcd，查询数据库获取stcd...")
         else:
             logger.info(f"开始解析对象类型: {object_name}")
 
@@ -871,16 +880,18 @@ class Planner:
                         if len(unique_types) == 1:
                             # 只有一种类型，直接使用
                             first_station = stations[0]
-                            # 如果只需要stcd，不覆盖已有的object_type
-                            if not need_stcd_only:
-                                enhanced_entities['object_type'] = first_station.get('type')
+                            db_type = first_station.get('type')
+                            # 如果只需要stcd且原类型不是泛化类型，不覆盖已有的object_type
+                            # 但如果原类型是泛化类型（如"监测站点"），则用精确类型替换
+                            if not need_stcd_only or is_generic_type:
+                                enhanced_entities['object_type'] = db_type
                             enhanced_entities['stcd'] = first_station.get('stcd')
-                            logger.info(f"数据库查询成功(单一类型): {object_name} -> {first_station.get('type')} (stcd: {first_station.get('stcd')})")
+                            logger.info(f"数据库查询成功(单一类型): {object_name} -> {db_type} (stcd: {first_station.get('stcd')})")
                             return enhanced_entities
                         else:
                             # 多种类型，需要LLM根据对话意图判断
-                            # 如果只需要stcd且object_type已知，尝试匹配已知类型
-                            if need_stcd_only and object_type:
+                            # 如果只需要stcd且object_type已知且不是泛化类型，尝试匹配已知类型
+                            if need_stcd_only and object_type and not is_generic_type:
                                 matched_station = next((s for s in stations if s.get('type') == object_type), None)
                                 if matched_station:
                                     enhanced_entities['stcd'] = matched_station.get('stcd')
@@ -896,7 +907,8 @@ class Planner:
                             if best_type:
                                 # 找到匹配类型的站点
                                 matched_station = next((s for s in stations if s.get('type') == best_type), stations[0])
-                                if not need_stcd_only:
+                                # 如果原类型是泛化类型或不是只需要stcd，则更新object_type
+                                if not need_stcd_only or is_generic_type:
                                     enhanced_entities['object_type'] = best_type
                                 enhanced_entities['stcd'] = matched_station.get('stcd')
                                 logger.info(f"LLM选择类型: {object_name} -> {best_type} (stcd: {matched_station.get('stcd')})")
@@ -904,10 +916,11 @@ class Planner:
                             else:
                                 # LLM判断失败，使用第一个结果
                                 first_station = stations[0]
-                                if not need_stcd_only:
-                                    enhanced_entities['object_type'] = first_station.get('type')
+                                db_type = first_station.get('type')
+                                if not need_stcd_only or is_generic_type:
+                                    enhanced_entities['object_type'] = db_type
                                 enhanced_entities['stcd'] = first_station.get('stcd')
-                                logger.warning(f"LLM选择失败，使用默认: {object_name} -> {first_station.get('type')}")
+                                logger.warning(f"LLM选择失败，使用默认: {object_name} -> {db_type}")
                                 return enhanced_entities
                     else:
                         db_result = f"数据库中未找到名为'{object_name}'的站点"

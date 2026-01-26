@@ -242,6 +242,10 @@ class Controller:
             sub_intent = state.get('business_sub_intent', '')
             user_message = state.get('user_message', '')
 
+            # 获取对象类型（来自实体解析阶段）
+            entities = state.get('entities', {})
+            object_type = entities.get('object_type', '') if isinstance(entities, dict) else ''
+
             # 生成参数摘要（分为对象识别参数和工作流参数）
             entity_params, workflow_params = self._format_available_params_for_template_match(state)
 
@@ -250,7 +254,8 @@ class Controller:
                 user_message=user_message,
                 sub_intent=sub_intent,
                 entity_params=entity_params,
-                workflow_params=workflow_params
+                workflow_params=workflow_params,
+                object_type=object_type
             )
 
             # 如果匹配到模板且置信度足够高，使用模板生成页面
@@ -309,6 +314,23 @@ class Controller:
             page_url = await generator.generate(
                 conversation_context=collector.to_frontend_format()
             )
+
+            # 保存为动态模板（供后续复用）
+            try:
+                dynamic_service = get_dynamic_template_service()
+                template_id = dynamic_service.save_dynamic_template(
+                    html_content=self._read_generated_page_content(page_url),
+                    user_query=user_message,
+                    sub_intent=sub_intent,
+                    page_title=self._generate_page_title(state),
+                    conversation_id=state.get('conversation_id', ''),
+                    execution_summary=context.get('execution_summary', ''),
+                    object_type=object_type
+                )
+                if template_id:
+                    logger.info(f"动态生成页面已保存为模板: {template_id}, 对象类型: {object_type}")
+            except Exception as save_err:
+                logger.warning(f"保存动态模板失败（不影响页面展示）: {save_err}")
 
             return {
                 "page_url": page_url,
@@ -1260,7 +1282,7 @@ class Controller:
                 target_name = ft.get('name')
 
         if target_name:
-            entity_params.append(f"- reservoirName: {target_name} (预报目标名称)")
+            entity_params.append(f"- object_name: {target_name} (对象名称)")
 
         # forecast_target_type 来自实体解析阶段
         target_type = None
@@ -1274,6 +1296,11 @@ class Controller:
 
         if target_type:
             entity_params.append(f"- forecast_target_type: {target_type}")
+
+        # object_type 来自实体解析阶段（具体的对象类型，如"河道水文站"、"水库"等）
+        object_type = entities.get('object_type', '') if isinstance(entities, dict) else ''
+        if object_type:
+            entity_params.append(f"- object_type: {object_type} (对象类型)")
 
         # ========== 工作流参数（来自工作流执行结果）==========
         # token 来自登录认证步骤

@@ -59,6 +59,7 @@ class AsyncPageGeneratorAgent:
         execution_summary: Optional[str] = None,
         user_message: Optional[str] = None,
         sub_intent: Optional[str] = None,
+        object_type: Optional[str] = None,
         save_as_dynamic_template: bool = False
     ) -> str:
         """
@@ -72,6 +73,7 @@ class AsyncPageGeneratorAgent:
             execution_summary: 执行结果摘要
             user_message: 用户原始问题（用于动态模板）
             sub_intent: 业务子意图（用于动态模板）
+            object_type: 对象类型（如"水库"、"河道水文站"等，用于动态模板匹配）
             save_as_dynamic_template: 是否保存为动态模板
 
         Returns:
@@ -89,6 +91,7 @@ class AsyncPageGeneratorAgent:
             "execution_summary": execution_summary,
             "user_message": user_message,
             "sub_intent": sub_intent,
+            "object_type": object_type,
             "save_as_dynamic_template": save_as_dynamic_template,
             "page_url": None,
             "error": None,
@@ -185,7 +188,8 @@ class AsyncPageGeneratorAgent:
                 sub_intent=task_info.get("sub_intent", ""),
                 page_title=task_info.get("title", ""),
                 conversation_id=task_info.get("conversation_id", ""),
-                execution_summary=task_info.get("execution_summary", "")
+                execution_summary=task_info.get("execution_summary", ""),
+                object_type=task_info.get("object_type", "")
             )
 
             if template_id:

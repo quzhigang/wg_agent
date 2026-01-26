@@ -141,6 +141,8 @@ class WebTemplate(Base):
     conversation_id = Column(String(36), nullable=True)  # 关联的会话ID
     # 数据注入配置（JSON格式，定义如何从Context提取数据并注入模板）
     replacement_config = Column(Text, nullable=True)  # 数据替换配置(JSON)
+    # 必须匹配的对象类型（JSON数组，为空则不校验对象类型）
+    required_object_types = Column(Text, nullable=True)  # 如 ["水库", "水库水文站"]
 
 
 # 数据库引擎和会话工厂

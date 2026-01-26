@@ -51,7 +51,8 @@ class DynamicTemplateService:
         sub_intent: str = "",
         page_title: str = "",
         conversation_id: str = "",
-        execution_summary: str = ""
+        execution_summary: str = "",
+        object_type: str = ""
     ) -> Optional[str]:
         """
         保存动态生成的页面为模板
@@ -63,6 +64,7 @@ class DynamicTemplateService:
             page_title: 页面标题
             conversation_id: 会话ID
             execution_summary: 执行结果摘要
+            object_type: 对象类型（如"水库"、"河道水文站"等，用于后续模板匹配时的对象类型校验）
 
         Returns:
             模板ID，失败返回None
@@ -86,7 +88,10 @@ class DynamicTemplateService:
             # 4. 构建触发模式（用于向量检索）
             trigger_pattern = f"{user_query} {extracted_title} {extracted_desc}"
 
-            # 5. 保存到数据库
+            # 5. 构建必须匹配的对象类型列表（动态模板只匹配生成时的对象类型）
+            required_object_types = [object_type] if object_type else []
+
+            # 6. 保存到数据库
             db = SessionLocal()
             try:
                 template = WebTemplate(
@@ -105,13 +110,14 @@ class DynamicTemplateService:
                     html_content=html_content,
                     user_query=user_query,
                     page_title=extracted_title,
-                    conversation_id=conversation_id
+                    conversation_id=conversation_id,
+                    required_object_types=json.dumps(required_object_types, ensure_ascii=False) if required_object_types else None
                 )
 
                 db.add(template)
                 db.commit()
 
-                logger.info(f"动态模板已保存: {display_name} (ID: {template_id})")
+                logger.info(f"动态模板已保存: {display_name} (ID: {template_id}, 对象类型: {object_type or '无'})")
 
             except Exception as db_err:
                 db.rollback()
@@ -120,7 +126,7 @@ class DynamicTemplateService:
             finally:
                 db.close()
 
-            # 6. 添加到向量索引
+            # 7. 添加到向量索引
             template_data = {
                 "name": name,
                 "display_name": display_name,
@@ -130,7 +136,8 @@ class DynamicTemplateService:
                 "template_path": None,
                 "template_type": "dynamic",
                 "priority": 5,
-                "is_dynamic": True  # 标记为动态模板
+                "is_dynamic": True,  # 标记为动态模板
+                "required_object_types": required_object_types  # 必须匹配的对象类型
             }
 
             # 向量化，如果失败则删除数据库记录保持一致性

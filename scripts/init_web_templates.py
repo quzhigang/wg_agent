@@ -34,6 +34,8 @@ INITIAL_TEMPLATES = [
         "trigger_pattern": "单一水库预报预演结果 洪水预报 洪水预演 入库流量 出库流量 水位变化 预报方案结果 水库水情 水库洪水 盘石头水库 水库调度",
         "features": ["map", "chart", "realtime", "reservoir", "echarts"],
         "priority": 10,
+        # 必须匹配的对象类型（为空或不设置则不校验对象类型）
+        "required_object_types": ["水库", "水库水文站"],
         # 数据注入配置：定义如何从 WorkflowContext 提取数据并注入到模板
         "replacement_config": {
             "mode": "regex_replace",
@@ -68,8 +70,8 @@ INITIAL_TEMPLATES = [
                     "target_key": "DEFAULT_PARAMS.reservoirName",
                     "pattern": r"reservoirName:\s*['\"][^'\"]*['\"]",
                     "replacement_template": "reservoirName: '{value}'",
-                    "param_name": "reservoirName",
-                    "param_desc": "水库名称"
+                    "param_name": "object_name",
+                    "param_desc": "对象名称（水库/站点名称）"
                 }
             ],
             "default_values": {
@@ -147,6 +149,9 @@ def init_templates():
                 # 更新 replacement_config
                 if "replacement_config" in tpl_data:
                     existing.replacement_config = json.dumps(tpl_data["replacement_config"], ensure_ascii=False)
+                # 更新 required_object_types
+                if "required_object_types" in tpl_data:
+                    existing.required_object_types = json.dumps(tpl_data["required_object_types"], ensure_ascii=False)
 
                 db.commit()
 
@@ -160,7 +165,8 @@ def init_templates():
                     "template_path": existing.template_path,
                     "template_type": existing.template_type,
                     "priority": existing.priority,
-                    "replacement_config": tpl_data.get("replacement_config")
+                    "replacement_config": tpl_data.get("replacement_config"),
+                    "required_object_types": tpl_data.get("required_object_types", [])
                 })
 
                 updated_count += 1
@@ -181,7 +187,8 @@ def init_templates():
                     features=json.dumps(tpl_data["features"], ensure_ascii=False),
                     priority=tpl_data["priority"],
                     is_active=True,
-                    replacement_config=json.dumps(tpl_data.get("replacement_config"), ensure_ascii=False) if tpl_data.get("replacement_config") else None
+                    replacement_config=json.dumps(tpl_data.get("replacement_config"), ensure_ascii=False) if tpl_data.get("replacement_config") else None,
+                    required_object_types=json.dumps(tpl_data.get("required_object_types"), ensure_ascii=False) if tpl_data.get("required_object_types") else None
                 )
 
                 db.add(template)
@@ -197,7 +204,8 @@ def init_templates():
                     "template_path": tpl_data["template_path"],
                     "template_type": tpl_data["template_type"],
                     "priority": tpl_data["priority"],
-                    "replacement_config": tpl_data.get("replacement_config")
+                    "replacement_config": tpl_data.get("replacement_config"),
+                    "required_object_types": tpl_data.get("required_object_types", [])
                 })
 
                 created_count += 1

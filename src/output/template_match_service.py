@@ -29,6 +29,9 @@ TEMPLATE_SELECT_PROMPT = """你是一个Web模板选择专家。根据用户问�
 ## 业务子意图
 {sub_intent}
 
+## 当前对象类型
+{object_type}
+
 ## 对象识别可提供的参数
 （来自实体解析阶段：数据库查询+知识库查询+LLM匹配）
 {entity_params}
@@ -43,19 +46,20 @@ TEMPLATE_SELECT_PROMPT = """你是一个Web模板选择专家。根据用户问�
 ## 选择标准（按优先级排序）
 
 ### 必要条件（不满足则必须返回null）
-1. **参数完全满足**：上述两类参数（对象识别参数+工作流参数）必须完全覆盖模板的"所需参数"。逐一检查模板所需的每个参数（如token、planCode、stcd、reservoirName等），确认都能提供。如果有任何一个所需参数无法满足，该模板不可选择。
+1. **参数完全满足**：上述两类参数（对象识别参数+工作流参数）必须完全覆盖模板的"所需参数"。逐一检查模板所需的每个参数（如token、planCode、stcd、object_name等），确认都能提供。如果有任何一个所需参数无法满足，该模板不可选择。
 2. **子意图匹配**：模板必须支持当前的业务子意图。
+3. **对象类型匹配**：如果模板指定了"必须匹配的对象类型"（非空列表），则当前对象类型必须在该列表中。如果当前对象类型不在列表中，该模板不可选择。如果模板的"必须匹配的对象类型"为空或未指定，则跳过此校验。
 
 ### 优选条件（在满足必要条件后考虑）
-3. 模板的触发模式与用户问题相关性高
-4. 优先选择优先级高的模板
+4. 模板的触发模式与用户问题相关性高
+5. 优先选择优先级高的模板
 
 ## 输出格式
 请返回JSON格式，包含以下字段：
 {{
     "selected_template_id": "模板ID或null",
     "confidence": 0.0-1.0的置信度,
-    "reason": "选择理由（如果返回null，说明哪些参数不满足）"
+    "reason": "选择理由（如果返回null，说明哪些条件不满足：参数不满足/子意图不匹配/对象类型不匹配）"
 }}
 
 请直接返回JSON，不要包含其他内容。
@@ -104,7 +108,8 @@ class TemplateMatchService:
         sub_intent: str = "",
         available_params: str = "",
         entity_params: str = "",
-        workflow_params: str = ""
+        workflow_params: str = "",
+        object_type: str = ""
     ) -> Optional[Dict[str, Any]]:
         """
         两阶段模板匹配
@@ -115,6 +120,7 @@ class TemplateMatchService:
             available_params: 工作流可提供的参数摘要（兼容旧接口，如果提供则会被拆分）
             entity_params: 对象识别可提供的参数（来自实体解析阶段）
             workflow_params: 工作流可提供的参数（来自工作流执行结果）
+            object_type: 当前对象类型（如"水库"、"河道水文站"等，用于对象类型校验）
 
         Returns:
             匹配的模板信息，包含：
@@ -125,7 +131,7 @@ class TemplateMatchService:
             - confidence: 匹配置信度
             如果没有匹配到合适的模板，返回 None
         """
-        logger.info(f"开始模板匹配，用户问题: {user_message[:50]}..., 子意图: {sub_intent}")
+        logger.info(f"开始模板匹配，用户问题: {user_message[:50]}..., 子意图: {sub_intent}, 对象类型: {object_type}")
 
         try:
             # 第一阶段：向量检索（使用用户问题和子意图进行检索）
@@ -163,7 +169,8 @@ class TemplateMatchService:
                 entity_params=entity_params,
                 workflow_params=workflow_params,
                 available_params=available_params,
-                candidates=candidates
+                candidates=candidates,
+                object_type=object_type
             )
 
             if selected:
@@ -198,7 +205,8 @@ class TemplateMatchService:
         entity_params: str,
         workflow_params: str,
         available_params: str,
-        candidates: List[Dict[str, Any]]
+        candidates: List[Dict[str, Any]],
+        object_type: str = ""
     ) -> Optional[Dict[str, Any]]:
         """
         LLM精选模板
@@ -210,12 +218,13 @@ class TemplateMatchService:
             workflow_params: 工作流可提供的参数（来自工作流执行结果）
             available_params: 兼容旧接口的参数摘要
             candidates: 候选模板列表
+            object_type: 当前对象类型（用于对象类型校验）
 
         Returns:
             选择结果，包含 selected_template_id, confidence, reason
         """
         try:
-            # 格式化候选模板（增加所需参数信息）
+            # 格式化候选模板（增加所需参数和必须匹配的对象类型信息）
             candidates_text = "\n".join([
                 f"- ID: {c.get('id')}\n"
                 f"  名称: {c.get('display_name')}\n"
@@ -223,6 +232,7 @@ class TemplateMatchService:
                 f"  触发模式: {c.get('trigger_pattern', '')[:200]}\n"
                 f"  支持子意图: {','.join(c.get('supported_sub_intents', []))}\n"
                 f"  所需参数: {c.get('required_params', '无')}\n"
+                f"  必须匹配的对象类型: {','.join(c.get('required_object_types', [])) or '无限制'}\n"
                 f"  优先级: {c.get('priority', 0)}\n"
                 f"  向量分数: {c.get('score', 0):.3f}"
                 for c in candidates
@@ -239,6 +249,7 @@ class TemplateMatchService:
             context_vars = {
                 "user_message": user_message,
                 "sub_intent": sub_intent,
+                "object_type": object_type or "未知",
                 "entity_params": final_entity_params,
                 "workflow_params": final_workflow_params,
                 "candidates": candidates_text
