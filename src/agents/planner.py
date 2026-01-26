@@ -138,9 +138,9 @@ INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智�
 **entities字段说明：**
 - object: 操作对象的名称，可以是：
   - 具体站点/水库/河道/工程名称（如"修武站"、"盘石头水库"、"卫河"、"盐土庄闸"）
-  - 业务事件名称（如"洪水预报"、"预演方案"）
+  - 业务事件名称（如"洪水预报"、"预演方案"、"23.7洪水"）
   - 区域名称（如"卫共流域"、"新乡市"）
-- object_type: 对象的类型，如果能明确判断则填写，否则填null。
+- object_type: 对象的类型，如果能明确判断则填写，否则填null
 - action: 用户想要执行的具体操作（如"查询当前水位"、"启动预报"、"对比分析"）
 - time: 时间范围（如"当前"、"最近24小时"、"2023年7月"），无时间要求则填null
 
@@ -459,14 +459,21 @@ OBJECT_TYPE_SYNTHESIS_PROMPT = """你是卫共流域数字孪生系统的实体�
 ## 任务
 根据以上信息，确定对象的类型。
 
+## 判断规则（按顺序执行）
+1. 首先检查"待识别对象"是否包含"水库/站/闸/蓄滞洪区/流域"等关键词，若不包含，则忽略该对象，直接从"用户消息"中提取包含这些关键词的有效对象
+2. 优先使用数据库查询结果中的station_type字段
+3. 如果数据库无结果，根据知识库检索内容推断
+4. 如果名称中包含"水库"且无其他信息，推断为"水库水文站"
+5. 若用户消息中也无有效对象，默认object为"全流域"，object_type为"流域"
+
 ## 输出要求
 返回JSON格式：
 {{
-    "object": "对象名称",
+    "object": "对象名称（从用户消息中提取的有效对象或全流域）",
     "object_type": "对象类型",
     "stcd": "站点编码（如果有）",
     "confidence": 0.9,
-    "source": "类型来源：db/rag/infer",
+    "source": "类型来源：db/rag/infer/user_message",
     "reason": "判断依据"
 }}
 
@@ -476,13 +483,6 @@ OBJECT_TYPE_SYNTHESIS_PROMPT = """你是卫共流域数字孪生系统的实体�
 - 业务类：洪水预报、洪水预演、预案生成、灾损评估
 - 区域类：流域、行政区
 - 其他：unknown（如果无法确定）
-
-## 判断规则
-1. 优先使用数据库查询结果中的station_type字段
-2. 如果数据库无结果，根据知识库检索内容推断
-3. 如果名称中包含"水库"且无其他信息，推断为"水库水文站"
-4. 如果名称中包含"站"但无法确定类型，设为"unknown"
-5. 对于"洪水预报"、"预演"等业务名词，直接设置对应业务类型
 """
 
 # 8、工具筛选提示词（第一阶段，根据摘要筛选需要的工具）
@@ -788,6 +788,25 @@ class Planner:
             logger.error(f"LLM选择站点类型失败: {e}")
             return None
 
+    def _extract_object_by_regex(self, user_message: str) -> Optional[str]:
+        """
+        使用正则表达式从用户消息中提取有效预报对象
+
+        Args:
+            user_message: 用户原始消息
+
+        Returns:
+            提取到的对象名称，如果没有则返回None
+        """
+        import re
+        # 匹配水库、水文站、闸站、蓄滞洪区等
+        pattern = r'([\u4e00-\u9fa5]+(?:水库|水文站|水位站|蓄滞洪区|滞洪区|拦河闸|节制闸|分洪闸|进洪闸|退水闸|闸))'
+        matches = re.findall(pattern, user_message)
+        if matches:
+            logger.info(f"正则表达式从user_message中提取到对象: {matches[0]}")
+            return matches[0]
+        return None
+
     async def _resolve_object_type(self, entities: Dict[str, Any], target_kbs: List[str], user_message: str, force: bool = False) -> Dict[str, Any]:
         """
         解析并补全对象类型
@@ -954,12 +973,71 @@ class Planner:
 
             logger.info(f"LLM对象类型合成结果: {result}")
 
+            # 检查LLM是否从user_message中重新识别了对象
+            llm_object = result.get('object', '')
+            if llm_object and llm_object != object_name:
+                logger.info(f"LLM从user_message中重新识别对象: {object_name} -> {llm_object}")
+                # 用新对象名称再次查询数据库获取stcd
+                try:
+                    from ..tools.registry import get_tool_registry
+                    registry = get_tool_registry()
+                    lookup_tool = registry.get_tool('lookup_station_code')
+                    if lookup_tool:
+                        new_result = await lookup_tool.execute(
+                            station_name=llm_object,
+                            exact_match=False
+                        )
+                        if new_result.success and new_result.data:
+                            stations = new_result.data.get('stations', [])
+                            if stations:
+                                first_station = stations[0]
+                                enhanced_entities['object'] = llm_object
+                                enhanced_entities['object_type'] = first_station.get('type')
+                                enhanced_entities['stcd'] = first_station.get('stcd')
+                                logger.info(f"重新查询数据库成功: {llm_object} -> {first_station.get('type')} (stcd: {first_station.get('stcd')})")
+                                logger.info(f"=== 对象类型3步解析最终结果 === object: {llm_object}, object_type: {first_station.get('type')}, stcd: {first_station.get('stcd')}")
+                                return enhanced_entities
+                except Exception as e:
+                    logger.warning(f"重新查询数据库失败: {e}")
+                # 如果重新查询失败，仍使用LLM返回的结果
+                enhanced_entities['object'] = llm_object
+
             # 更新实体
             if result.get('object_type') and result.get('object_type') != 'unknown':
                 enhanced_entities['object_type'] = result.get('object_type')
             if result.get('stcd'):
                 enhanced_entities['stcd'] = result.get('stcd')
 
+            # 兜底：如果stcd仍为空，使用正则表达式从user_message中提取有效对象
+            if not enhanced_entities.get('stcd'):
+                logger.info("stcd仍为空，尝试使用正则表达式从user_message中提取对象")
+                regex_object = self._extract_object_by_regex(user_message)
+                if regex_object:
+                    logger.info(f"正则表达式提取到对象: {regex_object}")
+                    # 用正则提取的对象查询数据库
+                    try:
+                        from ..tools.registry import get_tool_registry
+                        registry = get_tool_registry()
+                        lookup_tool = registry.get_tool('lookup_station_code')
+                        if lookup_tool:
+                            regex_result = await lookup_tool.execute(
+                                station_name=regex_object,
+                                exact_match=False
+                            )
+                            if regex_result.success and regex_result.data:
+                                stations = regex_result.data.get('stations', [])
+                                if stations:
+                                    first_station = stations[0]
+                                    enhanced_entities['object'] = regex_object
+                                    enhanced_entities['object_type'] = first_station.get('type')
+                                    enhanced_entities['stcd'] = first_station.get('stcd')
+                                    logger.info(f"正则兜底查询成功: {regex_object} -> {first_station.get('type')} (stcd: {first_station.get('stcd')})")
+                                    logger.info(f"=== 对象类型3步解析最终结果 === object: {regex_object}, object_type: {first_station.get('type')}, stcd: {first_station.get('stcd')}")
+                                    return enhanced_entities
+                    except Exception as e:
+                        logger.warning(f"正则兜底查询数据库失败: {e}")
+
+            logger.info(f"=== 对象类型3步解析最终结果 === object: {enhanced_entities.get('object', object_name)}, object_type: {enhanced_entities.get('object_type', 'unknown')}, stcd: {enhanced_entities.get('stcd', '')}")
             logger.info(f"对象类型解析完成: {object_name} -> {enhanced_entities.get('object_type', 'unknown')}")
 
         except Exception as e:

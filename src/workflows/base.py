@@ -242,7 +242,8 @@ class BaseWorkflow(ABC):
                 'step_id': step.step_id,
                 'name': step.name,  # 简短名称，用于显示
                 'description': step.description,  # 详细描述
-                'tool_name': step.tool_name
+                'tool_name': step.tool_name,
+                'result_display': step.result_display  # 结果展示模式：full/summary/skip
             })
         return plan_steps
 
@@ -342,5 +343,4 @@ class BaseWorkflow(ABC):
             模板所需的数据字典
         """
         return context.to_dict()
-
 

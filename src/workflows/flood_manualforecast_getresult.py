@@ -127,7 +127,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 depends_on=[2],
                 is_async=False,
                 output_key="history_rain_process",
-                result_display="summary"  # 包含时序数据，需摘要
+                result_display="skip"
             ),
             WorkflowStep(
                 step_id=4,
@@ -167,7 +167,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 depends_on=[2, 4],
                 is_async=False,
                 output_key="hourly_rain_process",
-                result_display="summary"  # 包含时序数据，需摘要
+                result_display="skip"
             ),
             WorkflowStep(
                 step_id=7,
@@ -255,7 +255,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 depends_on=[13],
                 is_async=False,
                 output_key="forecast_result",
-                result_display="summary"  # 包含大量时序数据，需摘要
+                result_display="skip"
             ),
             WorkflowStep(
                 step_id=15,
@@ -1021,6 +1021,14 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
         # 优先从entities中获取对象信息
         object_name = entities.get("object", "")
         object_type = entities.get("object_type", "")
+
+        # 洪水预报的有效对象只能是：水库、水文站、闸站、蓄滞洪区、流域
+        # 其他类型的实体（如时间描述、事件名称等）不是有效预报对象
+        valid_keywords = ['水库', '水文站', '水位站', '站', '蓄滞洪区', '滞洪区', '闸', '流域']
+        is_valid_object = object_name and any(kw in object_name for kw in valid_keywords)
+        if object_name and not is_valid_object:
+            logger.info(f"'{object_name}'不是有效预报对象，将从user_message中重新解析")
+            object_name = ""
 
         # 检查是否包含多个对象（通过"和"、"、"、","分隔）
         # 先尝试从 object_name 中解析多个对象
