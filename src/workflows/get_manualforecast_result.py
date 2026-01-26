@@ -87,7 +87,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 tool_args_template={},
                 depends_on=[],
                 is_async=False,
-                output_key="auth_token"
+                output_key="auth_token",
+                result_display="skip"  # 仅返回token，对合成无用
             ),
             WorkflowStep(
                 step_id=2,
@@ -97,7 +98,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[1],
                 is_async=False,
-                output_key="session_params"
+                output_key="session_params",
+                result_display="skip"  # 仅解析参数，对合成无用
             ),
             WorkflowStep(
                 step_id=3,
@@ -107,7 +109,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 tool_args_template={"st": "$rain_start_time", "ed": "$rain_end_time"},
                 depends_on=[2],
                 is_async=False,
-                output_key="rain_process"
+                output_key="rain_process",
+                result_display="summary"  # 包含时序数据，需摘要
             ),
             WorkflowStep(
                 step_id=4,
@@ -117,7 +120,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[3],
                 is_async=False,
-                output_key="exact_rain_time"
+                output_key="exact_rain_time",
+                result_display="skip"  # 仅返回时间范围，对合成无用
             ),
             WorkflowStep(
                 step_id=5,
@@ -127,7 +131,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 tool_args_template={"business_code": "flood_forecast_wg"},
                 depends_on=[4],
                 is_async=False,
-                output_key="plan_id"
+                output_key="plan_id",
+                result_display="skip"  # 仅返回方案ID，对合成无用
             ),
             WorkflowStep(
                 step_id=6,
@@ -137,7 +142,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_id"},
                 depends_on=[5],
                 is_async=False,
-                output_key="manual_forecast_result"
+                output_key="manual_forecast_result",
+                result_display="summary"  # 包含大量时序数据，需摘要
             ),
             WorkflowStep(
                 step_id=7,
@@ -147,7 +153,8 @@ class GetManualForecastResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[6],
                 is_async=False,
-                output_key="extracted_result"
+                output_key="extracted_result",
+                result_display="full"  # 最后一步，必须完整提交
             )
         ]
     

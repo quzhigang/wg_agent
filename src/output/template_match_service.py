@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 # LLM精选模板的提示词
-TEMPLATE_SELECT_PROMPT = """你是一个Web模板选择专家。根据用户问题和执行结果，从候选模板中选择最合适的模板。
+TEMPLATE_SELECT_PROMPT = """你是一个Web模板选择专家。根据用户问题和可提供的参数，从候选模板中选择最合适的模板。
 
 ## 用户问题
 {user_message}
@@ -29,25 +29,33 @@ TEMPLATE_SELECT_PROMPT = """你是一个Web模板选择专家。根据用户问�
 ## 业务子意图
 {sub_intent}
 
-## 执行结果摘要
-{execution_summary}
+## 对象识别可提供的参数
+（来自实体解析阶段：数据库查询+知识库查询+LLM匹配）
+{entity_params}
+
+## 工作流可提供的参数
+（来自工作流执行结果）
+{workflow_params}
 
 ## 候选模板列表
 {candidates}
 
-## 选择标准
-1. 模板必须支持当前的业务子意图
-2. 模板的触发模式应与用户问题相关
-3. 模板的数据展示能力应与执行结果匹配
+## 选择标准（按优先级排序）
+
+### 必要条件（不满足则必须返回null）
+1. **参数完全满足**：上述两类参数（对象识别参数+工作流参数）必须完全覆盖模板的"所需参数"。逐一检查模板所需的每个参数（如token、planCode、stcd、reservoirName等），确认都能提供。如果有任何一个所需参数无法满足，该模板不可选择。
+2. **子意图匹配**：模板必须支持当前的业务子意图。
+
+### 优选条件（在满足必要条件后考虑）
+3. 模板的触发模式与用户问题相关性高
 4. 优先选择优先级高的模板
-5. 如果没有合适的模板，返回 null
 
 ## 输出格式
 请返回JSON格式，包含以下字段：
 {{
     "selected_template_id": "模板ID或null",
     "confidence": 0.0-1.0的置信度,
-    "reason": "选择理由"
+    "reason": "选择理由（如果返回null，说明哪些参数不满足）"
 }}
 
 请直接返回JSON，不要包含其他内容。
@@ -94,8 +102,9 @@ class TemplateMatchService:
         self,
         user_message: str,
         sub_intent: str = "",
-        execution_results: List[Dict[str, Any]] = None,
-        execution_summary: str = ""
+        available_params: str = "",
+        entity_params: str = "",
+        workflow_params: str = ""
     ) -> Optional[Dict[str, Any]]:
         """
         两阶段模板匹配
@@ -103,8 +112,9 @@ class TemplateMatchService:
         Args:
             user_message: 用户原始问题
             sub_intent: 业务子意图
-            execution_results: 执行结果列表
-            execution_summary: 执行结果摘要
+            available_params: 工作流可提供的参数摘要（兼容旧接口，如果提供则会被拆分）
+            entity_params: 对象识别可提供的参数（来自实体解析阶段）
+            workflow_params: 工作流可提供的参数（来自工作流执行结果）
 
         Returns:
             匹配的模板信息，包含：
@@ -118,8 +128,8 @@ class TemplateMatchService:
         logger.info(f"开始模板匹配，用户问题: {user_message[:50]}..., 子意图: {sub_intent}")
 
         try:
-            # 第一阶段：向量检索
-            query = f"{user_message} {execution_summary}"
+            # 第一阶段：向量检索（使用用户问题和子意图进行检索）
+            query = f"{user_message} {sub_intent}"
             candidates = self.vector_index.search(
                 query=query,
                 sub_intent=sub_intent,
@@ -150,7 +160,9 @@ class TemplateMatchService:
             selected = await self._llm_select_template(
                 user_message=user_message,
                 sub_intent=sub_intent,
-                execution_summary=execution_summary,
+                entity_params=entity_params,
+                workflow_params=workflow_params,
+                available_params=available_params,
                 candidates=candidates
             )
 
@@ -183,7 +195,9 @@ class TemplateMatchService:
         self,
         user_message: str,
         sub_intent: str,
-        execution_summary: str,
+        entity_params: str,
+        workflow_params: str,
+        available_params: str,
         candidates: List[Dict[str, Any]]
     ) -> Optional[Dict[str, Any]]:
         """
@@ -192,29 +206,41 @@ class TemplateMatchService:
         Args:
             user_message: 用户问题
             sub_intent: 业务子意图
-            execution_summary: 执行结果摘要
+            entity_params: 对象识别可提供的参数（来自实体解析阶段）
+            workflow_params: 工作流可提供的参数（来自工作流执行结果）
+            available_params: 兼容旧接口的参数摘要
             candidates: 候选模板列表
 
         Returns:
             选择结果，包含 selected_template_id, confidence, reason
         """
         try:
-            # 格式化候选模板
+            # 格式化候选模板（增加所需参数信息）
             candidates_text = "\n".join([
                 f"- ID: {c.get('id')}\n"
                 f"  名称: {c.get('display_name')}\n"
                 f"  描述: {c.get('description', '')[:200]}\n"
                 f"  触发模式: {c.get('trigger_pattern', '')[:200]}\n"
                 f"  支持子意图: {','.join(c.get('supported_sub_intents', []))}\n"
+                f"  所需参数: {c.get('required_params', '无')}\n"
                 f"  优先级: {c.get('priority', 0)}\n"
                 f"  向量分数: {c.get('score', 0):.3f}"
                 for c in candidates
             ])
 
+            # 处理参数：优先使用新的分离参数，兼容旧的合并参数
+            final_entity_params = entity_params or "无"
+            final_workflow_params = workflow_params or "无"
+
+            # 如果新参数都为空但旧参数有值，则使用旧参数作为工作流参数（向后兼容）
+            if entity_params == "" and workflow_params == "" and available_params:
+                final_workflow_params = available_params
+
             context_vars = {
                 "user_message": user_message,
                 "sub_intent": sub_intent,
-                "execution_summary": execution_summary or "无",
+                "entity_params": final_entity_params,
+                "workflow_params": final_workflow_params,
                 "candidates": candidates_text
             }
 

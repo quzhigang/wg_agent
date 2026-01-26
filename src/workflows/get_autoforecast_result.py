@@ -100,7 +100,8 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
                 tool_args_template={},
                 depends_on=[],
                 is_async=False,
-                output_key="auth_token"
+                output_key="auth_token",
+                result_display="skip"  # 仅返回token，对合成无用
             ),
             WorkflowStep(
                 step_id=2,
@@ -110,7 +111,8 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[1],
                 is_async=False,
-                output_key="forecast_target"
+                output_key="forecast_target",
+                result_display="skip"  # 仅解析参数，对合成无用
             ),
             WorkflowStep(
                 step_id=3,
@@ -120,7 +122,8 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "model_auto"},  # 固定采用model_auto
                 depends_on=[2],
                 is_async=False,
-                output_key="auto_forecast_result"
+                output_key="auto_forecast_result",
+                result_display="summary"  # 包含大量时序数据，需摘要
             ),
             WorkflowStep(
                 step_id=4,
@@ -130,7 +133,8 @@ class GetAutoForecastResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[3],
                 is_async=False,
-                output_key="extracted_result"
+                output_key="extracted_result",
+                result_display="full"  # 最后一步，必须完整提交
             )
         ]
     

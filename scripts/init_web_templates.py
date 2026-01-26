@@ -43,25 +43,33 @@ INITIAL_TEMPLATES = [
                     "context_path": "steps.login.token",
                     "target_key": "DEFAULT_PARAMS.token",
                     "pattern": r"token:\s*['\"][^'\"]*['\"]",
-                    "replacement_template": "token: '{value}'"
+                    "replacement_template": "token: '{value}'",
+                    "param_name": "token",
+                    "param_desc": "登录认证令牌"
                 },
                 {
                     "context_path": "steps.forecast.planCode",
                     "target_key": "DEFAULT_PARAMS.planCode",
                     "pattern": r"planCode:\s*['\"][^'\"]*['\"]",
-                    "replacement_template": "planCode: '{value}'"
+                    "replacement_template": "planCode: '{value}'",
+                    "param_name": "planCode",
+                    "param_desc": "预报方案ID"
                 },
                 {
                     "context_path": "steps.extract.stcd",
                     "target_key": "DEFAULT_PARAMS.stcd",
                     "pattern": r"stcd:\s*['\"][^'\"]*['\"]",
-                    "replacement_template": "stcd: '{value}'"
+                    "replacement_template": "stcd: '{value}'",
+                    "param_name": "stcd",
+                    "param_desc": "水库站码"
                 },
                 {
                     "context_path": "steps.parse_target.target_name",
                     "target_key": "DEFAULT_PARAMS.reservoirName",
                     "pattern": r"reservoirName:\s*['\"][^'\"]*['\"]",
-                    "replacement_template": "reservoirName: '{value}'"
+                    "replacement_template": "reservoirName: '{value}'",
+                    "param_name": "reservoirName",
+                    "param_desc": "水库名称"
                 }
             ],
             "default_values": {
@@ -151,7 +159,8 @@ def init_templates():
                     "supported_sub_intents": tpl_data["supported_sub_intents"],
                     "template_path": existing.template_path,
                     "template_type": existing.template_type,
-                    "priority": existing.priority
+                    "priority": existing.priority,
+                    "replacement_config": tpl_data.get("replacement_config")
                 })
 
                 updated_count += 1
@@ -187,7 +196,8 @@ def init_templates():
                     "supported_sub_intents": tpl_data["supported_sub_intents"],
                     "template_path": tpl_data["template_path"],
                     "template_type": tpl_data["template_type"],
-                    "priority": tpl_data["priority"]
+                    "priority": tpl_data["priority"],
+                    "replacement_config": tpl_data.get("replacement_config")
                 })
 
                 created_count += 1

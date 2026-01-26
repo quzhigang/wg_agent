@@ -29,13 +29,6 @@ EXCLUDE_TOOLS_FROM_RESPONSE = [
 # 需要过滤的敏感字段
 SENSITIVE_FIELDS = ["token", "password", "api_key", "secret"]
 
-# 需要轻量化处理的工具列表（这些工具返回大量时序数据，需要截取部分值）
-# 轻量化处理：对于时序数据字典，只保留前几个值作为示例
-LIGHTWEIGHT_TOOLS = [
-    "get_tjdata_result",           # 获取预报方案结果，包含大量时序数据
-    "get_history_autoforcast_res", # 获取历史自动预报结果，包含大量时序数据
-]
-
 
 # 响应生成提示词
 RESPONSE_GENERATION_PROMPT = """你是卫共流域数字孪生系统的智能助手，负责生成最终响应。
@@ -245,17 +238,19 @@ class Controller:
         try:
             results = context.get('results', [])
             combined_data = context.get('combined_data', {})
-            execution_summary = context.get('execution_summary', '')
 
             sub_intent = state.get('business_sub_intent', '')
             user_message = state.get('user_message', '')
+
+            # 生成参数摘要（分为对象识别参数和工作流参数）
+            entity_params, workflow_params = self._format_available_params_for_template_match(state)
 
             template_match_service = get_template_match_service()
             matched_template = await template_match_service.match_template(
                 user_message=user_message,
                 sub_intent=sub_intent,
-                execution_results=results,
-                execution_summary=execution_summary
+                entity_params=entity_params,
+                workflow_params=workflow_params
             )
 
             # 如果匹配到模板且置信度足够高，使用模板生成页面
@@ -386,6 +381,8 @@ class Controller:
                     "intent": state.get('intent', ''),
                     # 传递方案ID（所有工作流统一输出为 plan_id）
                     "plan_id": state.get('plan_id'),
+                    # 传递实体信息（包含 stcd，来自实体解析阶段）
+                    "entities": state.get('entities', {}),
                 }
 
             # 不需要页面，只生成文字回复
@@ -1200,10 +1197,132 @@ class Controller:
             return "处理完成"
         
         return "处理中..."
-    
+
+    def _format_available_params_for_template_match(self, state: AgentState) -> tuple[str, str]:
+        """
+        为模板匹配生成参数摘要，分为两类：
+        1. 对象识别参数（来自实体解析阶段：数据库查询+知识库查询+LLM匹配）
+        2. 工作流参数（来自工作流执行结果）
+
+        兼容两种工作流上下文结构：
+        1. WorkflowContext 类结构: steps.login.token, steps.forecast.planCode, steps.extract.stcd
+        2. 简单字典结构: auth_token, plan_id, results.extracted_result
+
+        Args:
+            state: 当前智能体状态
+
+        Returns:
+            (entity_params, workflow_params) 元组
+        """
+        entity_params = []  # 对象识别参数（实体解析阶段）
+        workflow_params = []  # 工作流参数（工作流执行结果）
+
+        # 从 workflow_context 提取关键参数
+        workflow_context = state.get('workflow_context', {})
+
+        # 调试日志：打印 workflow_context 的结构
+        logger.debug(f"workflow_context keys: {workflow_context.keys() if isinstance(workflow_context, dict) else 'not dict'}")
+        logger.debug(f"state keys: {list(state.keys()) if hasattr(state, 'keys') else 'not dict'}")
+
+        # ========== 对象识别参数（来自实体解析阶段）==========
+        # stcd 应该从实体解析阶段获取（工作流执行前的3步曲：数据库查询+知识库查询+LLM匹配）
+        stcd = None
+        # 方式1（优先）: 从 state.entities 获取（实体解析阶段的结果）
+        entities = state.get('entities', {})
+        logger.debug(f"entities from state: {entities}")  # 调试日志
+        if entities and isinstance(entities, dict):
+            stcd = entities.get('stcd') or entities.get('Stcd')
+            logger.debug(f"stcd from entities: {stcd}")  # 调试日志
+        # 方式2: WorkflowContext 类结构（备用）
+        steps = workflow_context.get('steps', {})
+        if not stcd:
+            extract_step = steps.get('extract', {})
+            stcd = extract_step.get('stcd') or extract_step.get('Stcd')
+
+        if stcd:
+            entity_params.append(f"- stcd: {stcd} (站点代码)")
+
+        # reservoirName 也可能来自实体解析阶段
+        target_name = None
+        # 方式1: 从 state.forecast_target 提取（实体解析阶段的结果）
+        forecast_target = state.get('forecast_target', {})
+        if forecast_target:
+            target_name = forecast_target.get('name')
+        # 方式2: WorkflowContext 类结构
+        if not target_name:
+            parse_step = steps.get('parse_target', {})
+            target_name = parse_step.get('target_name')
+        # 方式3: 从 workflow_context.session_params 提取
+        if not target_name:
+            session_params = workflow_context.get('session_params', {})
+            ft = session_params.get('forecast_target', {})
+            if ft:
+                target_name = ft.get('name')
+
+        if target_name:
+            entity_params.append(f"- reservoirName: {target_name} (预报目标名称)")
+
+        # forecast_target_type 来自实体解析阶段
+        target_type = None
+        if forecast_target:
+            target_type = forecast_target.get('type')
+        if not target_type:
+            session_params = workflow_context.get('session_params', {})
+            ft = session_params.get('forecast_target', {})
+            if ft:
+                target_type = ft.get('type')
+
+        if target_type:
+            entity_params.append(f"- forecast_target_type: {target_type}")
+
+        # ========== 工作流参数（来自工作流执行结果）==========
+        # token 来自登录认证步骤
+        token = None
+        # 方式1: WorkflowContext 类结构
+        login_step = steps.get('login', {})
+        if login_step.get('token'):
+            token = login_step.get('token')
+        # 方式2: 简单字典结构 - 直接从 workflow_context 获取
+        if not token and workflow_context.get('auth_token'):
+            token = workflow_context.get('auth_token')
+        # 方式3: 从 workflow_context.results 获取
+        if not token:
+            results = workflow_context.get('results', {})
+            if results.get('auth_token'):
+                token = results.get('auth_token')
+
+        if token:
+            workflow_params.append("- token: 已获取 (来自登录认证)")
+
+        # planCode 来自预报方案步骤
+        plan_code = None
+        # 方式1: WorkflowContext 类结构
+        forecast_step = steps.get('forecast', {})
+        plan_code = forecast_step.get('planCode') or forecast_step.get('plan_code')
+        # 方式2: 简单字典结构 - 从 workflow_context 获取
+        if not plan_code and workflow_context.get('plan_id'):
+            plan_code = workflow_context.get('plan_id')
+        # 方式3: 从 state 直接获取
+        if not plan_code and state.get('plan_id'):
+            plan_code = state.get('plan_id')
+
+        if plan_code:
+            workflow_params.append(f"- planCode: {plan_code} (来自预报方案)")
+
+        # 格式化输出
+        entity_params_str = "\n".join(entity_params) if entity_params else "无"
+        workflow_params_str = "\n".join(workflow_params) if workflow_params else "无"
+
+        return entity_params_str, workflow_params_str
+
     def _format_execution_results(self, results: List[Dict[str, Any]], plan: List[Dict[str, Any]] = None) -> str:
         """
-        格式化执行结果，过滤内部工具和敏感信息
+        格式化执行结果，根据 result_display 标记控制展示方式
+
+        result_display 模式：
+        - skip: 不提交此步骤结果给合成LLM
+        - summary: 摘要提交，只展示字段属性和时序数据的前后几条
+        - full: 完整提交，但时序数据仍遵循限制规则
 
         兼容两种执行模式：
         - 批量执行模式：结果字段为 'output'
@@ -1212,20 +1331,33 @@ class Controller:
         if not results:
             return ""
 
-        # 构建 step_id -> tool_name 映射
-        tool_map = {}
+        # 构建 step_id -> step_info 映射（包含 tool_name 和 result_display）
+        step_info_map = {}
         if plan:
             for step in plan:
-                tool_map[step.get('step_id')] = step.get('tool_name', '')
+                step_id = step.get('step_id')
+                step_info_map[step_id] = {
+                    'tool_name': step.get('tool_name', ''),
+                    'result_display': step.get('result_display', 'full'),
+                    'name': step.get('name', '')
+                }
 
         formatted = []
         for r in results:
             step_id = r.get('step_id', '?')
-            tool_name = tool_map.get(step_id, '') or r.get('tool_name', '')
+            step_info = step_info_map.get(step_id, {})
+            tool_name = step_info.get('tool_name', '') or r.get('tool_name', '')
+            result_display = step_info.get('result_display', 'full')
+            step_name = step_info.get('name', '') or r.get('step_name', '')
 
-            # 过滤：跳过内部工具的结果
+            # 过滤1：跳过内部工具的结果（如登录工具）
             if tool_name in EXCLUDE_TOOLS_FROM_RESPONSE:
                 logger.debug(f"过滤步骤{step_id}的结果（工具: {tool_name}）")
+                continue
+
+            # 过滤2：根据 result_display 标记跳过 "skip" 的步骤
+            if result_display == 'skip':
+                logger.debug(f"跳过步骤{step_id}的结果（result_display=skip）")
                 continue
 
             success = r.get('success', False)
@@ -1234,31 +1366,138 @@ class Controller:
             error = r.get('error')
 
             if success:
-                # 检查是否需要轻量化处理
-                # 对于所有包含大量时序数据的结果都进行轻量化处理
-                need_lightweight = tool_name in LIGHTWEIGHT_TOOLS
-
-                # 格式化输出
-                if isinstance(output, dict):
-                    # 过滤敏感字段
-                    filtered_output = self._filter_sensitive_fields(output)
-                    # 对所有字典类型的输出进行轻量化处理（不仅仅是特定工具）
-                    # 这样可以避免大量时序数据导致的性能问题
-                    filtered_output = self._lightweight_timeseries_data(filtered_output)
-                    output_str = self._format_dict_output(filtered_output)
-                elif isinstance(output, list):
-                    output_str = self._format_list_output(output)
-                elif output:
-                    output_str = str(output)
+                # 根据 result_display 模式处理输出
+                if result_display == 'summary':
+                    # 摘要模式：只展示字段属性和时序数据的前后几条
+                    output_str = self._format_output_summary(output, step_name)
                 else:
-                    # 如果没有输出内容，显示步骤名称
-                    step_name = r.get('step_name', '')
-                    output_str = f"完成 - {step_name}" if step_name else "完成"
+                    # full 模式：完整展示，但时序数据仍需限制
+                    output_str = self._format_output_full(output, step_name)
+
                 formatted.append(f"步骤{step_id}: {output_str}")
             else:
                 formatted.append(f"步骤{step_id}: 执行失败 - {error}")
 
         return "\n\n".join(formatted)
+
+    def _format_output_summary(self, output: Any, step_name: str = '') -> str:
+        """
+        摘要模式格式化输出
+
+        只展示：
+        - 字典的键名和非时序值
+        - 时序数据的前2条和后2条
+        - 列表的前3项
+
+        Args:
+            output: 原始输出数据
+            step_name: 步骤名称
+
+        Returns:
+            格式化的摘要字符串
+        """
+        if output is None:
+            return f"完成 - {step_name}" if step_name else "完成"
+
+        if isinstance(output, dict):
+            # 过滤敏感字段
+            filtered = self._filter_sensitive_fields(output)
+            # 摘要处理：只保留字段属性，时序数据只显示前后几条
+            summary = self._summarize_dict_data(filtered)
+            return self._format_dict_output(summary, max_items=15)
+
+        elif isinstance(output, list):
+            # 列表只显示前3项
+            if len(output) > 3:
+                summary_items = output[:3]
+                return self._format_list_output(summary_items, max_items=3) + f"\n  ...(共{len(output)}项)"
+            return self._format_list_output(output, max_items=3)
+
+        elif isinstance(output, str):
+            # 字符串截取前200字符
+            if len(output) > 200:
+                return output[:200] + "..."
+            return output
+
+        return str(output)
+
+    def _format_output_full(self, output: Any, step_name: str = '') -> str:
+        """
+        完整模式格式化输出
+
+        完整展示数据，但时序数据仍需限制（前5条+后5条）
+
+        Args:
+            output: 原始输出数据
+            step_name: 步骤名称
+
+        Returns:
+            格式化的完整字符串
+        """
+        if output is None:
+            return f"完成 - {step_name}" if step_name else "完成"
+
+        if isinstance(output, dict):
+            # 过滤敏感字段
+            filtered = self._filter_sensitive_fields(output)
+            # 轻量化时序数据（前5条+后5条）
+            filtered = self._lightweight_timeseries_data(filtered, max_timeseries_items=5)
+            return self._format_dict_output(filtered)
+
+        elif isinstance(output, list):
+            return self._format_list_output(output)
+
+        elif output:
+            return str(output)
+
+        return f"完成 - {step_name}" if step_name else "完成"
+
+    def _summarize_dict_data(self, data: Dict[str, Any], max_timeseries_items: int = 2) -> Dict[str, Any]:
+        """
+        摘要处理字典数据
+
+        - 非时序字段：保留原值
+        - 时序数据字典：只保留前N条和后N条
+        - 嵌套字典：递归处理
+
+        Args:
+            data: 原始字典数据
+            max_timeseries_items: 时序数据前后各保留的条数
+
+        Returns:
+            摘要处理后的字典
+        """
+        if not isinstance(data, dict):
+            return data
+
+        result = {}
+        for key, value in data.items():
+            if isinstance(value, dict):
+                # 检查是否为时序数据字典
+                if self._is_timeseries_dict(value):
+                    # 时序数据：只保留前N条和后N条
+                    items = list(value.items())
+                    total = len(items)
+                    if total > max_timeseries_items * 2:
+                        head = dict(items[:max_timeseries_items])
+                        tail = dict(items[-max_timeseries_items:])
+                        result[key] = {
+                            **head,
+                            '...': f"(省略{total - max_timeseries_items * 2}条)",
+                            **tail
+                        }
+                    else:
+                        result[key] = value
+                else:
+                    # 递归处理嵌套字典
+                    result[key] = self._summarize_dict_data(value, max_timeseries_items)
+            elif isinstance(value, list) and len(value) > 6:
+                # 长列表：只保留前3条和后3条
+                result[key] = value[:3] + [f"...(省略{len(value) - 6}项)"] + value[-3:]
+            else:
+                result[key] = value
+
+        return result
 
     def _lightweight_timeseries_data(self, data: Dict[str, Any], max_timeseries_items: int = 3) -> Dict[str, Any]:
         """

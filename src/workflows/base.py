@@ -48,6 +48,19 @@ class StepStatus(str, Enum):
     RETRYING = "retrying"
 
 
+class ResultDisplayMode(str, Enum):
+    """步骤结果展示模式
+
+    用于控制工作流步骤结果在提交给LLM合成时的展示方式：
+    - full: 完整提交 - 结果完整展示，但时序数据仍遵循限制规则
+    - summary: 摘要提交 - 仅展示字段属性和时序数据的前后几条
+    - skip: 不提交 - 不将此步骤结果提交给合成LLM
+    """
+    FULL = "full"
+    SUMMARY = "summary"
+    SKIP = "skip"
+
+
 class WorkflowStep(BaseModel):
     """工作流步骤定义"""
     step_id: int = Field(..., description="步骤ID")
@@ -58,6 +71,8 @@ class WorkflowStep(BaseModel):
     depends_on: List[int] = Field(default_factory=list, description="依赖的步骤ID")
     is_async: bool = Field(default=False, description="是否异步执行")
     output_key: Optional[str] = Field(default=None, description="输出结果的key")
+    # 结果展示模式：控制步骤结果在提交给LLM合成时的展示方式
+    result_display: str = Field(default="full", description="结果展示模式: full/summary/skip")
     # 扩展字段：为后续错误处理和回滚机制预留
     fallback_tools: List[str] = Field(default_factory=list, description="替代工具列表")
     retry_count: int = Field(default=0, description="重试次数")

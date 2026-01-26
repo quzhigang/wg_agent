@@ -113,6 +113,35 @@ class WebTemplateVectorIndex:
 
         return " ".join(parts)
 
+    def _extract_required_params(self, replacement_config: Optional[Dict[str, Any]]) -> str:
+        """
+        从 replacement_config 提取模板所需参数信息
+
+        Args:
+            replacement_config: 模板的数据注入配置
+
+        Returns:
+            参数信息字符串，格式如: "token(登录认证令牌),planCode(预报方案ID),..."
+        """
+        if not replacement_config:
+            return ""
+
+        mappings = replacement_config.get('mappings', [])
+        if not mappings:
+            return ""
+
+        params = []
+        for mapping in mappings:
+            param_name = mapping.get('param_name', '')
+            param_desc = mapping.get('param_desc', '')
+            if param_name:
+                if param_desc:
+                    params.append(f"{param_name}({param_desc})")
+                else:
+                    params.append(param_name)
+
+        return ','.join(params)
+
     def index_template(self, template_id: str, template_data: Dict[str, Any]) -> bool:
         """
         索引单个模板
@@ -146,6 +175,9 @@ class WebTemplateVectorIndex:
             else:
                 sub_intents_str = str(sub_intents)
 
+            # 提取模板所需参数信息（从 replacement_config）
+            required_params_str = self._extract_required_params(template_data.get('replacement_config'))
+
             # 构建元数据
             metadata = {
                 "name": template_data.get('name', ''),
@@ -157,6 +189,7 @@ class WebTemplateVectorIndex:
                 "template_type": template_data.get('template_type', 'full_page'),
                 "priority": template_data.get('priority', 0),
                 "is_dynamic": template_data.get('is_dynamic', False),
+                "required_params": required_params_str,
                 "indexed_at": datetime.now().isoformat()
             }
 
@@ -258,6 +291,7 @@ class WebTemplateVectorIndex:
                         "template_type": metadata.get("template_type", "full_page"),
                         "priority": metadata.get("priority", 0),
                         "is_dynamic": metadata.get("is_dynamic", False),
+                        "required_params": metadata.get("required_params", ""),
                         "score": score
                     })
 

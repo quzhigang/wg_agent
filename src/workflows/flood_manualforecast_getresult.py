@@ -104,7 +104,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[],
                 is_async=False,
-                output_key="auth_token"
+                output_key="auth_token",
+                result_display="skip"  # 仅返回token，对合成无用
             ),
             WorkflowStep(
                 step_id=2,
@@ -114,7 +115,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[1],
                 is_async=False,
-                output_key="session_params"
+                output_key="session_params",
+                result_display="skip"  # 仅解析参数，对合成无用
             ),
             WorkflowStep(
                 step_id=3,
@@ -124,7 +126,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"st": "$rain_start_time", "ed": "$rain_end_time"},
                 depends_on=[2],
                 is_async=False,
-                output_key="history_rain_process"
+                output_key="history_rain_process",
+                result_display="summary"  # 包含时序数据，需摘要
             ),
             WorkflowStep(
                 step_id=4,
@@ -134,7 +137,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[3],
                 is_async=False,
-                output_key="rain_time_range"
+                output_key="rain_time_range",
+                result_display="skip"  # 仅返回时间范围，对合成无用
             ),
             WorkflowStep(
                 step_id=5,
@@ -151,7 +155,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 },
                 depends_on=[4],
                 is_async=False,
-                output_key="plan_add_result"
+                output_key="plan_add_result",
+                result_display="skip"  # 仅返回方案ID，对合成无用
             ),
             WorkflowStep(
                 step_id=6,
@@ -161,7 +166,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"id": 1},  # 默认使用ID为1的雨型
                 depends_on=[2, 4],
                 is_async=False,
-                output_key="hourly_rain_process"
+                output_key="hourly_rain_process",
+                result_display="summary"  # 包含时序数据，需摘要
             ),
             WorkflowStep(
                 step_id=7,
@@ -171,7 +177,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_code"},
                 depends_on=[5, 6],
                 is_async=False,
-                output_key="rain_setting_result"
+                output_key="rain_setting_result",
+                result_display="skip"  # 仅返回设置状态，对合成无用
             ),
             WorkflowStep(
                 step_id=8,
@@ -181,7 +188,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_code", "bnd_type": "rf_model"},
                 depends_on=[7],
                 is_async=False,
-                output_key="boundry_result"
+                output_key="boundry_result",
+                result_display="skip"  # 仅返回设置状态，对合成无用
             ),
             WorkflowStep(
                 step_id=9,
@@ -191,7 +199,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_code", "initial_level": "monitor"},
                 depends_on=[8],
                 is_async=False,
-                output_key="initial_result"
+                output_key="initial_result",
+                result_display="skip"  # 仅返回设置状态，对合成无用
             ),
             WorkflowStep(
                 step_id=10,
@@ -201,7 +210,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_code", "gate_dispatch": "monitor"},
                 depends_on=[9],
                 is_async=False,
-                output_key="gatestate_result"
+                output_key="gatestate_result",
+                result_display="skip"  # 仅返回设置状态，对合成无用
             ),
             WorkflowStep(
                 step_id=11,
@@ -211,7 +221,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_code"},
                 depends_on=[10],
                 is_async=True,
-                output_key="calc_result"
+                output_key="calc_result",
+                result_display="skip"  # 仅返回启动状态，对合成无用
             ),
             WorkflowStep(
                 step_id=12,
@@ -221,7 +232,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_code"},
                 depends_on=[11],
                 is_async=False,
-                output_key="expect_seconds"
+                output_key="expect_seconds",
+                result_display="skip"  # 仅返回时间信息，对合成无用
             ),
             WorkflowStep(
                 step_id=13,
@@ -231,7 +243,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_code"},
                 depends_on=[12],
                 is_async=False,
-                output_key="plan_detail"
+                output_key="plan_detail",
+                result_display="skip"  # 仅返回状态信息，对合成无用
             ),
             WorkflowStep(
                 step_id=14,
@@ -241,7 +254,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template={"plan_code": "$plan_code"},
                 depends_on=[13],
                 is_async=False,
-                output_key="forecast_result"
+                output_key="forecast_result",
+                result_display="summary"  # 包含大量时序数据，需摘要
             ),
             WorkflowStep(
                 step_id=15,
@@ -251,7 +265,8 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 tool_args_template=None,
                 depends_on=[14],
                 is_async=False,
-                output_key="extracted_result"
+                output_key="extracted_result",
+                result_display="full"  # 最后一步，必须完整提交
             )
         ]
     

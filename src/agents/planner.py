@@ -335,7 +335,8 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
             "tool_name": "工具名称（如果需要）",
             "tool_args": {{"参数": "值", "布尔参数": true}},
             "dependencies": [],
-            "is_async": false
+            "is_async": false,
+            "result_display": "full"
         }}
     ],
     "estimated_time_seconds": 30,
@@ -355,6 +356,13 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 - 常用字段：stcd（站点编码）、stnm（站点名称）、data（数据对象）
 - 错误示例：$$STEP_1.result_code$$（result_code不存在）
 - 正确示例：$$step_1.stcd$$（直接使用返回数据中的字段名）
+
+**result_display字段（结果展示模式）：**
+根据用户问题判断每个步骤的结果对最终回答用户问题的重要程度：
+- "skip": 不提交 - 此步骤结果对回答用户问题无直接帮助
+- "summary": 摘要提交 - 此步骤结果有参考价值，但只需展示摘要
+- "full": 完整提交 - 此步骤结果是回答用户问题的核心数据
+注意：最后一个步骤必须是 "full"
 
 规划原则:
 1. 步骤应该清晰、可执行
@@ -802,10 +810,11 @@ class Planner:
         enhanced_entities = dict(entities)
         object_name = entities.get('object')
         object_type = entities.get('object_type')
+        existing_stcd = entities.get('stcd')
 
-        # 如果已经有 object_type 且不是强制模式，直接返回
-        if not force and object_type and object_type != 'null' and object_type.lower() != 'null':
-            logger.info(f"对象类型已存在: {object_name} -> {object_type}")
+        # 如果已经有 object_type 和 stcd 且不是强制模式，直接返回
+        if not force and object_type and object_type != 'null' and object_type.lower() != 'null' and existing_stcd:
+            logger.info(f"对象类型和stcd已存在: {object_name} -> {object_type} (stcd: {existing_stcd})")
             return enhanced_entities
 
         # 如果没有对象名称，无法查询
@@ -813,7 +822,12 @@ class Planner:
             logger.info("无对象名称，跳过类型解析")
             return enhanced_entities
 
-        logger.info(f"开始解析对象类型: {object_name}")
+        # 如果object_type已知但缺少stcd，仍需要查询数据库获取stcd
+        need_stcd_only = not force and object_type and object_type != 'null' and object_type.lower() != 'null' and not existing_stcd
+        if need_stcd_only:
+            logger.info(f"对象类型已知({object_type})但缺少stcd，查询数据库获取stcd...")
+        else:
+            logger.info(f"开始解析对象类型: {object_name}")
 
         db_result = "未查询到数据库记录"
         rag_context = "未检索到相关知识"
@@ -838,12 +852,22 @@ class Planner:
                         if len(unique_types) == 1:
                             # 只有一种类型，直接使用
                             first_station = stations[0]
-                            enhanced_entities['object_type'] = first_station.get('type')
+                            # 如果只需要stcd，不覆盖已有的object_type
+                            if not need_stcd_only:
+                                enhanced_entities['object_type'] = first_station.get('type')
                             enhanced_entities['stcd'] = first_station.get('stcd')
                             logger.info(f"数据库查询成功(单一类型): {object_name} -> {first_station.get('type')} (stcd: {first_station.get('stcd')})")
                             return enhanced_entities
                         else:
                             # 多种类型，需要LLM根据对话意图判断
+                            # 如果只需要stcd且object_type已知，尝试匹配已知类型
+                            if need_stcd_only and object_type:
+                                matched_station = next((s for s in stations if s.get('type') == object_type), None)
+                                if matched_station:
+                                    enhanced_entities['stcd'] = matched_station.get('stcd')
+                                    logger.info(f"根据已知类型匹配stcd: {object_name} -> {object_type} (stcd: {matched_station.get('stcd')})")
+                                    return enhanced_entities
+
                             logger.info(f"数据库返回多种类型: {unique_types}，需要LLM判断")
                             best_type = await self._llm_select_station_type(
                                 object_name=object_name,
@@ -853,14 +877,16 @@ class Planner:
                             if best_type:
                                 # 找到匹配类型的站点
                                 matched_station = next((s for s in stations if s.get('type') == best_type), stations[0])
-                                enhanced_entities['object_type'] = best_type
+                                if not need_stcd_only:
+                                    enhanced_entities['object_type'] = best_type
                                 enhanced_entities['stcd'] = matched_station.get('stcd')
                                 logger.info(f"LLM选择类型: {object_name} -> {best_type} (stcd: {matched_station.get('stcd')})")
                                 return enhanced_entities
                             else:
                                 # LLM判断失败，使用第一个结果
                                 first_station = stations[0]
-                                enhanced_entities['object_type'] = first_station.get('type')
+                                if not need_stcd_only:
+                                    enhanced_entities['object_type'] = first_station.get('type')
                                 enhanced_entities['stcd'] = first_station.get('stcd')
                                 logger.warning(f"LLM选择失败，使用默认: {object_name} -> {first_station.get('type')}")
                                 return enhanced_entities
@@ -1109,8 +1135,10 @@ class Planner:
                 logger.info("对象类型未知，开始解析...")
                 enhanced_entities = await self._resolve_object_type(entities, target_kbs, user_message)
             else:
-                enhanced_entities = entities
-                logger.info(f"对象类型已知: {object_type}")
+                # 对象类型已知，但仍需要获取stcd（用于web模板匹配）
+                # 调用_resolve_object_type但不强制覆盖object_type
+                logger.info(f"对象类型已知: {object_type}，但仍需获取stcd...")
+                enhanced_entities = await self._resolve_object_type(entities, target_kbs, user_message, force=False)
 
             # 根据子意图获取对应的预定义工作流
             predefined_workflows = PREDEFINED_WORKFLOWS_BY_SUB_INTENT.get(

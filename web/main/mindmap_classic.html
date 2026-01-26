@@ -677,24 +677,46 @@
             height: 30px;
             background: rgba(255,255,255,0.4);
             margin: 0 auto;
+            position: relative;
+        }
+
+        /* 为竖向连接线增加向下箭头 */
+        .tree-connector::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid rgba(255,255,255,0.4);
+            z-index: 1;
         }
 
         .tree-connector.triple {
             width: 60%;
             height: 2px;
+            background: rgba(255,255,255,0.4);
             position: relative;
+            margin: 10px auto;
         }
 
+        /* 禁用伪元素，改用子元素以支持箭头 */
         .tree-connector.triple::before,
-        .tree-connector.triple::after,
-        .tree-connector.triple::before {
-            content: '';
-            position: absolute;
-            width: 2px;
-            height: 20px;
-            background: rgba(255,255,255,0.4);
-            top: 0;
+        .tree-connector.triple::after {
+            display: none;
         }
+
+        /* 三分支下的侧边竖线 */
+        .tree-connector.triple .tree-connector {
+            position: absolute;
+            top: 0;
+            height: 20px;
+            margin: 0;
+        }
+
+        .tree-connector.triple .tree-connector.left { left: 0; }
+        .tree-connector.triple .tree-connector.right { right: 0; }
 
         .tree-node {
             background: rgba(255,255,255,0.15);
@@ -1082,6 +1104,7 @@
                     <span class="tech-tag">LangGraph</span>
                     <span class="tech-tag">LangChain</span>
                     <span class="tech-tag">ChromaDB</span>
+                    <span class="tech-tag">Pydantic v2</span>
                 </div>
             </div>
 
@@ -1137,7 +1160,8 @@
                                 <li>会话信息 (conversation_id, user_id)</li>
                                 <li>意图识别 (intent_category, business_sub_intent)</li>
                                 <li>执行计划 (plan, current_step_index)</li>
-                                <li>RAG检索 (retrieved_documents)</li>
+                                <li>工作流上下文 (workflow_context, workflow_status)</li>
+                                <li>页面生成 (generated_page_url, output_type)</li>
                             </ul>
                         </div>
                         <div class="branch-item">
@@ -1158,8 +1182,14 @@
                             </ul>
                         </div>
                         <div class="branch-item">
-                            <h4>controller.py - 结果合成</h4>
-                            <p>生成最终响应，自动添加参考来源</p>
+                            <h4>controller.py - 结果合成控制器</h4>
+                            <p>独立响应合成，支持并行生成文字和页面</p>
+                            <ul>
+                                <li>独立对话生成 - LLM 合成简洁文字回复</li>
+                                <li>独立页面生成 - 模板匹配或动态生成 Web 报告</li>
+                                <li>数据注入 - 基于 replacement_config 实现数据动态注入</li>
+                                <li>自动化来源引用 - 为 RAG 结果自动添加参考链接</li>
+                            </ul>
                         </div>
                         <div class="branch-item">
                             <h4>graph.py - LangGraph状态图</h4>
@@ -1185,11 +1215,11 @@
                         </div>
                         <div class="branch-item">
                             <h4>第二阶段: 工作流匹配</h4>
-                            <p>仅Business类触发</p>
+                            <p>Business 类触发，寻找最优执行路径</p>
                             <ul>
-                                <li>检查预定义模板 (5个)</li>
-                                <li>检查已保存动态流程</li>
-                                <li>未匹配 → 动态规划</li>
+                                <li>优先级1：预定义工作流 (含登录认证)</li>
+                                <li>优先级2：动态流程库 (向量检索匹配)</li>
+                                <li>优先级3：动态规划 (生成新执行计划)</li>
                             </ul>
                         </div>
                         <div class="branch-item">
@@ -1371,8 +1401,9 @@
                     </div>
                     <div class="branch-content">
                         <div class="branch-item">
-                            <h4>5个预定义工作流</h4>
+                            <h4>5个预定义工作流 (含登录认证)</h4>
                             <ul>
+                                <li><span class="highlight">强制前置步骤</span> - 所有流程首先执行 login_basin_system</li>
                                 <li>get_auto_forecast_result - 查询最新自动预报</li>
                                 <li>get_history_autoforecast_result - 查询历史预报</li>
                                 <li>flood_autoforecast_getresult - 启动自动预报</li>
@@ -1381,80 +1412,72 @@
                             </ul>
                         </div>
                         <div class="branch-item">
-                            <h4>动态流程自动保存</h4>
-                            <p>系统自动保存验证过的动态流程，下次优先使用</p>
+                            <h4>WorkflowContext 上下文</h4>
+                            <p>统一管理步骤间的数据传递与模板参数注入</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 详细流程图 - 思维导图分叉结构 -->
+            <!-- 详细流程图 - 第1部分：意图识别与业务分类 -->
             <div class="flow-section">
-                <h3>📊 请求处理流程（详细思维导图）</h3>
-
-                <!-- 第一层：入口 -->
+                <h3>📊 智能体流程（1/3）：初期识别与意图分类</h3>
                 <div class="flow-tree">
                     <div class="tree-level level-0">
                         <div class="tree-node root-tree-node">
                             <div class="node-title">用户请求</div>
-                            <div class="node-desc">POST /chat 或 /chat/stream</div>
+                            <div class="node-desc">用户输入原始文本查询</div>
                         </div>
                     </div>
 
-                    <!-- 第二层：第1阶段意图分析 -->
                     <div class="tree-connector"></div>
                     <div class="tree-level level-1">
                         <div class="tree-node stage-node">
-                            <div class="node-title">第1阶段：意图分析</div>
+                            <div class="node-title">第1阶段：一级意图分析</div>
                             <div class="node-desc">Planner.analyze_intent()</div>
-                            <div class="node-detail">INTENT_ANALYSIS_PROMPT</div>
+                            <div class="node-detail">
+                                <b>决策产出：</b><br>
+                                1. 一级意图类别 (Chat/Knowledge/Business)<br>
+                                2. <b>用户问题补全 (上下文补全查询)</b><br>
+                                3. 需要补充查询的 <b>target_kbs (关联知识库)</b><br>
+                                4. 是否需要 web_search
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 第三层：三大类分支 -->
-                    <div class="tree-connector triple"></div>
+                    <div class="tree-connector triple">
+                        <div class="tree-connector left"></div>
+                        <div class="tree-connector right"></div>
+                    </div>
                     <div class="tree-level level-2 three-branch">
                         <!-- Chat分支 -->
                         <div class="branch-group chat-branch">
                             <div class="tree-node category-node chat-node">
-                                <div class="node-title">第1类：Chat</div>
-                                <div class="node-desc">一般对话/闲聊</div>
+                                <div class="node-title">第1类：Chat (闲聊)</div>
+                                <div class="node-desc">直跳 quick_chat_node</div>
                             </div>
                             <div class="sub-tree">
-                                <div class="tree-node leaf-node">
-                                    <div class="node-title">quick_chat_node</div>
-                                    <div class="node-desc">直接返回direct_response</div>
-                                </div>
-                                <div class="tree-node end-node">
-                                    <div class="node-title">END</div>
-                                </div>
+                                <div class="tree-node leaf-node">直接返回 direct_response</div>
+                                <div class="tree-node end-node">END</div>
                             </div>
                         </div>
 
                         <!-- Knowledge分支 -->
                         <div class="branch-group knowledge-branch">
                             <div class="tree-node category-node knowledge-node">
-                                <div class="node-title">第2类：Knowledge</div>
-                                <div class="node-desc">固有知识查询</div>
+                                <div class="node-title">第2类：Knowledge (知识)</div>
+                                <div class="node-desc">跳转 knowledge_rag_node</div>
                             </div>
                             <div class="sub-tree">
-                                <div class="tree-node process-node">
-                                    <div class="node-title">knowledge_rag_node</div>
-                                    <div class="node-desc">知识库检索</div>
-                                    <div class="node-detail">
-                                        <ul>
-                                            <li>target_kbs: 目标知识库</li>
-                                            <li>rewritten_query: 补全查询</li>
-                                            <li>needs_web_search: 网络搜索</li>
-                                        </ul>
-                                    </div>
+                                <div class="tree-node leaf-node" style="border-color: #3b82f6;">
+                                    <b>局部检索：</b>仅从第一阶段预筛选出的<b>关联知识库 (target_kbs)</b> 中进行 RAG 语义检索
                                 </div>
-                                <div class="tree-node process-node">
-                                    <div class="node-title">controller_node</div>
-                                    <div class="node-desc">结果合成+来源引用</div>
+                                <div class="tree-node leaf-node" style="background: rgba(59, 130, 246, 0.1); border: 1px dashed #3b82f6;">
+                                    <b>按需联网：</b>判断若本地知识不足，自动执行网络搜索补充实时数据
                                 </div>
-                                <div class="tree-node end-node">
-                                    <div class="node-title">END</div>
+                                <div class="tree-node end-node" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 12px 20px;">
+                                    <div class="node-title">交付综合响应</div>
+                                    <div class="node-desc" style="font-size: 0.85em; opacity: 0.9;">专业文字分析 + <b>按需生成</b>的可视化Web页面</div>
                                 </div>
                             </div>
                         </div>
@@ -1462,178 +1485,282 @@
                         <!-- Business分支 -->
                         <div class="branch-group business-branch">
                             <div class="tree-node category-node business-node">
-                                <div class="node-title">第3类：Business</div>
-                                <div class="node-desc">业务操作</div>
+                                <div class="node-title">第3类：Business (业务)</div>
+                                <div class="node-desc">进入业务深度分类流程</div>
                             </div>
-
-                            <!-- Business子流程 -->
                             <div class="sub-tree business-sub">
-                                <!-- 第2阶段：子意图分类 -->
                                 <div class="tree-node stage-node">
-                                    <div class="node-title">第2阶段：子意图分类</div>
-                                    <div class="node-desc">classify_business_sub_intent()</div>
-                                    <div class="node-detail">BUSINESS_SUB_INTENT_PROMPT</div>
+                                    <div class="node-title">第2阶段：业务子意图识别</div>
+                                    <div class="node-desc">BUSINESS_SUB_INTENT_PROMPT</div>
                                 </div>
-
-                                <!-- 6个子意图 -->
                                 <div class="sub-intent-grid">
                                     <div class="sub-intent-item active">data_query<br><small>监测数据查询</small></div>
-                                    <div class="sub-intent-item">flood_forecast<br><small>洪水预报</small></div>
+                                    <div class="sub-intent-item active">flood_forecast<br><small>洪水预报</small></div>
                                     <div class="sub-intent-item">flood_simulation<br><small>洪水预演</small></div>
                                     <div class="sub-intent-item">emergency_plan<br><small>预案生成</small></div>
                                     <div class="sub-intent-item">damage_assessment<br><small>灾损评估</small></div>
                                     <div class="sub-intent-item">other<br><small>其他业务</small></div>
                                 </div>
+                                <div class="tree-node leaf-node">后续根据子意图进入专用流程 -></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                                <!-- 第3阶段：对象类型解析（data_query专属） -->
-                                <div class="tree-node stage-node highlight-stage">
-                                    <div class="node-title">第3阶段：对象类型3步合成</div>
-                                    <div class="node-desc">_resolve_object_type() [data_query强制执行]</div>
-                                </div>
+            <!-- 详细流程图 - 第2部分：监测数据查询完整流程 -->
+            <div class="flow-section">
+                <h3>📊 智能体流程（2/3）：监测数据查询 (data_query) 完整执行过程</h3>
+                <div class="flow-tree">
+                    <div class="tree-level">
+                        <div class="tree-node root-tree-node" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                            <div class="node-title">监测查询业务链</div>
+                            <div class="node-desc">实现自动化对象补全与实时数据获取</div>
+                        </div>
+                    </div>
 
-                                <!-- 3步合成详细流程 -->
-                                <div class="three-step-flow">
-                                    <div class="step-item">
-                                        <div class="step-number">1</div>
-                                        <div class="step-content">
-                                            <div class="step-title">数据库查询</div>
-                                            <div class="step-desc">lookup_station_code</div>
-                                            <div class="step-detail">
-                                                <ul>
-                                                    <li>模糊匹配站点名称</li>
-                                                    <li>返回stcd、type</li>
-                                                    <li>多类型时LLM选择</li>
-                                                </ul>
+                    <div class="tree-connector"></div>
+                    <div class="tree-level">
+                        <div class="tree-node stage-node">
+                            <div class="node-title">过程 1：目标对象识别与三步合成</div>
+                            <div class="node-desc">解决“用户说的是哪个站点”的语义问题</div>
+                        </div>
+                    </div>
+
+                    <div class="three-step-flow">
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-title">数据库模糊匹配</div>
+                                <div class="step-desc">SQL 搜索：从 <code>monitor_site</code> 表中根据名称查找 <code>stcd</code> 编码</div>
+                            </div>
+                        </div>
+                        <div class="step-arrow">+</div>
+                        <div class="step-item">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-title">RAG 属性检索</div>
+                                <div class="step-desc">从 PageIndex 检索该站点的工程关联属性、站点类型</div>
+                            </div>
+                        </div>
+                        <div class="step-arrow">+</div>
+                        <div class="step-item">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <div class="step-title">LLM 深度合成</div>
+                                <div class="step-desc"><code>OBJECT_SYNTHESIS</code> 模块输出最终 <code>object_type</code></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tree-connector"></div>
+                    <div class="tree-level">
+                        <div class="tree-node stage-node">
+                            <div class="node-title">过程 2：鉴权与实时数据采集</div>
+                            <div class="node-desc">Executor 执行器安全调用水利网关 API</div>
+                        </div>
+                    </div>
+
+                    <div class="executor-flow">
+                        <div class="exec-step">
+                            <div class="exec-title">1. 获取 Token</div>
+                            <div class="exec-desc">调用 <code>login_basin_system</code></div>
+                        </div>
+                        <div class="exec-arrow">→</div>
+                        <div class="exec-step">
+                            <div class="exec-title">2. 构建参数</div>
+                            <div class="exec-desc">计算时间区间 (Start/End)</div>
+                        </div>
+                        <div class="exec-arrow">→</div>
+                        <div class="exec-step" style="background: rgba(245, 158, 11, 0.2);">
+                            <div class="exec-title">3. API 请求</div>
+                            <div class="exec-desc">调用 <code>get_monitor_data</code></div>
+                        </div>
+                    </div>
+
+                    <div class="tree-connector"></div>
+                    <div class="tree-level">
+                        <div class="tree-node stage-node">
+                            <div class="node-title">过程 3：结果合成与页面展示</div>
+                            <div class="node-desc">独立合成文字快报与可视化页面</div>
+                        </div>
+                    </div>
+
+                    <div class="three-step-flow">
+                        <!-- 文字回复分支 -->
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-title">文字回复合成</div>
+                                <div class="step-desc" style="font-size: 0.8em; line-height: 1.4;">利用LLM对用户提问及各步骤执行结果的综合分析，以简短文字概括性回复用户</div>
+                            </div>
+                        </div>
+                        
+                        <div class="step-arrow">||</div>
+
+                        <!-- 页面展示分支 -->
+                        <div class="step-item" style="flex: 2;">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-title">可视化页面展示</div>
+                                <div class="workflow-match-flow" style="margin-top: 10px;">
+                                    <div class="match-branch" style="border-color: #10b981;">
+                                        <div class="match-title">分支 A：Web 模板匹配</div>
+                                        <div class="sub-tree" style="margin-top: 5px; font-size: 0.75em; text-align: left;">
+                                            <li>1. <b>RAG 检索：</b>语义匹配 <code>web_templates</code> 知识库</li>
+                                            <li>2. <b>LLM 最终匹配：</b>适配数据点，选定最优 UI 样式</li>
+                                            <div style="margin-top: 8px; padding-top: 5px; border-top: 1px dashed rgba(0,0,0,0.1); color: #d97706; font-weight: bold;">
+                                                ⚙️ 数据注入与参数修改
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="step-arrow">→</div>
-                                    <div class="step-item">
-                                        <div class="step-number">2</div>
-                                        <div class="step-content">
-                                            <div class="step-title">RAG知识库检索</div>
-                                            <div class="step-desc">monitor_site优先</div>
-                                            <div class="step-detail">
-                                                <ul>
-                                                    <li>检索站点类型信息</li>
-                                                    <li>补充工程属性</li>
-                                                </ul>
+                                    <div class="match-branch" style="border-color: #3b82f6;">
+                                        <div class="match-title">分支 B：Web 页面动态生成</div>
+                                        <div class="sub-tree" style="margin-top: 5px; font-size: 0.75em; text-align: left;">
+                                            <li>1. <b>独立生成智能体：</b>调度专门的 AI Agent 实时构建特种监测报表组件</li>
+                                            <li>2. <b>保存与向量化：</b>自动入库并更新向量索引库</li>
+                                            <div style="margin-top: 8px; padding-top: 5px; border-top: 1px dashed rgba(0,0,0,0.1); color: #d97706; font-weight: bold;">
+                                                ⚙️ 数据注入与参数修改
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="step-arrow">→</div>
-                                    <div class="step-item">
-                                        <div class="step-number">3</div>
-                                        <div class="step-content">
-                                            <div class="step-title">LLM合成</div>
-                                            <div class="step-desc">OBJECT_TYPE_SYNTHESIS_PROMPT</div>
-                                            <div class="step-detail">
-                                                <ul>
-                                                    <li>综合DB+RAG结果</li>
-                                                    <li>输出object_type</li>
-                                                    <li>输出stcd编码</li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- 第4阶段：工作流选择 -->
-                                <div class="tree-node stage-node">
-                                    <div class="node-title">第4阶段：工作流选择</div>
-                                    <div class="node-desc">check_workflow_match()</div>
-                                    <div class="node-detail">WORKFLOW_SELECT_PROMPT</div>
-                                </div>
-
-                                <!-- 工作流匹配分支 -->
-                                <div class="workflow-match-flow">
-                                    <div class="match-branch">
-                                        <div class="match-title">优先级1：预定义模板</div>
-                                        <div class="match-desc">5个洪水预报工作流</div>
-                                    </div>
-                                    <div class="match-branch">
-                                        <div class="match-title">优先级2：已保存动态流程</div>
-                                        <div class="match-desc">向量检索 + 数据库查询</div>
-                                    </div>
-                                    <div class="match-branch highlight-match">
-                                        <div class="match-title">优先级3：动态规划</div>
-                                        <div class="match-desc">generate_plan()</div>
-                                    </div>
-                                </div>
-
-                                <!-- 动态规划详细流程 -->
-                                <div class="dynamic-plan-flow">
-                                    <div class="plan-step">
-                                        <div class="plan-step-title">工具筛选</div>
-                                        <div class="plan-step-desc">TOOL_SELECTION_PROMPT<br>从175+工具中筛选2-6个</div>
-                                    </div>
-                                    <div class="plan-arrow">→</div>
-                                    <div class="plan-step">
-                                        <div class="plan-step-title">RAG检索</div>
-                                        <div class="plan-step-desc">business_workflow知识库<br>获取业务流程参考</div>
-                                    </div>
-                                    <div class="plan-arrow">→</div>
-                                    <div class="plan-step">
-                                        <div class="plan-step-title">计划生成</div>
-                                        <div class="plan-step-desc">PLAN_GENERATION_PROMPT<br>生成执行步骤</div>
-                                    </div>
-                                    <div class="plan-arrow">→</div>
-                                    <div class="plan-step">
-                                        <div class="plan-step-title">自动保存</div>
-                                        <div class="plan-step-desc">WORKFLOW_TEMPLATE_PROMPT<br>模板化+向量索引</div>
-                                    </div>
-                                </div>
-
-                                <!-- 执行阶段 -->
-                                <div class="tree-node stage-node">
-                                    <div class="node-title">第5阶段：任务执行</div>
-                                    <div class="node-desc">executor_node</div>
-                                </div>
-
-                                <div class="executor-flow">
-                                    <div class="exec-step">
-                                        <div class="exec-title">参数变量替换</div>
-                                        <div class="exec-desc">$$step_N.field$$ 格式</div>
-                                    </div>
-                                    <div class="exec-arrow">→</div>
-                                    <div class="exec-step">
-                                        <div class="exec-title">工具调用</div>
-                                        <div class="exec-desc">ToolRegistry.execute()</div>
-                                    </div>
-                                    <div class="exec-arrow">→</div>
-                                    <div class="exec-step">
-                                        <div class="exec-title">结果收集</div>
-                                        <div class="exec-desc">execution_results累积</div>
-                                    </div>
-                                </div>
-
-                                <!-- 响应阶段 -->
-                                <div class="tree-node stage-node">
-                                    <div class="node-title">第6阶段：结果合成</div>
-                                    <div class="node-desc">controller_node</div>
-                                </div>
-
-                                <div class="controller-flow">
-                                    <div class="ctrl-step">
-                                        <div class="ctrl-title">响应生成</div>
-                                        <div class="ctrl-desc">SYNTHESIS_PROMPT</div>
-                                    </div>
-                                    <div class="ctrl-arrow">→</div>
-                                    <div class="ctrl-step">
-                                        <div class="ctrl-title">输出类型判断</div>
-                                        <div class="ctrl-desc">text / web_page</div>
-                                    </div>
-                                    <div class="ctrl-arrow">→</div>
-                                    <div class="ctrl-step">
-                                        <div class="ctrl-title">页面生成</div>
-                                        <div class="ctrl-desc">async_page_agent (可选)</div>
-                                    </div>
-                                </div>
-
-                                <div class="tree-node end-node">
-                                    <div class="node-title">END</div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="tree-connector"></div>
+                    <div class="tree-level">
+                        <div class="tree-node end-node" style="padding: 10px 30px;">
+                            <div class="node-title">完成交付</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 详细流程图 - 第3部分：洪水预报完整流程 -->
+            <div class="flow-section">
+                <h3>📊 智能体流程（3/3）：洪水预报、预演等工作流完整执行过程</h3>
+                <div class="flow-tree">
+                    <div class="tree-level">
+                        <div class="tree-node root-tree-node" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                            <div class="node-title">洪水预报、预演等业务链</div>
+                            <div class="node-desc">从意图识别到决策、执行、交付的全生命周期</div>
+                        </div>
+                    </div>
+
+                    <div class="tree-connector"></div>
+                    <div class="tree-level">
+                        <div class="tree-node stage-node">
+                            <div class="node-title">过程 1：工作流匹配与动态规划</div>
+                        </div>
+                    </div>
+
+                    <div class="workflow-match-flow">
+                        <div class="match-branch" style="border-color: #8b5cf6;">
+                            <div class="match-title">分支 A：匹配存量/预定义工作流</div>
+                            <div class="sub-tree" style="margin-top: 10px; font-size: 0.75em; text-align: left;">
+                                <li>1. <b>RAG 检索：</b>语义匹配 <code>business_workflow</code> 知识库 Top 3</li>
+                                <li>2. <b>LLM 决策：</b>判定参数兼容性，选定唯一执行 Workflow ID</li>
+                            </div>
+                        </div>
+                        <div class="match-branch" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.05);">
+                            <div class="match-title">分支 B：实时动态规划</div>
+                            <div class="sub-tree" style="margin-top: 10px; font-size: 0.75em; text-align: left;">
+                                <li>1. <b>业务流程知识检索：</b>从业务流程知识库里检索相关业务流程知识</li>
+                                <li>2. <b>工具筛选：</b>Planner 从 170+ 模型/工具中挑选组件</li>
+                                <li>3. <b>计划生成：</b>实时构建包含变量依赖（$$step_N$$）的执行链</li>
+                                <li>4. <b>保存与向量化：</b>生成的优质工作流自动保存并更新语义索引库</li>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tree-connector"></div>
+                    <div class="tree-level">
+                        <div class="tree-node stage-node">
+                            <div class="node-title">过程 2：自动化执行与任务监控</div>
+                            <div class="node-desc">Executor 执行器按照计划驱动后台模型</div>
+                        </div>
+                    </div>
+
+                    <div class="executor-flow">
+                        <div class="exec-step">
+                            <div class="exec-title">1. 前置鉴权</div>
+                            <div class="exec-desc">login_basin_system<br>获取授权 Token</div>
+                        </div>
+                        <div class="exec-arrow">→</div>
+                        <div class="exec-step">
+                            <div class="exec-title">2. 驱动计算</div>
+                            <div class="exec-desc">model_plan_calc<br>启动分布式模型任务</div>
+                        </div>
+                        <div class="exec-arrow">→</div>
+                        <div class="exec-step" style="background: rgba(59, 130, 246, 0.2);">
+                            <div class="exec-title">3. 状态轮询</div>
+                            <div class="exec-desc">每隔 N 秒请求状态<br>直至计算完成 (100%)</div>
+                        </div>
+                        <div class="exec-arrow">→</div>
+                        <div class="exec-step">
+                            <div class="exec-title">4. 结果拉取</div>
+                            <div class="exec-desc">get_tjdata_res<br>解析预报水位/流量序列</div>
+                        </div>
+                    </div>
+
+                    <div class="tree-connector"></div>
+                    <div class="tree-level">
+                        <div class="tree-node stage-node">
+                            <div class="node-title">过程 3：结果合成与页面展示</div>
+                            <div class="node-desc">独立合成预报简报与可视化页面</div>
+                        </div>
+                    </div>
+
+                    <div class="three-step-flow">
+                        <!-- 文字回复分支 -->
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-title">文字回复合成</div>
+                                <div class="step-desc" style="font-size: 0.8em; line-height: 1.4;">利用LLM对用户提问及各步骤执行结果的综合分析，以简短文字概括性回复用户</div>
+                            </div>
+                        </div>
+                        
+                        <div class="step-arrow">||</div>
+
+                        <!-- 页面展示分支 -->
+                        <div class="step-item" style="flex: 2;">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-title">可视化页面展示</div>
+                                <div class="workflow-match-flow" style="margin-top: 10px;">
+                                    <div class="match-branch" style="border-color: #10b981;">
+                                        <div class="match-title">分支 A：Web 模板匹配</div>
+                                        <div class="sub-tree" style="margin-top: 5px; font-size: 0.75em; text-align: left;">
+                                            <li>1. <b>RAG 检索：</b>语义匹配 <code>web_templates</code> 知识库</li>
+                                            <li>2. <b>LLM 最终匹配：</b>确保展示维度与预报结论高度契合</li>
+                                            <div style="margin-top: 8px; padding-top: 5px; border-top: 1px dashed rgba(0,0,0,0.1); color: #d97706; font-weight: bold;">
+                                                ⚙️ 数据注入与参数修改
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="match-branch" style="border-color: #3b82f6;">
+                                        <div class="match-title">分支 B：Web 页面动态生成</div>
+                                        <div class="sub-tree" style="margin-top: 5px; font-size: 0.75em; text-align: left;">
+                                            <li>1. <b>独立生成智能体：</b>调度专项 AI Agent 实时构建非标预报报表及地图层</li>
+                                            <li>2. <b>保存与向量化：</b>模版持久化并更新知识库索引</li>
+                                            <div style="margin-top: 8px; padding-top: 5px; border-top: 1px dashed rgba(0,0,0,0.1); color: #d97706; font-weight: bold;">
+                                                ⚙️ 数据注入与参数修改
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tree-connector"></div>
+                    <div class="tree-level">
+                        <div class="tree-node end-node" style="padding: 12px 30px;">
+                            <div class="node-title">交付综合响应</div>
+                            <div class="node-desc">自然语言分析总结 + 交互式可视化 Web 报告</div>
                         </div>
                     </div>
                 </div>
@@ -1713,10 +1840,11 @@
                 displayName: '查询最新自动预报结果',
                 description: '自动获取系统中最新的洪水自动预报计算结果，包含水位、流量等预报数据。',
                 steps: [
-                    { id: 1, name: '解析会话参数', desc: '从用户会话中提取预报对象（如指定站点名称或全流域）' },
-                    { id: 2, name: '获取最新自动预报结果', desc: '调用 get_tjdata_result 工具，plan_code 固定为 model_auto' },
-                    { id: 3, name: '结果信息提取整理', desc: '根据预报对象提取主要预报数据（水位、流量等）及概括描述' },
-                    { id: 4, name: '生成Web页面', desc: '调用 res_module 模板生成并展示结果页面' }
+                    { id: 1, name: '登录系统获取认证token', desc: '调用 login_basin_system 工具获取访问令牌' },
+                    { id: 2, name: '解析会话参数', desc: '从用户会话中提取预报对象（如指定站点名称或全流域）' },
+                    { id: 3, name: '获取最新自动预报结果', desc: '调用 get_tjdata_result 工具，plan_code 固定为 model_auto' },
+                    { id: 4, name: '结果信息提取整理', desc: '根据预报对象提取主要预报数据（水位、流量等）及概括描述' },
+                    { id: 5, name: '生成Web页面', desc: '调用 res_flood_resultshow 模板生成并展示结果页面' }
                 ]
             },
             {
@@ -1724,13 +1852,14 @@
                 displayName: '查询历史自动预报结果',
                 description: '根据时间范围查询历史的自动预报记录和结果数据。',
                 steps: [
-                    { id: 1, name: '解析会话参数', desc: '提取预报对象和历史降雨的大概起止时间' },
-                    { id: 2, name: '获取历史面雨量过程', desc: '调用 forecast_rain_ecmwf_avg 获取指定时段的面雨量过程' },
-                    { id: 3, name: '获取具体降雨起止时间', desc: '通过分析逐小时降雨数据，精准定位核心降雨时段' },
-                    { id: 4, name: '获取历史预报方案ID', desc: '寻找与降雨结束时间最接近的历史自动预报方案' },
-                    { id: 5, name: '获取历史预报结果', desc: '调用 get_history_autoforcast_res 获取该方案的详细洪水结果' },
-                    { id: 6, name: '结果信息整理', desc: '提取目标对象的历史预报数值' },
-                    { id: 7, name: '生成Web页面', desc: '调用对应模板生成历史预报结果展示页面' }
+                    { id: 1, name: '登录系统获取认证token', desc: '调用 login_basin_system 工具获取访问令牌' },
+                    { id: 2, name: '解析会话参数', desc: '提取预报对象和历史降雨的大概起止时间' },
+                    { id: 3, name: '获取历史面雨量过程', desc: '调用 forecast_rain_ecmwf_avg 获取指定时段的面雨量过程' },
+                    { id: 4, name: '获取具体降雨起止时间', desc: '通过分析逐小时降雨数据，精准定位核心降雨时段' },
+                    { id: 5, name: '获取历史预报方案ID', desc: '寻找与降雨结束时间最接近的历史自动预报方案' },
+                    { id: 6, name: '获取历史预报结果', desc: '调用 get_history_autoforcast_res 获取该方案的详细洪水结果' },
+                    { id: 7, name: '结果信息整理', desc: '提取目标对象的历史预报数值' },
+                    { id: 8, name: '生成Web页面', desc: '调用对应模板生成历史预报结果展示页面' }
                 ]
             },
             {
@@ -1738,12 +1867,13 @@
                 displayName: '启动自动洪水预报',
                 description: '触发新的自动洪水预报计算流程，系统自动获取降雨数据并运行预报模型。',
                 steps: [
-                    { id: 1, name: '获取当前时间范围', desc: '确定预报所需的实测雨量和预报雨量的时间区间' },
-                    { id: 2, name: '获取ECMWF预报雨量', desc: '调用 forecast_rain_ecmwf 工具获取未来降雨' },
-                    { id: 3, name: '转换雨量格式', desc: '处理降雨数据格式以符合模型输入要求' },
-                    { id: 4, name: '启动预报方案', desc: '调用 start_modelplan 启动预报计算任务' },
-                    { id: 5, name: '查询计算结果', desc: '等待计算完成后获取最新的预报方案结果' },
-                    { id: 6, name: '生成展示页面', desc: '将预报结果推送至 Web 模板进行可视化展示' }
+                    { id: 1, name: '登录系统获取认证token', desc: '调用 login_basin_system 工具获取访问令牌' },
+                    { id: 2, name: '获取当前时间范围', desc: '确定预报所需的实测雨量和预报雨量的时间区间' },
+                    { id: 3, name: '获取ECMWF预报雨量', desc: '调用 forecast_rain_ecmwf 工具获取未来降雨' },
+                    { id: 4, name: '转换雨量格式', desc: '处理降雨数据格式以符合模型输入要求' },
+                    { id: 5, name: '启动预报方案', desc: '调用 start_modelplan 启动预报计算任务' },
+                    { id: 6, name: '查询计算结果', desc: '等待计算完成后获取最新的预报方案结果' },
+                    { id: 7, name: '生成展示页面', desc: '将预报结果推送至 Web 模板进行可视化展示' }
                 ]
             },
             {
@@ -1751,13 +1881,14 @@
                 displayName: '查询人工预报结果',
                 description: '获取人工设置参数的洪水预报计算结果。',
                 steps: [
-                    { id: 1, name: '解析会话参数', desc: '提取预报对象、时间范围或特定的人工方案描述' },
-                    { id: 2, name: '获取历史面雨量', desc: '调用 forecast_rain_ecmwf_avg 获取对应时段的面雨量过程' },
-                    { id: 3, name: '分析具体降雨时间', desc: '精准锁定降雨起止时间（若提供了方案描述则跳过此步）' },
-                    { id: 4, name: '获取人工方案列表', desc: '调用 model_plan_list_all 获取系统内所有人工预报方案' },
-                    { id: 5, name: '匹配目标方案ID', desc: '基于描述或降雨时间锁定具体的方案 plan_code' },
-                    { id: 6, name: '提取预报结果', desc: '调用 get_tjdata_result 工具获取该方案的详细洪水结果' },
-                    { id: 7, name: '生成Web页面', desc: '调用可视化模板展示该人工方案的洪水预报详情' }
+                    { id: 1, name: '登录系统获取认证token', desc: '调用 login_basin_system 工具获取访问令牌' },
+                    { id: 2, name: '解析会话参数', desc: '提取预报对象、时间范围或特定的人工方案描述' },
+                    { id: 3, name: '获取历史面雨量', desc: '调用 forecast_rain_ecmwf_avg 获取对应时段的面雨量过程' },
+                    { id: 4, name: '分析具体降雨时间', desc: '精准锁定降雨起止时间（若提供了方案描述则跳过此步）' },
+                    { id: 5, name: '获取人工方案列表', desc: '调用 model_plan_list_all 获取系统内所有人工预报方案' },
+                    { id: 6, name: '匹配目标方案ID', desc: '基于描述或降雨时间锁定具体的方案 plan_code' },
+                    { id: 7, name: '提取预报结果', desc: '调用 get_tjdata_result 工具获取该方案的详细洪水结果' },
+                    { id: 8, name: '生成Web页面', desc: '调用可视化模板展示该人工方案的洪水预报详情' }
                 ]
             },
             {
@@ -1765,19 +1896,20 @@
                 displayName: '启动人工洪水预报',
                 description: '创建并运行人工参数设定的洪水预报方案，支持自定义降雨等输入条件。',
                 steps: [
-                    { id: 1, name: '解析会话参数', desc: '提取预报对象、降雨量（如100mm）及预报起止时间' },
-                    { id: 2, name: '获取历史面雨量', desc: '（历史预报场景）调用接口获取对比用的实测降雨数据' },
-                    { id: 3, name: '分析降雨起止', desc: '根据面雨量过程精准确定模型计算的起始驱动时间' },
-                    { id: 4, name: '新建预报方案', desc: '调用 model_plan_add 创建一个全新的人工预报计算方案' },
-                    { id: 5, name: '解析降雨雨型', desc: '调用 model_rain_pattern_detail 获取降雨随时间的分布比例' },
-                    { id: 6, name: '设置方案降雨', desc: '根据雨型将总量分解至逐小时并写入方案驱动数据' },
-                    { id: 7, name: '设置边界条件', desc: '配置方案的模型边界，确保采用降雨径流模型计算' },
-                    { id: 8, name: '启动模型计算', desc: '调用 model_plan_calc 引擎开始后台分布式计算' },
-                    { id: 9, name: '获取预计时长', desc: '查询模型预计计算所需秒数，用于设置监控频率' },
-                    { id: 10, name: '监视计算状态', desc: '每5秒轮询一次计算进度，直至状态更新为“已完成”' },
-                    { id: 11, name: '读取计算结果', desc: '计算完成后从结果库中提取水位、流量等详细过程数据' },
-                    { id: 12, name: '结果信息整理', desc: '针对查询目标（全流域或特定站点）进行数据抽取' },
-                    { id: 13, name: '生成Web页面', desc: '将动态计算结果推送至可视化模板进行多维展示' }
+                    { id: 1, name: '登录系统获取认证token', desc: '调用 login_basin_system 工具获取访问令牌' },
+                    { id: 2, name: '解析会话参数', desc: '提取预报对象、降雨量（如100mm）及预报起止时间' },
+                    { id: 3, name: '获取历史面雨量', desc: '（历史预报场景）调用接口获取对比用的实测降雨数据' },
+                    { id: 4, name: '分析降雨起止', desc: '根据面雨量过程精准确定模型计算的起始驱动时间' },
+                    { id: 5, name: '新建预报方案', desc: '调用 model_plan_add 创建一个全新的人工预报计算方案' },
+                    { id: 6, name: '解析降雨雨型', desc: '调用 model_rain_pattern_detail 获取降雨随时间的分布比例' },
+                    { id: 7, name: '设置方案降雨', desc: '根据雨型将总量分解至逐小时并写入方案驱动数据' },
+                    { id: 8, name: '设置边界条件', desc: '配置方案的模型边界，确保采用降雨径流模型计算' },
+                    { id: 9, name: '启动模型计算', desc: '调用 model_plan_calc 引擎开始后台分布式计算' },
+                    { id: 10, name: '获取预计时长', desc: '查询模型预计计算所需秒数，用于设置监控频率' },
+                    { id: 11, name: '监视计算状态', desc: '每5秒轮询一次计算进度，直至状态更新为“已完成”' },
+                    { id: 12, name: '读取计算结果', desc: '计算完成后从结果库中提取水位、流量等详细过程数据' },
+                    { id: 13, name: '结果信息整理', desc: '针对查询目标（全流域或特定站点）进行数据抽取' },
+                    { id: 14, name: '生成Web页面', desc: '将动态计算结果推送至可视化模板进行多维展示' }
                 ]
             }
         ];
