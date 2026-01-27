@@ -124,8 +124,8 @@ class DynamicPageGenerator:
         # 5. 生成 config.js 和 data.js
         self._generate_data_files(page_dir, page_config, conversation_context)
         
-        # 6. 返回页面URL
-        page_url = f"/pages/{page_id}/index.html"
+        # 6. 返回页面URL（使用 /static/pages 路径，与 FastAPI 静态文件挂载一致）
+        page_url = f"/static/pages/{page_id}/index.html"
         logger.info(f"动态页面生成成功: {page_url}")
         
         return page_url
@@ -133,10 +133,16 @@ class DynamicPageGenerator:
     def _prepare_llm_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """准备LLM输入数据"""
         # 提取关键信息
-        user_message = context.get('user_message', '')
-        intent = context.get('intent', {}).get('category', 'unknown')
-        sub_intent = context.get('intent', {}).get('sub_intent', 'unknown')
-        entities = context.get('intent', {}).get('entities', {})
+        # 优先从 meta 中获取 user_message（to_frontend_format 格式）
+        user_message = context.get('meta', {}).get('user_message', '') or context.get('user_message', '')
+
+        # 兼容两种数据格式：
+        # 1. to_frontend_format 格式: intent.intent_category, intent.business_sub_intent
+        # 2. 旧格式: intent.category, intent.sub_intent
+        intent_data = context.get('intent') or {}
+        intent = intent_data.get('intent_category') or intent_data.get('category', 'unknown')
+        sub_intent = intent_data.get('business_sub_intent') or intent_data.get('sub_intent', 'unknown')
+        entities = intent_data.get('entities', {})
         
         # 工具调用结果摘要 (避免token过长)
         tool_results = []
@@ -180,9 +186,11 @@ class DynamicPageGenerator:
         """调用LLM生成配置"""
         import time
         start_time = time.time()
-        
+
         try:
-            response = await self.prompt.ainvoke(llm_context)
+            # 先格式化提示词，再调用LLM
+            formatted_prompt = await self.prompt.ainvoke(llm_context)
+            response = await self.llm.ainvoke(formatted_prompt)
             content = response.content
             
             # 清理 Markdown 代码块

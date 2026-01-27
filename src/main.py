@@ -148,7 +148,7 @@ def create_app() -> FastAPI:
     generated_pages_path.mkdir(parents=True, exist_ok=True)
     app.mount(
         "/static/pages",
-        StaticFiles(directory=str(generated_pages_path)),
+        StaticFiles(directory=str(generated_pages_path), html=True),
         name="generated_pages"
     )
     

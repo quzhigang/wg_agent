@@ -40,6 +40,10 @@ class TemplateUpdate(BaseModel):
     features: Optional[List[str]] = None
     priority: Optional[int] = None
     is_active: Optional[bool] = None
+    page_title: Optional[str] = None
+    user_query: Optional[str] = None
+    replacement_config: Optional[str] = None
+    required_object_types: Optional[List[str]] = None
 
 
 @router.get("")
@@ -77,6 +81,58 @@ def list_templates(
                 "success_count": t.success_count,
                 "is_active": t.is_active,
                 "is_dynamic": t.is_dynamic,
+                "created_at": t.created_at.isoformat() if t.created_at else None
+            } for t in items]
+        }
+    finally:
+        db.close()
+
+
+# ============================================================================
+# 动态模板管理接口 (必须放在 /{template_id} 之前，否则会被识别为 ID)
+# ============================================================================
+
+@router.get("/dynamic")
+def list_dynamic_templates(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    sub_intent: Optional[str] = None
+):
+    """
+    获取动态模板列表
+
+    不再硬编码过滤 is_active 参数，以便在管理页面查看所有记录
+    """
+    db = SessionLocal()
+    try:
+        query = db.query(WebTemplate).filter(
+            WebTemplate.is_dynamic == True
+        )
+
+        if sub_intent:
+            query = query.filter(WebTemplate.supported_sub_intents.contains(sub_intent))
+
+        total = query.count()
+        items = query.order_by(WebTemplate.created_at.desc())\
+            .offset((page - 1) * size).limit(size).all()
+
+        return {
+            "total": total,
+            "page": page,
+            "size": size,
+            "items": [{
+                "id": t.id,
+                "name": t.name,
+                "display_name": t.display_name,
+                "description": t.description,
+                "user_query": t.user_query,
+                "page_title": t.page_title,
+                "supported_sub_intents": json.loads(t.supported_sub_intents) if t.supported_sub_intents else [],
+                "required_object_types": json.loads(t.required_object_types) if t.required_object_types else [],
+                "replacement_config": t.replacement_config,
+                "use_count": t.use_count,
+                "success_count": t.success_count,
+                "is_active": t.is_active,
                 "created_at": t.created_at.isoformat() if t.created_at else None
             } for t in items]
         }
@@ -208,6 +264,14 @@ def update_template(template_id: str, data: TemplateUpdate):
             t.priority = data.priority
         if data.is_active is not None:
             t.is_active = data.is_active
+        if hasattr(data, 'page_title') and data.page_title is not None:
+            t.page_title = data.page_title
+        if hasattr(data, 'user_query') and data.user_query is not None:
+            t.user_query = data.user_query
+        if hasattr(data, 'replacement_config') and data.replacement_config is not None:
+            t.replacement_config = data.replacement_config
+        if hasattr(data, 'required_object_types') and data.required_object_types is not None:
+            t.required_object_types = json.dumps(data.required_object_types, ensure_ascii=False)
 
         db.commit()
 
@@ -445,52 +509,6 @@ async def preview_template(template_id: str):
 # 动态模板管理接口
 # ============================================================================
 
-@router.get("/dynamic")
-def list_dynamic_templates(
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    sub_intent: Optional[str] = None
-):
-    """
-    获取动态模板列表
-
-    只返回 is_dynamic=True 的模板
-    """
-    db = SessionLocal()
-    try:
-        query = db.query(WebTemplate).filter(
-            WebTemplate.is_dynamic == True,
-            WebTemplate.is_active == True
-        )
-
-        if sub_intent:
-            query = query.filter(WebTemplate.supported_sub_intents.contains(sub_intent))
-
-        total = query.count()
-        items = query.order_by(WebTemplate.created_at.desc())\
-            .offset((page - 1) * size).limit(size).all()
-
-        return {
-            "total": total,
-            "page": page,
-            "size": size,
-            "items": [{
-                "id": t.id,
-                "name": t.name,
-                "display_name": t.display_name,
-                "description": t.description,
-                "user_query": t.user_query,
-                "page_title": t.page_title,
-                "supported_sub_intents": json.loads(t.supported_sub_intents) if t.supported_sub_intents else [],
-                "use_count": t.use_count,
-                "success_count": t.success_count,
-                "created_at": t.created_at.isoformat() if t.created_at else None
-            } for t in items]
-        }
-    finally:
-        db.close()
-
-
 @router.get("/dynamic/{template_id}")
 def get_dynamic_template(template_id: str):
     """获取动态模板详情"""
@@ -527,9 +545,10 @@ def preview_dynamic_template(template_id: str):
     """
     预览动态模板
 
-    直接返回动态模板的HTML内容
+    注入 <base> 标签以解决 HTML 中相对路径（css/js）的加载问题
     """
     from fastapi.responses import HTMLResponse
+    import re
 
     db = SessionLocal()
     try:
@@ -544,40 +563,45 @@ def preview_dynamic_template(template_id: str):
         if not t.html_content:
             raise HTTPException(404, "模板内容为空")
 
-        return HTMLResponse(content=t.html_content, media_type="text/html")
+        html = t.html_content
+        # 注入 <base> 标签，使相对路径指向静态文件所在目录
+        # 动态模板的 name 即为 generated_pages 下的目录名
+        base_url = f"/static/pages/{t.name}/"
+        base_tag = f'<base href="{base_url}">'
+        
+        if "<head>" in html:
+            html = html.replace("<head>", f"<head>\n    {base_tag}")
+        else:
+            html = f"{base_tag}\n{html}"
+
+        return HTMLResponse(content=html, media_type="text/html")
     finally:
         db.close()
 
 
 @router.delete("/dynamic/{template_id}")
 def delete_dynamic_template(template_id: str):
-    """删除动态模板"""
-    db = SessionLocal()
+    """
+    删除动态模板
+    
+    调用 DynamicTemplateService 完成三位一体的删除：
+    1. 数据库记录
+    2. 向量索引
+    3. 磁盘静态文件
+    """
     try:
-        t = db.query(WebTemplate).filter(
-            WebTemplate.id == template_id,
-            WebTemplate.is_dynamic == True
-        ).first()
-
-        if not t:
-            raise HTTPException(404, "动态模板不存在")
-
-        db.delete(t)
-        db.commit()
-
-        # 同步删除向量索引
-        try:
-            from ..output.template_vector_index import get_template_vector_index
-            template_index = get_template_vector_index()
-            template_index.delete_template(template_id)
-        except Exception as index_error:
-            logger.warning(f"删除向量索引失败（不影响删除操作）: {index_error}")
-
-        return {"success": True, "message": "删除成功"}
+        from ..output.dynamic_template_service import get_dynamic_template_service
+        service = get_dynamic_template_service()
+        
+        success = service.delete_dynamic_template(template_id)
+        
+        if success:
+            return {"success": True, "message": "删除成功"}
+        else:
+            raise HTTPException(404, "动态模板不存在或删除过程出错")
+            
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"删除动态模板失败: {e}")
+        logger.error(f"删除动态模板 API 失败: {e}")
         return {"success": False, "message": str(e)}
-    finally:
-        db.close()

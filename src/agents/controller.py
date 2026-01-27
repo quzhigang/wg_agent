@@ -314,9 +314,12 @@ class Controller:
             page_url = await generator.generate(
                 conversation_context=collector.to_frontend_format()
             )
-
             # 保存为动态模板（供后续复用）
             try:
+                # 提取页面目录名
+                # page_url 格式如: /static/pages/dynamic_20260127_abcdefgh/index.html
+                page_dir_name = page_url.strip('/').split('/')[-2] if '/pages/' in page_url else None
+                
                 dynamic_service = get_dynamic_template_service()
                 template_id = dynamic_service.save_dynamic_template(
                     html_content=self._read_generated_page_content(page_url),
@@ -325,7 +328,8 @@ class Controller:
                     page_title=self._generate_page_title(state),
                     conversation_id=state.get('conversation_id', ''),
                     execution_summary=context.get('execution_summary', ''),
-                    object_type=object_type
+                    object_type=object_type,
+                    name=page_dir_name
                 )
                 if template_id:
                     logger.info(f"动态生成页面已保存为模板: {template_id}, 对象类型: {object_type}")
@@ -799,6 +803,39 @@ class Controller:
             return f"{intent}报告"
 
         return "查询结果报告"
+
+    def _read_generated_page_content(self, page_url: str) -> str:
+        """
+        读取生成的页面内容
+
+        Args:
+            page_url: 页面URL（如 /static/pages/dynamic_xxx/index.html）
+
+        Returns:
+            页面HTML内容，读取失败返回空字符串
+        """
+        from pathlib import Path
+        from ..config.settings import settings
+
+        try:
+            # 从URL提取页面目录名
+            # page_url 格式: /static/pages/dynamic_xxx/index.html
+            parts = page_url.strip('/').split('/')
+            # 支持两种格式: /static/pages/xxx 和 /pages/xxx
+            if 'pages' in parts:
+                pages_idx = parts.index('pages')
+                if len(parts) > pages_idx + 1:
+                    page_dir_name = parts[pages_idx + 1]  # dynamic_xxx
+                    page_path = Path(settings.generated_pages_dir) / page_dir_name / "index.html"
+
+                    if page_path.exists():
+                        return page_path.read_text(encoding='utf-8')
+                    else:
+                        logger.warning(f"页面文件不存在: {page_path}")
+        except Exception as e:
+            logger.warning(f"读取页面内容失败: {e}")
+
+        return ""
 
     async def _generate_text_response_for_workflow(
         self,

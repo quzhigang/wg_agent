@@ -161,6 +161,96 @@
         .pagination button.active { background: #1976d2; color: white; border-color: #1976d2; }
 
         .empty-state { text-align: center; padding: 60px; color: #90a4ae; }
+
+        /* 模态框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 600px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1565c0;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #455a64;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cfd8dc;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: #1976d2;
+            box-shadow: 0 0 0 2px rgba(25,118,210,0.1);
+        }
+        .form-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .modal-footer {
+            margin-top: 24px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .btn-cancel { background: #eceff1; color: #455a64; }
+        .btn-cancel:hover { background: #cfd8dc; }
+        .btn-save { background: #1976d2; color: white; }
+        .btn-save:hover { background: #1565c0; }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            background: #f5f9ff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e3f2fd;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #546e7a;
+            cursor: pointer;
+        }
+        .checkbox-item input {
+            width: auto;
+        }
     </style>
 </head>
 <body>
@@ -185,6 +275,7 @@
                         <th>描述</th>
                         <th>子意图</th>
                         <th>使用次数</th>
+                        <th>匹配对象类型</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -199,6 +290,13 @@
         let currentPage = 1;
         let pageSize = 15;
         let totalItems = 0;
+        let currentItems = []; // 缓存当前页数据，方便编辑
+
+        // 所有可用的子意图
+        const SUB_INTENT_OPTIONS = [
+            'data_query', 'flood_forecast', 'flood_simulation', 
+            'emergency_plan', 'damage_assessment', 'other'
+        ];
 
         async function loadData() {
             try {
@@ -207,11 +305,13 @@
 
                 if (result.items) {
                     totalItems = result.total || 0;
+                    currentItems = result.items;
                     document.getElementById('statsInfo').textContent = `共 ${totalItems} 个动态模板`;
                     renderTable(result.items);
                     renderPagination(totalItems, currentPage, pageSize);
                 } else {
                     totalItems = 0;
+                    currentItems = [];
                     renderTable([]);
                 }
             } catch (err) {
@@ -224,17 +324,18 @@
         function renderTable(items) {
             const tbody = document.getElementById('tableBody');
             if (!items || items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">暂无动态模板<br><small style="color:#b0bec5;">对话中生成的页面会自动保存为动态模板</small></div></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">暂无动态模板<br><small style="color:#b0bec5;">对话中生成的页面会自动保存为动态模板</small></div></td></tr>`;
                 return;
             }
 
             tbody.innerHTML = items.map((t, index) => {
                 const rowIndex = (currentPage - 1) * pageSize + index + 1;
-                const displayName = t.display_name || t.name || '未命名';
-                const templateId = t.id ? t.id.substring(0, 8) + '...' : '-';
+                const displayName = t.display_name || t.page_title || '未命名';
                 const description = t.description || '-';
+                const templateId = t.id ? t.id.substring(0, 8) : '-';
                 const subIntents = t.supported_sub_intents || [];
                 const useCount = t.use_count || 0;
+                const objectTypes = t.required_object_types || [];
 
                 // 渲染子意图标签
                 let intentHtml = '-';
@@ -242,17 +343,27 @@
                     intentHtml = subIntents.map(i => `<span class="intent-badge">${i}</span>`).join('');
                 }
 
+                // 渲染对象类型标签
+                let objectHtml = '-';
+                if (objectTypes.length > 0) {
+                    objectHtml = objectTypes.map(o => `<span class="intent-badge" style="background:#e1f5fe;color:#01579b;">${o}</span>`).join('');
+                }
+
                 return `
                 <tr>
                     <td class="col-index"><span class="index-badge">${rowIndex}</span></td>
-                    <td class="col-name" title="${displayName}">${displayName}</td>
+                    <td class="col-name">
+                        <div style="font-weight:600;">${displayName}</div>
+                    </td>
                     <td class="col-id" title="${t.id || ''}">${templateId}</td>
-                    <td class="col-desc" title="${description}">${description}</td>
+                    <td class="col-desc" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${description}">${description}</td>
                     <td class="col-intent">${intentHtml}</td>
                     <td class="col-count">${useCount}</td>
+                    <td class="col-object">${objectHtml}</td>
                     <td>
                         <div class="action-btns">
-                            <button class="btn btn-view" onclick="viewTemplate('${t.id}')">详情</button>
+                            <button class="btn btn-view" onclick="openPage('${t.name}')">直接访问</button>
+                            <button class="btn btn-refresh" style="background:#455a64;" onclick="openEditModal('${t.id}')">模板编辑</button>
                             <button class="btn btn-del" onclick="deleteTemplate('${t.id}')">删除</button>
                         </div>
                     </td>
@@ -260,9 +371,93 @@
             `}).join('');
         }
 
-        function viewTemplate(templateId) {
-            // 打开模板详情页面（显示HTML内容）
-            window.open(`/web-templates/dynamic/${templateId}/preview`, '_blank');
+        function openPage(name) {
+            if (!name) return;
+            window.open(`/static/pages/${name}/index.html`, '_blank');
+        }
+
+        // --- 模态框逻辑 ---
+
+        function initSubIntentCheckboxes() {
+            const container = document.getElementById('subIntentCheckboxes');
+            container.innerHTML = SUB_INTENT_OPTIONS.map(opt => `
+                <label class="checkbox-item">
+                    <input type="checkbox" name="sub_intent" value="${opt}"> ${opt}
+                </label>
+            `).join('');
+        }
+
+        function openEditModal(templateId) {
+            const item = currentItems.find(t => t.id === templateId);
+            if (!item) return;
+
+            document.getElementById('editTemplateId').value = item.id;
+            document.getElementById('editDisplayName').value = item.display_name || '';
+            document.getElementById('editPageTitle').value = item.page_title || '';
+            document.getElementById('editDescription').value = item.description || '';
+            document.getElementById('editObjectTypes').value = (item.required_object_types || []).join(', ');
+            document.getElementById('editReplacementConfig').value = item.replacement_config || '';
+            document.getElementById('editUserQuery').value = item.user_query || '';
+
+            // 设置选中的子意图
+            initSubIntentCheckboxes();
+            const checks = document.querySelectorAll('input[name="sub_intent"]');
+            const itemIntents = item.supported_sub_intents || [];
+            checks.forEach(cb => {
+                cb.checked = itemIntents.includes(cb.value);
+            });
+
+            document.getElementById('editModalOverlay').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('editModalOverlay').style.display = 'none';
+        }
+
+        async function saveTemplate() {
+        const id = document.getElementById('editTemplateId').value;
+        const displayName = document.getElementById('editDisplayName').value;
+        const pageTitle = document.getElementById('editPageTitle').value;
+        const description = document.getElementById('editDescription').value;
+            const objectTypesStr = document.getElementById('editObjectTypes').value;
+            const replacementConfig = document.getElementById('editReplacementConfig').value;
+            const userQuery = document.getElementById('editUserQuery').value;
+
+            // 获取选中的子意图
+            const selectedIntents = Array.from(document.querySelectorAll('input[name="sub_intent"]:checked')).map(cb => cb.value);
+            
+            // 解析对象类型
+            const requiredObjectTypes = objectTypesStr.split(',').map(s => s.trim()).filter(s => s !== '');
+
+            const payload = {
+                display_name: displayName,
+                page_title: pageTitle,
+                description: description,
+                supported_sub_intents: selectedIntents,
+                required_object_types: requiredObjectTypes,
+                replacement_config: replacementConfig,
+                user_query: userQuery
+            };
+
+            try {
+                const res = await fetch(`/web-templates/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                
+                if (res.ok) {
+                    alert('保存成功');
+                    closeModal();
+                    loadData();
+                } else {
+                    alert('保存失败: ' + (result.detail || result.message || '未知错误'));
+                }
+            } catch (err) {
+                console.error('保存失败:', err);
+                alert('网络错误，保存失败');
+            }
         }
 
         async function deleteTemplate(templateId) {
@@ -312,5 +507,46 @@
 
         loadData();
     </script>
+    <!-- 编辑模态框 -->
+    <div class="modal-overlay" id="editModalOverlay">
+        <div class="modal">
+            <div class="modal-header">编辑模板信息</div>
+            <input type="hidden" id="editTemplateId">
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="editDisplayName" placeholder="模板展示名称">
+            </div>
+            <div class="form-group">
+                <label>页面标题 (page_title)</label>
+                <input type="text" id="editPageTitle" placeholder="Web 页面显示的标题">
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="editDescription" placeholder="模板的功能描述"></textarea>
+            </div>
+            <div class="form-group">
+                <label>子意图 (多选)</label>
+                <div id="subIntentCheckboxes" class="checkbox-group">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+            <div class="form-group">
+                <label>匹配对象类型 (逗号分隔)</label>
+                <input type="text" id="editObjectTypes" placeholder="如: 水库, 河道水文站">
+            </div>
+            <div class="form-group">
+                <label>参数修改配置 (replacement_config)</label>
+                <textarea id="editReplacementConfig" placeholder='JSON 格式配置, 如: {"key": "value"}' style="font-family: monospace; height: 120px;"></textarea>
+            </div>
+            <div class="form-group">
+                <label>用户问题</label>
+                <textarea id="editUserQuery" placeholder="导致生成此页面的原始问题"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn btn-save" onclick="saveTemplate()">保存修改</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -52,7 +52,8 @@ class DynamicTemplateService:
         page_title: str = "",
         conversation_id: str = "",
         execution_summary: str = "",
-        object_type: str = ""
+        object_type: str = "",
+        name: Optional[str] = None
     ) -> Optional[str]:
         """
         保存动态生成的页面为模板
@@ -76,9 +77,10 @@ class DynamicTemplateService:
 
             # 2. 生成唯一标识
             template_id = str(uuid.uuid4())
-            content_hash = hashlib.md5(html_content.encode()).hexdigest()[:16]
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            name = f"dynamic_{timestamp}_{content_hash}"
+            if not name:
+                content_hash = hashlib.md5(html_content.encode()).hexdigest()[:16]
+                name = f"dynamic_{timestamp}_{content_hash}"
 
             # 3. 构建显示名称
             display_name = extracted_title or f"动态页面 ({timestamp[:8]})"
@@ -94,12 +96,15 @@ class DynamicTemplateService:
             # 6. 保存到数据库
             db = SessionLocal()
             try:
+                # 动态模板使用特殊路径标识（数据库字段不允许NULL）
+                dynamic_template_path = f"dynamic://{name}"
+
                 template = WebTemplate(
                     id=template_id,
                     name=name,
                     display_name=display_name,
                     description=extracted_desc[:500] if extracted_desc else None,
-                    template_path=None,  # 动态模板不需要路径
+                    template_path=dynamic_template_path,  # 动态模板使用特殊路径标识
                     supported_sub_intents=json.dumps([sub_intent] if sub_intent else ["other"], ensure_ascii=False),
                     template_type="dynamic",
                     trigger_pattern=trigger_pattern,
@@ -311,7 +316,18 @@ class DynamicTemplateService:
             db.close()
 
     def delete_dynamic_template(self, template_id: str) -> bool:
-        """删除动态模板"""
+        """
+        删除动态模板
+        
+        执行以下操作：
+        1. 从数据库中删除记录
+        2. 从向量索引中删除
+        3. 删除磁盘上的生成页面文件
+        """
+        import shutil
+        from pathlib import Path
+        from ..config.settings import settings
+
         db = SessionLocal()
         try:
             tpl = db.query(WebTemplate).filter(
@@ -320,15 +336,34 @@ class DynamicTemplateService:
             ).first()
 
             if not tpl:
+                logger.warning(f"由于模板不存在，删除失败: {template_id}")
                 return False
 
+            template_name = tpl.name
+
+            # 1. 从数据库中删除
             db.delete(tpl)
             db.commit()
 
-            # 从向量索引删除
-            self.vector_index.delete_template(template_id)
+            # 2. 从向量索引删除
+            try:
+                self.vector_index.delete_template(template_id)
+            except Exception as ve:
+                logger.warning(f"从向量索引删除模板 {template_id} 失败: {ve}")
 
-            logger.info(f"已删除动态模板: {template_id}")
+            # 3. 删除磁盘上的文件
+            if template_name:
+                page_dir = Path(settings.generated_pages_dir) / template_name
+                if page_dir.exists() and page_dir.is_dir():
+                    try:
+                        shutil.rmtree(page_dir)
+                        logger.info(f"已删除动态页面目录: {page_dir}")
+                    except Exception as fe:
+                        logger.error(f"删除动态页面目录 {page_dir} 失败: {fe}")
+                else:
+                    logger.warning(f"动态页面目录不存在，跳过删除: {page_dir}")
+
+            logger.info(f"动态模板已完整删除: {template_id} ({template_name})")
             return True
 
         except Exception as e:

@@ -53,17 +53,35 @@ class DynamicPageEngine {
 
         if (layout.type === 'grid') {
             const rows = layout.rows || [];
-            rows.forEach(async (rowConfig) => {
+            for (const rowConfig of rows) {
                 const rowEl = document.createElement('div');
                 rowEl.className = 'grid-row';
                 rowEl.style.display = 'grid';
-                rowEl.style.gap = rowConfig.gap || '16px';
+                rowEl.style.gap = rowConfig.gutter ? `${rowConfig.gutter}px` : (rowConfig.gap || '16px');
+                rowEl.style.marginBottom = '16px';
+
+                // 应用行样式
+                if (rowConfig.style) {
+                    Object.assign(rowEl.style, rowConfig.style);
+                }
 
                 // 计算列
                 const cols = rowConfig.cols || [];
-                // 默认均分
-                const colCount = cols.length;
-                rowEl.style.gridTemplateColumns = `repeat(${colCount}, 1fr)`;
+
+                // 检查 cols 格式：可能是字符串数组或对象数组
+                // 对象格式: { span: 6, component_key: "xxx" }
+                // 字符串格式: "xxx"
+                const hasSpan = cols.length > 0 && typeof cols[0] === 'object' && cols[0].span !== undefined;
+
+                if (hasSpan) {
+                    // 使用 span 计算 grid-template-columns (基于24栅格系统)
+                    const gridCols = cols.map(col => `${(col.span / 24) * 100}%`).join(' ');
+                    rowEl.style.gridTemplateColumns = gridCols;
+                } else {
+                    // 默认均分
+                    const colCount = cols.length;
+                    rowEl.style.gridTemplateColumns = `repeat(${colCount}, 1fr)`;
+                }
 
                 if (rowConfig.height) {
                     rowEl.style.height = rowConfig.height;
@@ -72,15 +90,23 @@ class DynamicPageEngine {
                 container.appendChild(rowEl);
 
                 // 渲染列中的组件
-                for (const componentKey of cols) {
+                for (const colConfig of cols) {
                     const colEl = document.createElement('div');
                     colEl.className = 'grid-col';
                     colEl.style.minWidth = '0'; // 防止Echarts溢出
                     rowEl.appendChild(colEl);
 
-                    await this.loadAndRenderComponent(componentKey, colEl);
+                    // 获取组件key：支持对象格式和字符串格式
+                    // LLM可能生成 component_key 或 component 字段
+                    const componentKey = typeof colConfig === 'object'
+                        ? (colConfig.component_key || colConfig.component)
+                        : colConfig;
+
+                    if (componentKey) {
+                        await this.loadAndRenderComponent(componentKey, colEl);
+                    }
                 }
-            });
+            }
         }
     }
 
@@ -92,10 +118,22 @@ class DynamicPageEngine {
             return;
         }
 
+        // 支持两种配置格式：
+        // 1. 新格式: { type: "xxx", props: { title: "...", ... } }
+        // 2. 旧格式: { type: "xxx", title: "...", data_source: {...} }
+        const props = componentConfig.props || componentConfig;
+        const title = props.title || componentConfig.title;
+
         // 1. 获取数据
         let data = null;
         try {
-            data = await this.resolveDataSource(componentConfig.data_source);
+            // 优先从 data_source 获取数据，否则使用 props 中的静态数据
+            if (componentConfig.data_source) {
+                data = await this.resolveDataSource(componentConfig.data_source);
+            } else if (props.dataSource) {
+                // SimpleTable 等组件直接在 props 中提供 dataSource
+                data = props.dataSource;
+            }
         } catch (e) {
             console.error(`Failed to load data for ${componentKey}:`, e);
             container.innerHTML = `<div class="error">Data load failed: ${e.message}</div>`;
@@ -111,10 +149,10 @@ class DynamicPageEngine {
             Object.assign(wrapper.style, componentConfig.style || {});
 
             // 添加标题
-            if (componentConfig.title) {
+            if (title) {
                 const titleEl = document.createElement('div');
                 titleEl.className = 'component-title';
-                titleEl.innerText = componentConfig.title;
+                titleEl.innerText = title;
                 wrapper.appendChild(titleEl);
             }
 
@@ -123,8 +161,8 @@ class DynamicPageEngine {
             wrapper.appendChild(body);
             container.appendChild(wrapper);
 
-            // 调用渲染函数
-            await renderer(body, data, componentConfig);
+            // 调用渲染函数，传入 props 作为配置
+            await renderer(body, data, props);
         } else {
             container.innerHTML = `<div class="error">Unknown component type: ${componentConfig.type}</div>`;
         }
@@ -235,8 +273,12 @@ class DynamicPageEngine {
 
     renderInfoCard(container, data, config) {
         let content = '';
-        if (typeof data === 'object') {
-            for (const [k, v] of Object.entries(data)) {
+        // 优先使用 config 中的数据，其次使用传入的 data
+        const displayData = data || config;
+        if (typeof displayData === 'object') {
+            for (const [k, v] of Object.entries(displayData)) {
+                // 跳过非显示字段
+                if (['title', 'type'].includes(k)) continue;
                 content += `
                     <div class="info-item">
                         <span class="label">${k}</span>
@@ -245,53 +287,96 @@ class DynamicPageEngine {
                 `;
             }
         } else {
-            content = `<div class="value">${data}</div>`;
+            content = `<div class="value">${displayData}</div>`;
         }
         container.innerHTML = `<div class="info-card-grid">${content}</div>`;
     }
 
     renderStatCard(container, data, config) {
-        // data 可能是单个值或对象
-        // 如果是对象，寻找 value, unit, label
-        let value = data;
+        // config 就是 props，直接从中获取值
+        // 支持两种格式：
+        // 1. props 格式: { value: "72.45", unit: "m", ... }
+        // 2. data 格式: data 是值，config 包含 unit 等
+        let value = config.value !== undefined ? config.value : (data || '--');
         let unit = config.unit || '';
+        let description = config.description || '';
+        let trend = config.trend || '';
+        let status = config.status || 'normal';
+        let color = config.color || '';
+        let precision = config.precision;
 
+        // 如果 data 是对象，尝试从中提取
         if (typeof data === 'object' && data !== null) {
-            value = data.value || data.val || '--';
+            value = data.value || data.val || value;
             unit = data.unit || unit;
         }
 
+        // 格式化数值
+        if (precision !== undefined && !isNaN(parseFloat(value))) {
+            value = parseFloat(value).toFixed(precision);
+        }
+
+        // 状态颜色
+        const statusColors = {
+            'normal': '#52c41a',
+            'warning': '#faad14',
+            'danger': '#f5222d',
+            'info': '#1890ff'
+        };
+        const valueColor = color || statusColors[status] || '#333';
+
+        // 趋势图标
+        const trendIcons = {
+            'up': '↑',
+            'down': '↓',
+            'stable': '→'
+        };
+        const trendIcon = trendIcons[trend] || '';
+
         container.innerHTML = `
             <div class="stat-card">
-                <div class="stat-value">${value}<span class="unit">${unit}</span></div>
-                ${config.icon ? `<div class="stat-icon">${config.icon}</div>` : ''}
+                <div class="stat-value" style="color: ${valueColor}">
+                    ${value}<span class="unit">${unit}</span>
+                    ${trendIcon ? `<span class="trend trend-${trend}">${trendIcon}</span>` : ''}
+                </div>
+                ${description ? `<div class="stat-description">${description}</div>` : ''}
             </div>
         `;
     }
 
     renderHtmlContent(container, data, config) {
-        container.innerHTML = `<div class="html-content">${data}</div>`;
+        const content = data || config.content || '';
+        container.innerHTML = `<div class="html-content">${content}</div>`;
     }
 
     renderSimpleTable(container, data, config) {
-        if (!Array.isArray(data)) {
-            container.innerHTML = "Not a list";
+        // 数据来源：优先使用传入的 data，其次使用 config.dataSource
+        const tableData = data || config.dataSource || [];
+
+        if (!Array.isArray(tableData) || tableData.length === 0) {
+            container.innerHTML = '<div class="empty-table">暂无数据</div>';
             return;
         }
 
+        // 列配置：支持两种格式
+        // 1. { title: "xxx", dataIndex: "xxx", key: "xxx" }
+        // 2. { label: "xxx", key: "xxx" }
         const columns = config.columns || [];
-        // 如果未配置列，自动推断
         const finalCols = columns.length > 0 ? columns :
-            Object.keys(data[0] || {}).map(k => ({ key: k, label: k }));
+            Object.keys(tableData[0] || {}).map(k => ({ key: k, title: k, dataIndex: k }));
 
         let html = '<table class="simple-table"><thead><tr>';
-        finalCols.forEach(c => html += `<th>${c.label}</th>`);
+        finalCols.forEach(c => {
+            const label = c.title || c.label || c.key;
+            html += `<th>${label}</th>`;
+        });
         html += '</tr></thead><tbody>';
 
-        data.forEach(row => {
+        tableData.forEach(row => {
             html += '<tr>';
             finalCols.forEach(c => {
-                html += `<td>${row[c.key] || ''}</td>`;
+                const key = c.dataIndex || c.key;
+                html += `<td>${row[key] !== undefined ? row[key] : ''}</td>`;
             });
             html += '</tr>';
         });
@@ -306,25 +391,24 @@ class DynamicPageEngine {
 
         const chart = echarts.init(container);
 
-        let option = config.options || {};
+        // 支持两种配置格式：
+        // 1. config.option (新格式，直接是 ECharts option)
+        // 2. config.options (旧格式)
+        let option = config.option || config.options || {};
 
         // 如果只有数据源，自动生成简单的 option
-        if (!config.options && config.chart_type) {
-            // 简单的自动适配逻辑
-            // 假设 data 是该图表需要的数据格式
-            // 这里仅作示例，实际情况需要更复杂的转换逻辑
+        if (Object.keys(option).length === 0 && config.chart_type) {
             option = {
                 tooltip: { trigger: 'axis' },
-                xAxis: { type: 'category', data: data.x_data || [] },
+                xAxis: { type: 'category', data: data?.x_data || [] },
                 yAxis: { type: 'value' },
                 series: [{
                     type: config.chart_type,
-                    data: data.y_data || data.series || []
+                    data: data?.y_data || data?.series || []
                 }]
             };
-        } else if (config.options) {
-            // 如果提供了options，尝试将数据注入到options中
-            // 假设 data 可以覆盖 options 中的 dataset 或 series
+        } else if (data) {
+            // 如果提供了 data，尝试将数据注入到 option 中
             if (data.series) {
                 option.series = data.series;
             }
@@ -356,19 +440,24 @@ class DynamicPageEngine {
             "esri/Graphic"
         ], (Map, MapView, BasemapToggle, GraphicsLayer, Graphic) => {
 
-            const mapOptions = config.map_options || {};
+            // 支持两种配置格式：
+            // 1. 新格式: config.center, config.zoom, config.markers
+            // 2. 旧格式: config.map_options.center, config.map_options.zoom
+            const mapOptions = config.map_options || config;
+            const center = mapOptions.center || config.center || [113.4, 35.5];
+            const zoom = mapOptions.zoom || config.zoom || 9;
 
             // 3. 创建地图
             const map = new Map({
-                basemap: mapOptions.basemap || "topo-vector" // hybrid, satellite, topo-vector
+                basemap: mapOptions.basemap || "topo-vector"
             });
 
             // 4. 创建视图
             const view = new MapView({
                 container: mapDivId,
                 map: map,
-                center: mapOptions.center || [113.4, 35.5], // 默认以卫共流域为中心
-                zoom: mapOptions.zoom || 9
+                center: center,
+                zoom: zoom
             });
 
             // 5. 添加底图切换
@@ -378,53 +467,70 @@ class DynamicPageEngine {
             });
             view.ui.add(toggle, "top-right");
 
-            // 6. 渲染通过数据传入的图形
-            if (data) {
-                const graphicsLayer = new GraphicsLayer();
-                map.add(graphicsLayer);
+            // 6. 渲染标记点
+            const graphicsLayer = new GraphicsLayer();
+            map.add(graphicsLayer);
 
-                // 处理列表数据
-                const items = Array.isArray(data) ? data : [data];
+            // 支持两种数据来源：
+            // 1. config.markers (新格式，直接在 props 中)
+            // 2. data (旧格式，通过 data_source 获取)
+            const markers = config.markers || (Array.isArray(data) ? data : (data ? [data] : []));
 
-                items.forEach(item => {
-                    // 尝试识别经纬度字段
-                    const lng = item.lng || item.longitude || item.long || item.lgtd || item.经度;
-                    const lat = item.lat || item.latitude || item.lttd || item.纬度;
+            markers.forEach(item => {
+                // 尝试识别经纬度字段
+                // 新格式: { position: [lng, lat], title: "xxx" }
+                // 旧格式: { lng: xxx, lat: xxx, name: "xxx" }
+                let lng, lat;
+                if (item.position && Array.isArray(item.position)) {
+                    [lng, lat] = item.position;
+                } else {
+                    lng = item.lng || item.longitude || item.long || item.lgtd || item.经度;
+                    lat = item.lat || item.latitude || item.lttd || item.纬度;
+                }
 
-                    if (lng && lat) {
-                        const point = {
-                            type: "point",
-                            longitude: parseFloat(lng),
-                            latitude: parseFloat(lat)
-                        };
+                if (lng && lat) {
+                    const point = {
+                        type: "point",
+                        longitude: parseFloat(lng),
+                        latitude: parseFloat(lat)
+                    };
 
-                        const markerSymbol = {
-                            type: "simple-marker",
-                            color: [33, 150, 243], // Blue
-                            outline: { color: [255, 255, 255], width: 1 }
-                        };
+                    // 根据状态设置颜色
+                    const statusColors = {
+                        'normal': [82, 196, 26],    // 绿色
+                        'warning': [250, 173, 20],  // 黄色
+                        'danger': [245, 34, 45],    // 红色
+                        'info': [24, 144, 255]      // 蓝色
+                    };
+                    const markerColor = statusColors[item.status] || [33, 150, 243];
 
-                        const pointGraphic = new Graphic({
-                            geometry: point,
-                            symbol: markerSymbol,
-                            attributes: item,
-                            popupTemplate: {
-                                title: item.name || item.stnm || "Location",
-                                content: this._generatePopupContent(item)
-                            }
-                        });
+                    const markerSymbol = {
+                        type: "simple-marker",
+                        color: markerColor,
+                        outline: { color: [255, 255, 255], width: 1 }
+                    };
 
-                        graphicsLayer.add(pointGraphic);
-                    }
-                });
-            }
+                    const pointGraphic = new Graphic({
+                        geometry: point,
+                        symbol: markerSymbol,
+                        attributes: item,
+                        popupTemplate: {
+                            title: item.title || item.name || item.stnm || "Location",
+                            content: item.content || this._generatePopupContent(item)
+                        }
+                    });
+
+                    graphicsLayer.add(pointGraphic);
+                }
+            });
         });
     }
 
     _generatePopupContent(item) {
         let content = "<table class='esri-widget__table'>";
         for (const [key, value] of Object.entries(item)) {
-            // 排除太长的字段或对象
+            // 排除非显示字段
+            if (['position', 'status', 'title', 'content'].includes(key)) continue;
             if (typeof value !== 'object' && String(value).length < 50) {
                 content += `<tr><th>${key}</th><td>${value}</td></tr>`;
             }
