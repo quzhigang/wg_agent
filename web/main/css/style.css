@@ -1,32 +1,45 @@
+:root {
+    /* 深色科技风格变量 */
+    --primary-blue: #00d4ff;
+    --deep-blue: #0a1628;
+    --light-blue-bg: #0d1b2a;
+    --border-color: #1e3a5f;
+    --panel-bg: rgba(13, 27, 42, 0.85);
+    --text-main: #e0e6ed;
+    --text-muted: #a0aec0;
+    --border-radius: 8px;
+    --accent-cyan: #00d4ff;
+    --accent-purple: #7c3aed;
+    --glow-color: rgba(0, 212, 255, 0.3);
+}
+
 body {
-    background-color: #f0f2f5;
+    background-color: var(--deep-blue);
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
     height: 100vh;
     overflow: hidden;
+    color: var(--text-main);
 }
 
 .layout-grid {
     display: flex;
     justify-content: flex-end;
-    /* 内容靠右对齐，防止折叠时右侧区域左移 */
     height: 100vh;
     width: 100vw;
     position: relative;
     overflow: hidden;
-    background: #f0f2f5;
+    background: radial-gradient(circle at center, #1a2a3a 0%, #0a1628 100%);
 }
 
 .iframe-container {
     height: 100%;
-    background: #fff;
+    background: var(--deep-blue);
     position: relative;
     overflow: hidden;
     flex: 1;
-    /* 初始占据剩余空间 */
     transition: all 1s ease;
-    /* 1s 宽度平滑动画 */
     min-width: 0;
 }
 
@@ -43,31 +56,33 @@ iframe {
 }
 
 .resizer-h {
-    width: 5px;
-    background: #e0e0e0;
+    width: 3px;
+    background: rgba(0, 212, 255, 0.2);
     cursor: col-resize;
     position: relative;
     z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s;
+    margin: 0 2px;
 }
 
 .resizer-h:hover {
-    background: #007acc;
+    background: var(--accent-cyan);
+    box-shadow: 0 0 15px var(--glow-color);
 }
 
 /* 折叠/展开按钮样式 */
 .toggle-sidebar-btn {
     position: absolute;
     left: -24px;
-    /* 固定在对话框的左外侧，即中间位置 */
     top: 50%;
     transform: translateY(-50%);
     width: 24px;
     height: 48px;
-    background: #fff;
-    border: 1px solid #e0e0e0;
+    background: var(--light-blue-bg);
+    border: 1px solid var(--border-color);
     border-radius: 4px 0 0 4px;
     cursor: pointer;
     display: flex !important;
@@ -75,43 +90,56 @@ iframe {
     justify-content: center;
     padding: 0;
     z-index: 1005;
-    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
-    transition: background 0.2s ease, transform 0.2s ease;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
 }
 
 .toggle-sidebar-btn:hover {
-    background: #f5f5f5;
-    border-color: #007acc;
-    box-shadow: 0 2px 8px rgba(0, 122, 204, 0.2);
+    background: rgba(30, 58, 95, 0.8);
+    border-color: var(--primary-blue);
+    box-shadow: -2px 0 15px rgba(0, 212, 255, 0.2);
 }
 
 .toggle-sidebar-btn svg {
-    color: #666;
+    color: var(--text-muted);
     transition: color 0.2s ease;
 }
 
 .toggle-sidebar-btn:hover svg {
-    color: #007acc;
+    color: var(--primary-blue);
 }
 
 .left-sidebar {
     width: 400px;
     height: 100%;
-    background: #ffffff;
+    background: var(--deep-blue);
     display: flex;
     flex-direction: column;
-    color: #333;
+    color: var(--text-main);
     flex-shrink: 0;
     position: relative;
-    /* 极其重要：为按钮提供定位参考 */
 }
 
 .panel-style {
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
+    background: linear-gradient(145deg, rgba(30, 58, 95, 0.4), rgba(13, 27, 42, 0.8));
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     margin: 5px;
     overflow: hidden;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    position: relative;
+}
+
+.panel-style::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    opacity: 0.5;
 }
 
 .main-display-area {
@@ -126,9 +154,10 @@ iframe {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-bottom: 1px solid #e0e0e0;
-    background: #ffffff;
+    border-bottom: 1px solid var(--border-color);
+    background: radial-gradient(circle at center, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
     overflow: hidden;
+    position: relative;
 }
 
 .avatar-content {
@@ -137,23 +166,25 @@ iframe {
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
 }
 
 .avatar-image {
-    max-height: 100%;
+    max-height: 90%;
     width: auto;
     object-fit: contain;
     display: block;
+    filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3));
 }
 
 .process-box {
     flex: 1;
     overflow-y: auto;
-    padding: 10px;
+    padding: 15px;
     font-family: 'Consolas', monospace;
     font-size: 14px;
-    background: #ffffff;
-    color: #333;
+    background: transparent;
+    color: var(--text-main);
     scroll-behavior: smooth;
 }
 
@@ -225,13 +256,14 @@ iframe {
 }
 
 .message-bubble {
-    padding: 10px 14px;
+    padding: 12px 16px;
     border-radius: 12px;
-    font-family: "Microsoft YaHei", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
     font-size: 14px;
     line-height: 1.6;
     max-width: calc(100% - 50px);
     word-break: break-word;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .message-user {
@@ -243,9 +275,10 @@ iframe {
 }
 
 .message-user .message-bubble {
-    background: #e3f2fd;
-    color: #333;
-    border-bottom-right-radius: 4px;
+    background: rgba(0, 212, 255, 0.15);
+    color: var(--text-main);
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    border-bottom-right-radius: 2px;
 }
 
 .message-assistant {
@@ -253,10 +286,10 @@ iframe {
 }
 
 .message-assistant .message-bubble {
-    background: #f5f7fa;
-    color: #333;
-    border-bottom-left-radius: 4px;
-    border: 1px solid #e8ecf0;
+    background: rgba(30, 58, 95, 0.3);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-bottom-left-radius: 2px;
 }
 
 .message-sender {
@@ -282,18 +315,19 @@ iframe {
 }
 
 .message-system .message-text {
-    color: #999;
+    color: var(--primary-blue);
     font-size: 12px;
-    background: #f0f2f5;
+    background: rgba(0, 212, 255, 0.05);
     padding: 4px 12px;
-    border-radius: 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 212, 255, 0.1);
 }
 
 .chat-input-box {
     height: 180px;
     padding: 0 10px 10px 10px;
-    background: #ffffff;
-    border-top: 1px solid #e0e0e0;
+    background: transparent;
+    border-top: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
@@ -305,14 +339,14 @@ iframe {
     align-items: center;
     gap: 12px;
     padding: 10px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
     flex-shrink: 0;
 }
 
 .toolbar-btn {
     background: transparent;
     border: none;
-    color: #555;
+    color: var(--text-muted);
     cursor: pointer;
     padding: 4px;
     display: flex;
@@ -323,8 +357,9 @@ iframe {
 }
 
 .toolbar-btn:hover {
-    background: #f0f0f0;
-    color: #007acc;
+    background: rgba(0, 212, 255, 0.1);
+    color: var(--primary-blue);
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
 }
 
 .toolbar-divider {
@@ -345,40 +380,61 @@ iframe {
 
 .chat-input {
     flex: 1;
-    background: #fdfdfd;
-    border: 1px solid #e0e0e0;
-    color: #333;
+    background: rgba(13, 27, 42, 0.5);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
     padding: 12px;
     resize: none;
-    border-radius: 4px;
+    border-radius: 6px;
     font-family: inherit;
     font-size: 14px;
     box-sizing: border-box;
     line-height: 1.5;
+    transition: all 0.3s;
 }
 
 .chat-input:focus {
     outline: none;
-    border-color: #007acc;
-    background: #fff;
-    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
+    border-color: var(--primary-blue);
+    background: rgba(13, 27, 42, 0.8);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.2);
+}
+
+.chat-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
 }
 
 .chat-send-btn {
     width: 70px;
     height: 38px;
-    background: #007acc;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.8), rgba(0, 168, 204, 0.8));
+    color: #001a35;
+    border: 1px solid rgba(0, 212, 255, 0.5);
+    border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: bold;
     align-self: flex-end;
     margin-bottom: 5px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
 .chat-send-btn:hover {
-    background: #0098ff;
+    background: linear-gradient(135deg, var(--primary-blue), #00c3ff);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+    transform: translateY(-2px);
+    border-color: var(--primary-blue);
+}
+
+.chat-send-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(0, 212, 255, 0.3);
 }
 
 /* 历史对话列表 */
@@ -389,23 +445,27 @@ iframe {
     transform: translate(-50%, -50%);
     width: 450px;
     max-height: 550px;
-    background: #fff;
-    border: 1px solid #ccc;
+    background: var(--light-blue-bg);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     z-index: 1000;
     display: none;
     flex-direction: column;
+    color: var(--text-main);
+    backdrop-filter: blur(20px);
 }
 
 .history-header {
     padding: 12px 15px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color);
     font-weight: bold;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 16px;
+    background: rgba(30, 58, 95, 0.4);
+    color: var(--primary-blue);
 }
 
 .history-toolbar {
@@ -413,8 +473,8 @@ iframe {
     align-items: center;
     justify-content: space-between;
     padding: 10px 15px;
-    border-bottom: 1px solid #f0f0f0;
-    background: #fafafa;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(13, 27, 42, 0.4);
 }
 
 .select-all-label {
@@ -423,13 +483,14 @@ iframe {
     gap: 6px;
     cursor: pointer;
     font-size: 14px;
-    color: #666;
+    color: var(--text-muted);
 }
 
 .select-all-label input[type="checkbox"] {
     width: 16px;
     height: 16px;
     cursor: pointer;
+    accent-color: var(--primary-blue);
 }
 
 .delete-btn {
@@ -450,30 +511,17 @@ iframe {
     background: #ff7875;
 }
 
-.history-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0;
-    margin: 0;
-    list-style: none;
-    max-height: 400px;
-}
-
 .history-item {
     padding: 12px 15px;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.05);
     display: flex;
     align-items: center;
     gap: 10px;
+    transition: all 0.2s;
 }
 
 .history-item:hover {
-    background: #f0f7ff;
-}
-
-.history-item.no-data {
-    justify-content: center;
-    padding: 30px;
+    background: rgba(0, 212, 255, 0.05);
 }
 
 .history-checkbox {
@@ -481,6 +529,7 @@ iframe {
     height: 16px;
     cursor: pointer;
     flex-shrink: 0;
+    accent-color: var(--primary-blue);
 }
 
 .history-title {
@@ -490,16 +539,17 @@ iframe {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 14px;
+    color: var(--text-main);
 }
 
 .history-title:hover {
-    color: #007acc;
+    color: var(--primary-blue);
 }
 
 .delete-single-btn {
     background: transparent;
     border: none;
-    color: #999;
+    color: var(--text-muted);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -511,19 +561,19 @@ iframe {
 }
 
 .delete-single-btn:hover {
-    background: #ffebee;
+    background: rgba(255, 77, 79, 0.1);
     color: #ff4d4f;
 }
 
 .history-close {
     cursor: pointer;
     font-size: 22px;
-    color: #999;
+    color: var(--text-muted);
     line-height: 1;
 }
 
 .history-close:hover {
-    color: #666;
+    color: var(--primary-blue);
 }
 
 /* 通用确认/提示对话框 */
@@ -533,20 +583,23 @@ iframe {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 5, 10, 0.7);
     display: none;
     justify-content: center;
     align-items: center;
     z-index: 2000;
+    backdrop-filter: blur(5px);
 }
 
 .confirm-dialog {
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    background: var(--light-blue-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
     min-width: 320px;
     max-width: 400px;
     animation: dialogFadeIn 0.2s ease;
+    color: var(--text-main);
 }
 
 @keyframes dialogFadeIn {
@@ -569,7 +622,7 @@ iframe {
 .confirm-content p {
     margin: 0;
     font-size: 15px;
-    color: #333;
+    color: var(--text-main);
     line-height: 1.6;
 }
 
@@ -590,25 +643,27 @@ iframe {
 }
 
 .confirm-btn.cancel-btn {
-    background: #f5f5f5;
-    border: 1px solid #d9d9d9;
-    color: #666;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
 }
 
 .confirm-btn.cancel-btn:hover {
-    background: #e8e8e8;
-    border-color: #bbb;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
 }
 
 .confirm-btn.ok-btn {
-    background: #007acc;
-    border: 1px solid #007acc;
-    color: #fff;
+    background: var(--primary-blue);
+    border: 1px solid var(--primary-blue);
+    color: #001a35;
+    font-weight: bold;
 }
 
 .confirm-btn.ok-btn:hover {
-    background: #0098ff;
-    border-color: #0098ff;
+    background: #5ae1ff;
+    border-color: #5ae1ff;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
 }
 
 /* 加载动画样式 */
@@ -621,10 +676,11 @@ iframe {
 .typing-dots span {
     width: 6px;
     height: 6px;
-    background-color: #999;
+    background-color: var(--primary-blue);
     border-radius: 50%;
     display: inline-block;
     animation: typing 1.4s infinite ease-in-out both;
+    box-shadow: 0 0 5px var(--primary-blue);
 }
 
 .typing-dots span:nth-child(1) {
@@ -636,9 +692,13 @@ iframe {
 }
 
 @keyframes typing {
-    0%, 80%, 100% {
+
+    0%,
+    80%,
+    100% {
         transform: scale(0);
     }
+
     40% {
         transform: scale(1.0);
     }
@@ -646,28 +706,30 @@ iframe {
 
 /* 执行过程样式 */
 .execution-process {
-    margin-bottom: 10px;
-    border: 1px solid #eee;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
-    background: #fcfcfc;
+    background: rgba(13, 27, 42, 0.4);
+    box-shadow: inset 0 0 10px rgba(0, 212, 255, 0.05);
 }
 
 .process-header {
-    padding: 6px 12px;
-    background: #f5f7fa;
+    padding: 8px 12px;
+    background: rgba(30, 58, 95, 0.4);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
     user-select: none;
     font-size: 12px;
-    color: #888;
-    border-bottom: 1px solid #eee;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .process-header:hover {
-    background: #edf0f5;
+    background: rgba(30, 58, 95, 0.7);
+    color: var(--text-main);
 }
 
 .toggle-icon {
@@ -681,12 +743,12 @@ iframe {
 }
 
 .process-body {
-    padding: 6px 12px;
-    font-size: 12px;
-    color: #555;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-main);
     transition: max-height 0.3s ease-out, padding 0.3s ease;
     max-height: 1000px;
-    overflow: hidden;
+    overflow-y: auto;
 }
 
 .execution-process.collapsed .process-body {
@@ -721,21 +783,25 @@ iframe {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #ddd;
+    background: var(--border-color);
     flex-shrink: 0;
     display: inline-block;
 }
 
 .step-item.active .step-dot {
-    background: #10b981;
+    background: var(--primary-blue);
     animation: pulse-dot 1s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--primary-blue);
 }
 
 @keyframes pulse-dot {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
         box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
     }
+
     50% {
         opacity: 0.8;
         box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
@@ -764,16 +830,21 @@ iframe {
 .loading-spinner-small {
     width: 12px;
     height: 12px;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #007acc;
+    border: 2px solid rgba(0, 212, 255, 0.2);
+    border-top: 2px solid var(--primary-blue);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     display: inline-block;
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* ========================================= */
@@ -793,18 +864,19 @@ iframe {
     margin-bottom: 8px;
     font-weight: 600;
     line-height: 1.4;
-    color: #1a1a1a;
+    color: var(--primary-blue);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
 }
 
 .markdown-content h1 {
     font-size: 1.5em;
-    border-bottom: 1px solid #e8ecf0;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
     padding-bottom: 8px;
 }
 
 .markdown-content h2 {
     font-size: 1.3em;
-    border-bottom: 1px solid #e8ecf0;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
     padding-bottom: 6px;
 }
 
@@ -823,7 +895,7 @@ iframe {
 
 .markdown-content strong {
     font-weight: 600;
-    color: #1a1a1a;
+    color: var(--primary-blue);
 }
 
 .markdown-content em {
@@ -861,32 +933,33 @@ iframe {
 .markdown-content blockquote {
     margin: 12px 0;
     padding: 8px 16px;
-    border-left: 4px solid #007acc;
-    background: #f8f9fa;
-    color: #555;
+    border-left: 4px solid var(--primary-blue);
+    background: rgba(0, 212, 255, 0.05);
+    color: var(--text-muted);
 }
 
 .markdown-content code {
-    background: #f0f2f5;
+    background: rgba(0, 212, 255, 0.1);
     padding: 2px 6px;
     border-radius: 4px;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.9em;
-    color: #d63384;
+    color: var(--primary-blue);
 }
 
 .markdown-content pre {
-    background: #f6f8fa;
+    background: rgba(13, 27, 42, 0.6);
     padding: 12px;
     border-radius: 6px;
     overflow-x: auto;
     margin: 12px 0;
+    border: 1px solid var(--border-color);
 }
 
 .markdown-content pre code {
     background: none;
     padding: 0;
-    color: #333;
+    color: var(--text-main);
 }
 
 .markdown-content table {
@@ -897,41 +970,64 @@ iframe {
 
 .markdown-content th,
 .markdown-content td {
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-color);
     padding: 8px 12px;
     text-align: left;
 }
 
 .markdown-content th {
-    background: #f5f7fa;
+    background: rgba(30, 58, 95, 0.6);
     font-weight: 600;
+    color: var(--primary-blue);
 }
 
 .markdown-content tr:nth-child(even) {
-    background: #fafbfc;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .markdown-content hr {
     border: none;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid var(--border-color);
     margin: 16px 0;
 }
 
 .markdown-content a {
-    color: #007acc;
+    color: var(--primary-blue);
     text-decoration: none;
+    border-bottom: 1px dashed rgba(0, 212, 255, 0.3);
 }
 
 .markdown-content a:hover {
-    text-decoration: underline;
+    text-decoration: none;
+    border-bottom-style: solid;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
 }
 
 /* 首个元素去除顶部margin */
-.markdown-content > *:first-child {
+.markdown-content>*:first-child {
     margin-top: 0;
 }
 
 /* 最后一个元素去除底部margin */
-.markdown-content > *:last-child {
+.markdown-content>*:last-child {
     margin-bottom: 0;
+}
+
+/* Scrollbar Style */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(13, 27, 42, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.3);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 212, 255, 0.5);
 }

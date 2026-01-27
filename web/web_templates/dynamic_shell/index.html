@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>动态页面</title>
     
-    <!-- 引入 ECharts -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <!-- 引入 ECharts - 使用本地库 (随模板复制) -->
+    <script src="js/echarts.min.js"></script>
+    <script>
+        // 本地库加载失败时回退到CDN
+        if (typeof echarts === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"><\/script>');
+        }
+    </script>
     
-    <!-- 引入 ArcGIS API styles -->
+    <!-- 引入 ArcGIS API styles - 深色主题 -->
     <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/dark/main.css">
     
     <!-- 引入自定义样式 -->

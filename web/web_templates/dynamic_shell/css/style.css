@@ -1,108 +1,527 @@
-body {
+/**
+ * 动态页面生成系统 - 深色科技风格样式
+ * 与主系统 (mindmap_classic.html) 保持一致的视觉风格
+ */
+
+/* ========== CSS 变量定义 ========== */
+:root {
+    /* 主色调 */
+    --primary-blue: #00d4ff;
+    --deep-blue: #0a1628;
+    --light-blue-bg: #0d1b2a;
+    --border-color: #1e3a5f;
+    --panel-bg: rgba(13, 27, 42, 0.95);
+
+    /* 文字颜色 */
+    --text-main: #e0e6ed;
+    --text-muted: #a0aec0;
+
+    /* 强调色 */
+    --accent-cyan: #00d4ff;
+    --accent-purple: #7c3aed;
+    --accent-green: #10b981;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+
+    /* 效果 */
+    --glow-color: rgba(0, 212, 255, 0.3);
+    --border-radius: 12px;
+    --gap: 8px;
+}
+
+/* ========== 全局样式 ========== */
+* {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #0d1117; /* 深色背景 */
-    color: #c9d1d9;
 }
-#app {
-    padding: 20px;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-.grid-row {
-    margin-bottom: 20px;
-}
-.component-wrapper {
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 6px;
-    padding: 16px;
+
+html,
+body {
     height: 100%;
-    box-sizing: border-box;
+    overflow: hidden;
+}
+
+body {
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    color: var(--text-main);
+    background: radial-gradient(circle at center, #1a2a3a 0%, var(--deep-blue) 100%);
+    min-height: 100vh;
+}
+
+/* ========== 应用容器 ========== */
+#app {
+    padding: 15px;
+    max-width: 100%;
+    margin: 0 auto;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+/* ========== Grid 布局行 ========== */
+.grid-row {
+    display: flex;
+    gap: var(--gap);
+    margin-bottom: var(--gap);
+}
+
+.grid-row.equal-height {
+    align-items: stretch;
+}
+
+/* 列宽度类 */
+.col-1 {
+    flex: 1;
+    min-width: 0;
+}
+
+.col-2 {
+    flex: 2;
+    min-width: 0;
+}
+
+.col-3 {
+    flex: 3;
+    min-width: 0;
+}
+
+.col-4 {
+    flex: 4;
+    min-width: 0;
+}
+
+.col-full {
+    flex: 1 0 100%;
+}
+
+/* ========== 面板/组件容器样式 ========== */
+.component-wrapper {
+    background: linear-gradient(145deg, rgba(30, 58, 95, 0.6), rgba(13, 27, 42, 0.9));
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 16px;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    position: relative;
+    transition: all 0.3s ease;
 }
+
+/* 顶部发光线条 */
+.component-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    opacity: 0.6;
+}
+
+.component-wrapper:hover {
+    box-shadow:
+        0 8px 30px rgba(0, 212, 255, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.4);
+}
+
+/* 组件标题 */
 .component-title {
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 12px;
-    color: #58a6ff;
-    border-bottom: 1px solid #30363d;
-    padding-bottom: 8px;
+    color: var(--accent-cyan);
+    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+    padding-bottom: 10px;
+    text-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+    letter-spacing: 1px;
 }
+
+/* 组件内容区 */
 .component-body {
     flex: 1;
     overflow: auto;
-    position: relative; /* For ECharts */
+    position: relative;
+    min-height: 0;
 }
 
-/* InfoCard Styles */
+/* ========== InfoCard / 信息卡片网格 ========== */
 .info-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
 }
+
 .info-item {
-    background: #21262d;
-    padding: 8px;
-    border-radius: 4px;
+    background: linear-gradient(135deg, rgba(30, 58, 95, 0.5), rgba(13, 27, 42, 0.8));
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
 }
+
+.info-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 212, 255, 0.15);
+    border-color: var(--accent-cyan);
+}
+
 .info-item .label {
     display: block;
-    color: #8b949e;
+    color: var(--text-muted);
     font-size: 12px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
+
 .info-item .value {
     display: block;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: bold;
-    color: #f0f6fc;
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
 }
 
-/* Table Styles */
-.simple-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-.simple-table th, .simple-table td {
-    text-align: left;
-    padding: 8px;
-    border-bottom: 1px solid #30363d;
-}
-.simple-table th {
-    color: #8b949e;
-    font-weight: 600;
+.info-item .unit {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: normal;
+    margin-left: 4px;
 }
 
-/* StatCard Styles */
+/* ========== StatCard / 统计卡片 ========== */
 .stat-card {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
     height: 100%;
-}
-.stat-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: #3fb950;
-}
-.stat-value .unit {
-    font-size: 14px;
-    color: #8b949e;
-    margin-left: 4px;
-}
-.stat-icon {
-    margin-left: 10px;
-}
-.stat-icon svg {
-    width: 32px;
-    height: 32px;
+    padding: 20px;
 }
 
-.error {
-    color: #ff6b6b;
-    padding: 10px;
-    background: rgba(255, 107, 107, 0.1);
+.stat-value {
+    font-size: 32px;
+    font-weight: bold;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3));
+}
+
+.stat-value .unit {
+    font-size: 14px;
+    color: var(--text-muted);
+    -webkit-text-fill-color: var(--text-muted);
+    margin-left: 4px;
+}
+
+.stat-label {
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(124, 58, 237, 0.2));
+    color: var(--accent-cyan);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.stat-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke: currentColor;
+    filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* ========== 表格样式 ========== */
+.simple-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.simple-table th,
+.simple-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.simple-table th {
+    color: var(--accent-cyan);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(0, 212, 255, 0.05);
+}
+
+.simple-table td {
+    color: var(--text-main);
+    font-size: 14px;
+}
+
+.simple-table tr:hover td {
+    background: rgba(0, 212, 255, 0.05);
+}
+
+.simple-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* ========== 图表容器 ========== */
+.echarts-container {
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+}
+
+/* ========== 地图容器 ========== */
+.gis-map-container {
+    width: 100%;
+    height: 100%;
+    min-height: 350px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#viewDiv,
+.map-view {
+    width: 100%;
+    height: 100%;
+    outline: none;
+}
+
+/* ========== HtmlContent / 富文本 ========== */
+.html-content {
+    line-height: 1.7;
+    color: var(--text-main);
+}
+
+.html-content h1,
+.html-content h2,
+.html-content h3 {
+    color: var(--accent-cyan);
+    margin-bottom: 12px;
+}
+
+.html-content p {
+    margin-bottom: 10px;
+}
+
+.html-content a {
+    color: var(--accent-cyan);
+    text-decoration: none;
+}
+
+.html-content a:hover {
+    text-decoration: underline;
+    text-shadow: 0 0 10px var(--glow-color);
+}
+
+.html-content code {
+    background: rgba(0, 212, 255, 0.1);
+    padding: 2px 6px;
     border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+    color: var(--accent-cyan);
+}
+
+.html-content pre {
+    background: rgba(13, 27, 42, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+}
+
+.html-content pre code {
+    background: transparent;
+    padding: 0;
+}
+
+/* ========== Timeline / 时间线 ========== */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-purple));
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+    padding-left: 20px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -24px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    background: var(--accent-cyan);
+    border-radius: 50%;
+    border: 2px solid var(--deep-blue);
+    box-shadow: 0 0 10px var(--accent-cyan);
+}
+
+.timeline-item .time {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.timeline-item .content {
+    color: var(--text-main);
+}
+
+/* ========== 错误状态 ========== */
+.error {
+    color: var(--accent-red);
+    padding: 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+}
+
+/* ========== 加载状态 ========== */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    min-height: 100px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========== 响应式布局 ========== */
+@media (max-width: 768px) {
+    .grid-row {
+        flex-direction: column;
+    }
+
+    .col-1,
+    .col-2,
+    .col-3,
+    .col-4 {
+        flex: 1 0 auto;
+    }
+
+    .info-card-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stat-value {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    #app {
+        padding: 10px;
+    }
+
+    .component-wrapper {
+        padding: 12px;
+    }
+
+    .info-card-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ========== 页面标题 ========== */
+.page-title {
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    margin-bottom: 20px;
+    padding: 15px;
+    text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+    letter-spacing: 2px;
+    background: linear-gradient(145deg, rgba(30, 58, 95, 0.4), transparent);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+/* ========== 分隔线 ========== */
+.divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+    margin: 20px 0;
+}
+
+/* ========== 高亮卡片 ========== */
+.highlight-card {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(124, 58, 237, 0.15)) !important;
+    border: 1px solid var(--accent-cyan) !important;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+}
+
+.highlight-card .stat-icon {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    color: #ffffff;
+}
+
+/* ========== 滚动条样式 ========== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--deep-blue);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-cyan);
 }

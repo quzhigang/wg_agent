@@ -8,10 +8,10 @@ const API_URLS = {
 
 // 本模板所需参数，包括方案名称、水库名称、水库stcd和认证Token
 const DEFAULT_PARAMS = {
-    planCode: 'model_auto_20250701120000',
+    planCode: 'model_auto',
     stcd: '31005650',
     reservoirName: '盘石头水库', // 统一定义水库名称
-    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI3MDkxYTU3Mi05MTRhLTQzZTgtODI2YS0wZjA0YmRlMTI4ODgiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzAwMzM4NTI3NjMsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTQyOTA1MiwiZXhwIjoxNzcwMDMzODUyfQ.ihL-ozKiQJw2D_kCicO6v5BDsA4B7gRlgKsBuMlMSDLmBJ2Lr3B-PfV8lquf1DoovSQA-Ov6JIFMZTRiuCA-ZQ' // 认证Token
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiIzNmRlMzllOC01ODdjLTQ3NDEtYWI4NS1hZDEzOWNjOGM4NTEiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzAxMTE2MjIxOTAsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTUwNjgyMiwiZXhwIjoxNzcwMTExNjIyfQ.nfhllEJiS8C_srYtRbd5PXW66dlnw5GDnVHzmd4Sh5Gbyq5X1sW72LHUKTH-PVA6eZLCdBmdOZSe9RwQksyYcA' // 认证Token
 };
 
 // 主入口函数
@@ -555,30 +555,33 @@ function formatNumber(num) {
 }
 
 /**
- * 初始化地图
+ * 初始化地图 - 加载Portal WebMap
  */
 function initMap() {
     require([
-        "esri/Map",
+        "esri/WebMap",
         "esri/views/MapView",
-        "esri/widgets/BasemapToggle"
-    ], function (Map, MapView, BasemapToggle) {
-        const map = new Map({
-            basemap: "topo-vector"
+        "esri/portal/Portal"
+    ], function (WebMap, MapView, Portal) {
+        // 创建Portal实例
+        const portal = new Portal({
+            url: "https://map.slt.henan.gov.cn/geoscene"
+        });
+
+        // 使用Portal WebMap ID加载地图
+        const webmap = new WebMap({
+            portalItem: {
+                id: "0217daabff7a4b45a0cca3f975efa7f3",
+                portal: portal
+            }
         });
 
         const view = new MapView({
             container: "viewDiv",
-            map: map,
-            center: [113.4, 35.5],
+            map: webmap,
+            center: [114.057818, 35.826884],
             zoom: 10
         });
-
-        const toggle = new BasemapToggle({
-            view: view,
-            nextBasemap: "hybrid"
-        });
-        view.ui.add(toggle, "top-right");
     });
 }
 

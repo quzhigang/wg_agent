@@ -1,14 +1,14 @@
 
-*****会话ID: 12d5cf0b-a09b-47c4-ac77-eab2ba81c8ee | 问题: 当前修武站洪水预报结果？*****
+*****会话ID: 0df8e44c-38a9-47aa-95f4-305a8a2116ae | 问题: 告诉我最新盘石头水库的洪水预报结果*****
 
-## 一、意图分析 [3.33s] (Planner.analyze_intent)
-**时间**: 2026-01-27 09:21:21
+## 一、意图分析 [4.13s] (Planner.analyze_intent)
+**时间**: 2026-01-27 18:16:09
 **提示词模板**: INTENT_ANALYSIS_PROMPT
 
 **上下文变量**:
 - context_summary: 无
 - chat_history: 无
-- user_message: 当前修武站洪水预报结果？
+- user_message: 告诉我最新盘石头水库的洪水预报结果
 
 **完整提示词**:
 ```
@@ -58,7 +58,7 @@
 无
 
 ## 用户当前消息
-当前修武站洪水预报结果？
+告诉我最新盘石头水库的洪水预报结果
 
 ## 输出要求
 请分析用户意图，返回JSON格式:
@@ -130,26 +130,26 @@
 
 **LLM响应**:
 ```
-{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '修武站', 'object_type': '监测站点', 'action': '查询洪水预报结果', 'time': '当前'}, 'target_kbs': ['monitor_site', 'system_function']}
+{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '盘石头水库', 'object_type': '水库', 'action': '查询洪水预报结果', 'time': '最新'}, 'target_kbs': ['water_project', 'flood_preplan']}
 ```
 
-## 二、业务子意图分类 [4.24s] (Planner.classify_business_sub_intent)
-**时间**: 2026-01-27 09:21:25
+## 二、业务子意图分类 [2.33s] (Planner.classify_business_sub_intent)
+**时间**: 2026-01-27 18:16:11
 **提示词模板**: BUSINESS_SUB_INTENT_PROMPT
 
 **上下文变量**:
-- user_message: 当前修武站洪水预报结果？
-- entities: {"object": "修武站", "object_type": "监测站点", "action": "查询洪水预报结果", "time": "当前"}
+- user_message: 告诉我最新盘石头水库的洪水预报结果
+- entities: {"object": "盘石头水库", "object_type": "水库", "action": "查询洪水预报结果", "time": "最新"}
 
 **完整提示词**:
 ```
 你是河南省卫共流域数字孪生系统的业务意图分类器，负责对业务类意图进行细分。
 
 ## 用户消息
-当前修武站洪水预报结果？
+告诉我最新盘石头水库的洪水预报结果
 
 ## 提取的实体
-{"object": "修武站", "object_type": "监测站点", "action": "查询洪水预报结果", "time": "当前"}
+{"object": "盘石头水库", "object_type": "水库", "action": "查询洪水预报结果", "time": "最新"}
 
 ## 业务子意图分类体系
 
@@ -215,27 +215,27 @@
 
 **LLM响应**:
 ```
-{'business_sub_intent': 'flood_forecast', 'confidence': 0.95, 'reason': "用户询问的是'当前修武站洪水预报结果'，明确指向查询洪水预报结果，符合flood_forecast类别中'查询预报结果'的定义。虽然包含'当前'一词，但整体语义是围绕洪水预报展开，而非单纯的实时监测数据查询。"}
+{'business_sub_intent': 'flood_forecast', 'confidence': 0.95, 'reason': "用户请求查询盘石头水库的'最新洪水预报结果'，明确指向洪水预报相关的查询操作，符合flood_forecast类别定义中的'查询预报结果'。"}
 ```
 
-## 三、多类型站点选择 [0.34s] (Planner._llm_select_station_type)
-**时间**: 2026-01-27 09:21:26
+## 三、多类型站点选择 [0.42s] (Planner._llm_select_station_type)
+**时间**: 2026-01-27 18:16:12
 **提示词模板**: STATION_TYPE_SELECT_PROMPT
 
 **上下文变量**:
-- object_name: 修武站
-- user_message: 当前修武站洪水预报结果？
-- candidate_types: ['无人机', '取水监测', '墒情站', '河道水文站', '视频监测', '雨量站', '闸站监测']
+- object_name: 盘石头水库
+- user_message: 告诉我最新盘石头水库的洪水预报结果
+- candidate_types: ['水库水文站', '无人机', '河道水文站', '视频监测', '雨量站']
 
 **完整提示词**:
 ```
-根据用户的对话意图，判断"修武站"最可能是哪种类型的监测站点。
+根据用户的对话意图，判断"盘石头水库"最可能是哪种类型的监测站点。
 
 ## 用户消息
-当前修武站洪水预报结果？
+告诉我最新盘石头水库的洪水预报结果
 
 ## 候选类型（数据库查询到的）
-无人机, 取水监测, 墒情站, 河道水文站, 视频监测, 雨量站, 闸站监测
+水库水文站, 无人机, 河道水文站, 视频监测, 雨量站
 
 ## 所有监测站点类型参考
 - 水库水文站：监测水库水位、入库流量、出库流量等
@@ -259,16 +259,16 @@
 
 **LLM响应**:
 ```
-河道水文站
+水库水文站
 ```
 
-## 四、工作流选择 [1.36s] (Planner.check_workflow_match)
-**时间**: 2026-01-27 09:21:29
+## 四、工作流选择 [2.00s] (Planner.check_workflow_match)
+**时间**: 2026-01-27 18:16:14
 **提示词模板**: WORKFLOW_SELECT_PROMPT
 
 **上下文变量**:
-- user_message: 当前修武站洪水预报结果？
-- entities: {"object": "修武站", "object_type": "河道水文站", "action": "查询洪水预报结果", "time": "当前", "stcd": "31004900"}
+- user_message: 告诉我最新盘石头水库的洪水预报结果
+- entities: {"object": "盘石头水库", "object_type": "水库", "action": "查询洪水预报结果", "time": "最新", "stcd": "31005650"}
 - business_sub_intent: flood_forecast
 - predefined_workflows: 
 1. get_auto_forecast_result - 查询最新自动预报结果
@@ -303,8 +303,8 @@
 你是河南省卫共流域数字孪生系统的业务流程选择器，负责从可用工作流中选择最匹配的一个。
 
 ## 输入信息
-- 用户消息：当前修武站洪水预报结果？
-- 实体：{"object": "修武站", "object_type": "河道水文站", "action": "查询洪水预报结果", "time": "当前", "stcd": "31004900"}
+- 用户消息：告诉我最新盘石头水库的洪水预报结果
+- 实体：{"object": "盘石头水库", "object_type": "水库", "action": "查询洪水预报结果", "time": "最新", "stcd": "31005650"}
 - 子意图：flood_forecast
 
 ## 可用的预定义工作流
@@ -369,18 +369,18 @@
 {'matched_workflow': 'get_auto_forecast_result', 'saved_workflow_id': None, 'output_type': 'text'}
 ```
 
-## 五、模板LLM精选 [2.22s] (TemplateMatchService._llm_select_template)
-**时间**: 2026-01-27 09:21:33
+## 五、模板LLM精选 [2.74s] (TemplateMatchService._llm_select_template)
+**时间**: 2026-01-27 18:16:18
 **提示词模板**: TEMPLATE_SELECT_PROMPT
 
 **上下文变量**:
-- user_message: 当前修武站洪水预报结果？
+- user_message: 告诉我最新盘石头水库的洪水预报结果
 - sub_intent: flood_forecast
-- object_type: 河道水文站
-- entity_params: - stcd: 31004900 (站点代码)
-- object_name: 修武站 (对象名称)
-- forecast_target_type: station
-- object_type: 河道水文站 (对象类型)
+- object_type: 水库
+- entity_params: - stcd: 31005650 (站点代码)
+- object_name: 盘石头水库 (对象名称)
+- forecast_target_type: reservoir
+- object_type: 水库 (对象类型)
 - workflow_params: - token: 已获取 (来自登录认证)
 - planCode: model_auto (来自预报方案)
 - candidates: - ID: 9db9c3b2-1dd1-4e09-bc0d-c2cae1e57587
@@ -391,27 +391,40 @@
   所需参数: token(登录认证令牌),planCode(预报方案ID),stcd(水库站码),object_name(对象名称（水库/站点名称）)
   必须匹配的对象类型: 水库,水库水文站
   优先级: 10
-  向量分数: 0.468
+  向量分数: 0.536
+- ID: a57d15a2-656c-43c8-9654-b0895e4da6f6
+  名称: 河道断面洪水结果展示
+  描述: 步骤4:   - target: {'type': 'station', 'name': '修武站', 'id': None, 'targets': [{'type': 'station', 'name': '修武站', 'id': None}]}
+  - summary: 修武站洪水预报结果
+  - data: {'Stcd': '31004900', 'SectionName': '修武', 
+  触发模式: 当前修武站洪水预报结果？ 动态页面 步骤4:   - target: {'type': 'station', 'name': '修武站', 'id': None, 'targets': [{'type': 'station', 'name': '修武站', 'id': None}]}
+  - summary: 修武站洪水预报结果
+  - data: {'Stcd': '31004900', 'Se
+  支持子意图: flood_forecast
+  所需参数: 
+  必须匹配的对象类型: 无限制
+  优先级: 5
+  向量分数: 0.391
 
 **完整提示词**:
 ```
 你是一个Web模板选择专家。根据用户问题和可提供的参数，从候选模板中选择最合适的模板。
 
 ## 用户问题
-当前修武站洪水预报结果？
+告诉我最新盘石头水库的洪水预报结果
 
 ## 业务子意图
 flood_forecast
 
 ## 当前对象类型
-河道水文站
+水库
 
 ## 对象识别可提供的参数
 （来自实体解析阶段：数据库查询+知识库查询+LLM匹配）
-- stcd: 31004900 (站点代码)
-- object_name: 修武站 (对象名称)
-- forecast_target_type: station
-- object_type: 河道水文站 (对象类型)
+- stcd: 31005650 (站点代码)
+- object_name: 盘石头水库 (对象名称)
+- forecast_target_type: reservoir
+- object_type: 水库 (对象类型)
 
 ## 工作流可提供的参数
 （来自工作流执行结果）
@@ -427,7 +440,20 @@ flood_forecast
   所需参数: token(登录认证令牌),planCode(预报方案ID),stcd(水库站码),object_name(对象名称（水库/站点名称）)
   必须匹配的对象类型: 水库,水库水文站
   优先级: 10
-  向量分数: 0.468
+  向量分数: 0.536
+- ID: a57d15a2-656c-43c8-9654-b0895e4da6f6
+  名称: 河道断面洪水结果展示
+  描述: 步骤4:   - target: {'type': 'station', 'name': '修武站', 'id': None, 'targets': [{'type': 'station', 'name': '修武站', 'id': None}]}
+  - summary: 修武站洪水预报结果
+  - data: {'Stcd': '31004900', 'SectionName': '修武', 
+  触发模式: 当前修武站洪水预报结果？ 动态页面 步骤4:   - target: {'type': 'station', 'name': '修武站', 'id': None, 'targets': [{'type': 'station', 'name': '修武站', 'id': None}]}
+  - summary: 修武站洪水预报结果
+  - data: {'Stcd': '31004900', 'Se
+  支持子意图: flood_forecast
+  所需参数: 
+  必须匹配的对象类型: 无限制
+  优先级: 5
+  向量分数: 0.391
 
 ## 选择标准（按优先级排序）
 
@@ -456,28 +482,28 @@ flood_forecast
 ```
 ```json
 {
-    "selected_template_id": null,
-    "confidence": 0.0,
-    "reason": "对象类型不匹配：当前对象类型为'河道水文站'，而候选模板要求的必须匹配对象类型为'水库,水库水文站'，不包含'河道水文站'。"
+    "selected_template_id": "9db9c3b2-1dd1-4e09-bc0d-c2cae1e57587",
+    "confidence": 0.9,
+    "reason": "该模板支持flood_forecast子意图，且对象类型匹配（水库），所需参数(token, planCode, stcd, object_name)均已提供。触发模式与用户问题高度相关，优先级较高。"
 }
 ```
 ```
 
-## 六、文字响应生成 [3.59s] (Controller.generate_text_only)
-**时间**: 2026-01-27 09:21:34
+## 六、文字响应生成 [4.28s] (Controller.generate_text_only)
+**时间**: 2026-01-27 18:16:19
 **提示词模板**: RESPONSE_GENERATION_PROMPT
 
 **上下文变量**:
 - chat_history: 无
-- user_message: 当前修武站洪水预报结果？
+- user_message: 告诉我最新盘石头水库的洪水预报结果
 - intent: flood_forecast
 - plan_summary: 1. 调用login_basin_system工具登录卫共流域数字孪生系统，获取访问令牌用于后续接口调用鉴权 [completed]
 2. 从用户会话中提取预报对象，如果请求全流域洪水预报结果则输出全流域，如果请求指定水库水文站点蓄滞洪区预报结果则输出其中文名称 [completed]
 3. 调用get_tjdata_result工具获取自动预报方案结果，包含水库、河道断面、蓄滞洪区洪水结果 [completed]
 4. 根据预报对象提取全流域或单一目标主要预报结果数据，包括结果概括描述和结果数据 [completed]
-- execution_results: 步骤4:   - target: {'type': 'station', 'name': '修武站', 'id': None, 'targets': [{'type': 'station', 'name': '修武站', 'id': None}]}
-  - summary: 修武站洪水预报结果
-  - data: {'Stcd': '31004900', 'SectionName': '修武', 'Max_Qischarge': 8.4, 'Max_Level': 78.64, 'MaxQ_AtTime': '2026/01/28 12:00:00', 'Total_Flood': 212.094, 'Level_Dic': {'2026/01/27 06:00:00': 78.44, '2026/01/27 07:00:00': 78.45, '2026/01/27 08:00:00': 78.49, '2026/01/27 09:00:00': 78.54, '2026/01/27 10:00:00': 78.59, '...': '(共73条时序数据，已截取前5条)'}, 'Discharge_Dic': {'2026/01/27 06:00:00': 5.7, '2026/01/27 07:00:00': 5.88, '2026/01/27 08:00:00': 6.38, '2026/01/27 09:00:00': 7.05, '2026/01/27 10:00:00': 7.72, '...': '(共73条时序数据，已截取前5条)'}}
+- execution_results: 步骤4:   - target: {'type': 'reservoir', 'name': '盘石头水库', 'id': None, 'targets': [{'type': 'reservoir', 'name': '盘石头水库', 'id': None}]}
+  - summary: 盘石头水库洪水预报结果
+  - data: {'Stcd': '31005650', 'ResName': '盘石头水库', 'Max_Level': 245.84, 'Max_Volumn': 22456.0, 'MaxLevel_Time': '2026/01/30 16:00:00', 'Max_InQ': 8.67, 'Max_OutQ': 3.66, 'MaxInQ_Time': '2026/01/27 18:00:00', 'MaxOutQ_Time': '2026/01/27 18:00:00', 'Total_InVolumn': 219.231, 'Total_OutVolumn': 94.867, 'YHDTotal_OutVolumn': 0.0, 'XHDTotal_OutVolumn': 94.867, 'EndTime_Level': 245.84, 'EndTime_Volumn': 22456.0, 'InQ_Dic': {'2026/01/27 18:00:00': 8.67, '2026/01/27 19:00:00': 8.67, '2026/01/27 20:00:00': 8.66, '2026/01/27 21:00:00': 8.66, '2026/01/27 22:00:00': 8.66, '...': '(共73条时序数据，已截取前5条)'}, 'OutQ_Dic': {'2026/01/27 18:00:00': 3.66, '2026/01/27 19:00:00': 3.66, '2026/01/27 20:00:00': 3.66, '2026/01/27 21:00:00': 3.66, '2026/01/27 22:00:00': 3.66, '...': '(共73条时序数据，已截取前5条)'}, 'YHDOutQ_Dic': {'2026/01/27 18:00:00': 0.0, '2026/01/27 19:00:00': 0.0, '2026/01/27 20:00:00': 0.0, '2026/01/27 21:00:00': 0.0, '2026/01/27 22:00:00': 0.0, '...': '(共73条时序数据，已截取前5条)'}, 'XHDOutQ_Dic': {'2026/01/27 18:00:00': 3.66, '2026/01/27 19:00:00': 3.66, '2026/01/27 20:00:00': 3.66, '2026/01/27 21:00:00': 3.66, '2026/01/27 22:00:00': 3.66, '...': '(共73条时序数据，已截取前5条)'}, 'Level_Dic': {'2026/01/27 18:00:00': 245.7, '2026/01/27 19:00:00': 245.7, '2026/01/27 20:00:00': 245.7, '2026/01/27 21:00:00': 245.71, '2026/01/27 22:00:00': 245.71, '...': '(共73条时序数据，已截取前5条)'}, 'Volumn_Dic': {'2026/01/27 18:00:00': 22330.0, '2026/01/27 19:00:00': 22330.0, '2026/01/27 20:00:00': 22330.0, '2026/01/27 21:00:00': 22339.0, '2026/01/27 22:00:00': 22339.0, '...': '(共73条时序数据，已截取前5条)'}}
 - retrieved_documents: 无相关知识
 
 **完整提示词**:
@@ -488,7 +514,7 @@ flood_forecast
 无
 
 ## 用户原始问题
-当前修武站洪水预报结果？
+告诉我最新盘石头水库的洪水预报结果
 
 ## 用户意图
 flood_forecast
@@ -500,9 +526,9 @@ flood_forecast
 4. 根据预报对象提取全流域或单一目标主要预报结果数据，包括结果概括描述和结果数据 [completed]
 
 ## 执行结果
-步骤4:   - target: {'type': 'station', 'name': '修武站', 'id': None, 'targets': [{'type': 'station', 'name': '修武站', 'id': None}]}
-  - summary: 修武站洪水预报结果
-  - data: {'Stcd': '31004900', 'SectionName': '修武', 'Max_Qischarge': 8.4, 'Max_Level': 78.64, 'MaxQ_AtTime': '2026/01/28 12:00:00', 'Total_Flood': 212.094, 'Level_Dic': {'2026/01/27 06:00:00': 78.44, '2026/01/27 07:00:00': 78.45, '2026/01/27 08:00:00': 78.49, '2026/01/27 09:00:00': 78.54, '2026/01/27 10:00:00': 78.59, '...': '(共73条时序数据，已截取前5条)'}, 'Discharge_Dic': {'2026/01/27 06:00:00': 5.7, '2026/01/27 07:00:00': 5.88, '2026/01/27 08:00:00': 6.38, '2026/01/27 09:00:00': 7.05, '2026/01/27 10:00:00': 7.72, '...': '(共73条时序数据，已截取前5条)'}}
+步骤4:   - target: {'type': 'reservoir', 'name': '盘石头水库', 'id': None, 'targets': [{'type': 'reservoir', 'name': '盘石头水库', 'id': None}]}
+  - summary: 盘石头水库洪水预报结果
+  - data: {'Stcd': '31005650', 'ResName': '盘石头水库', 'Max_Level': 245.84, 'Max_Volumn': 22456.0, 'MaxLevel_Time': '2026/01/30 16:00:00', 'Max_InQ': 8.67, 'Max_OutQ': 3.66, 'MaxInQ_Time': '2026/01/27 18:00:00', 'MaxOutQ_Time': '2026/01/27 18:00:00', 'Total_InVolumn': 219.231, 'Total_OutVolumn': 94.867, 'YHDTotal_OutVolumn': 0.0, 'XHDTotal_OutVolumn': 94.867, 'EndTime_Level': 245.84, 'EndTime_Volumn': 22456.0, 'InQ_Dic': {'2026/01/27 18:00:00': 8.67, '2026/01/27 19:00:00': 8.67, '2026/01/27 20:00:00': 8.66, '2026/01/27 21:00:00': 8.66, '2026/01/27 22:00:00': 8.66, '...': '(共73条时序数据，已截取前5条)'}, 'OutQ_Dic': {'2026/01/27 18:00:00': 3.66, '2026/01/27 19:00:00': 3.66, '2026/01/27 20:00:00': 3.66, '2026/01/27 21:00:00': 3.66, '2026/01/27 22:00:00': 3.66, '...': '(共73条时序数据，已截取前5条)'}, 'YHDOutQ_Dic': {'2026/01/27 18:00:00': 0.0, '2026/01/27 19:00:00': 0.0, '2026/01/27 20:00:00': 0.0, '2026/01/27 21:00:00': 0.0, '2026/01/27 22:00:00': 0.0, '...': '(共73条时序数据，已截取前5条)'}, 'XHDOutQ_Dic': {'2026/01/27 18:00:00': 3.66, '2026/01/27 19:00:00': 3.66, '2026/01/27 20:00:00': 3.66, '2026/01/27 21:00:00': 3.66, '2026/01/27 22:00:00': 3.66, '...': '(共73条时序数据，已截取前5条)'}, 'Level_Dic': {'2026/01/27 18:00:00': 245.7, '2026/01/27 19:00:00': 245.7, '2026/01/27 20:00:00': 245.7, '2026/01/27 21:00:00': 245.71, '2026/01/27 22:00:00': 245.71, '...': '(共73条时序数据，已截取前5条)'}, 'Volumn_Dic': {'2026/01/27 18:00:00': 22330.0, '2026/01/27 19:00:00': 22330.0, '2026/01/27 20:00:00': 22330.0, '2026/01/27 21:00:00': 22339.0, '2026/01/27 22:00:00': 22339.0, '...': '(共73条时序数据，已截取前5条)'}}
 
 ## 检索到的相关知识
 无相关知识
@@ -526,123 +552,13 @@ flood_forecast
 
 **LLM响应**:
 ```
-修武站的洪水预报结果如下：
+盘石头水库的最新洪水预报结果如下：
 
-- 最大流量：8.4 m³/s，发生时间：2026年01月28日 12:00
-- 最高水位：78.64 m
-- 总洪量：212.094 亿立方米
+- **最高水位**：245.84米，出现在2026年1月30日16:00  
+- **最大入库流量**：8.67立方米/秒，出现在2026年1月27日18:00  
+- **最大出库流量**：3.66立方米/秒，出现在2026年1月27日18:00  
 
-如需查看完整的时序数据（包括逐小时水位和流量变化），请查阅左侧报告页面。
-```
-
-## 七、PageConfig生成 [21.38s] (DynamicPageGenerator)
-**时间**: 2026-01-27 09:21:54
-**提示词模板**: PAGE_CONFIG_GENERATION_PROMPT
-
-**上下文变量**:
-- user_message: 当前修武站洪水预报结果？
-- intent: unknown
-- sub_intent: unknown
-- entities: {}
-- tool_results: 无工具调用结果
-- data_features: 
-
-**完整提示词**:
-```
-Human: 你是优秀的Web前端架构师。
-你的任务是根据用户的对话上下文，生成一个完整的、美观的、交互性强的Web页面配置 (PAGE_CONFIG)。
-
-## 用户对话上下文
-用户问题: 当前修武站洪水预报结果？
-意图: unknown (子意图: unknown)
-实体: {}
-数据特征: 
-
-## 工具调用结果 (部分截取)
-无工具调用结果
-
-## PAGE_CONFIG 生成规则
-请生成一个JSON对象，包含以下字段：
-1. `meta`: 页面元信息 (title, description, generated_at)
-2. `layout`: 布局配置 (type: grid/flex, rows: [...])
-3. `components`: 组件详细配置 (key: component_config)
-4. `api_config`: API数据源配置 (key: api_config)
-
-## 组件选择指南
-- **时序数据** (如水位过程线、流量过程线): 使用 `Echarts` (line/bar)。
-- **键值对/摘要信息** (如最高水位、洪峰流量): 使用 `InfoCard` 或 `StatCard`。
-- **列表/表格数据**: 使用 `SimpleTable`。
-- **地理信息**: 使用 `GISMap`。
-- **富文本/Markdown**: 使用 `HtmlContent`。
-- **时间线**: 使用 `Timeline`。
-
-## 布局设计指南
-- 将关键摘要信息(`InfoCard`, `StatCard`)放在顶部。
-- 图表(`Echarts`)和地图(`GISMap`)应占据较大空间。
-- 表格(`SimpleTable`)通常放在底部或侧边。
-- 使用 `grid` 布局来组织这些组件。
-
-## API配置指南
-- 如果数据可以通过API获取，请在 `api_config` 中配置API接口。
-- 支持参数占位符 `{context.path.to.value}`。
-- 如果数据无法通过API获取，请标记为需要放入 `static_data`。
-
-## JSON 输出格式示例
-```json
-{
-  "meta": { "title": "...", "description": "..." },
-  "layout": { "type": "grid", "rows": [...] },
-  "components": { ... },
-  "api_config": { ... }
-}
-```
-请仅返回JSON，不要包含Markdown代码块标记。
-
-```
-
-**LLM响应**:
-```
-{
-  "meta": {
-    "title": "修武站洪水预报分析看板",
-    "description": "实时展示修武站洪水预报的水位过程线、流量趋势及关键预警指标分析。",
-    "generated_at": "2023-10-27T10:00:00Z"
-  },
-  "layout": {
-    "type": "grid",
-    "rows": [
-      {
-        "id": "header_stats",
-        "gutter": 16,
-        "cols": [
-          { "span": 6, "component": "stat_peak_level" },
-          { "span": 6, "component": "stat_peak_flow" },
-          { "span": 6, "component": "stat_warning_level" },
-          { "span": 6, "component": "stat_forecast_time" }
-        ]
-      },
-      {
-        "id": "main_content",
-        "gutter": 16,
-        "margin_top": 20,
-        "cols": [
-          { "span": 16, "component": "forecast_chart" },
-          { "span": 8, "component": "station_map" }
-        ]
-      },
-      {
-        "id": "bottom_content",
-        "gutter": 16,
-        "margin_top": 20,
-        "cols": [
-          { "span": 24, "component": "forecast_detail_table" }
-        ]
-      }
-    ]
-  },
-  "components": {
-    "stat_peak_level": {
-     ...(已截断)
+以上为关键预报数据摘要。如需查看完整的时序数据和更多细节，请查阅左侧报告页面。
 ```
 
 ---

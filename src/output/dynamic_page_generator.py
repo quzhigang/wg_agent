@@ -19,9 +19,9 @@ from .data_file_generator import DataFileGenerator
 
 logger = get_logger(__name__)
 
-# PAGE_CONFIG 生成提示词
-PAGE_CONFIG_GENERATION_PROMPT = """你是优秀的Web前端架构师。
-你的任务是根据用户的对话上下文，生成一个完整的、美观的、交互性强的Web页面配置 (PAGE_CONFIG)。
+# PAGE_CONFIG 生成提示词 (精简版)
+PAGE_CONFIG_GENERATION_PROMPT = """你是Web前端架构师，根据用户对话生成页面配置 (PAGE_CONFIG)。
+**风格要求：深色科技风格 (深蓝背景 #0a1628，青色强调 #00d4ff，发光效果)**
 
 ## 用户对话上下文
 用户问题: {user_message}
@@ -29,45 +29,78 @@ PAGE_CONFIG_GENERATION_PROMPT = """你是优秀的Web前端架构师。
 实体: {entities}
 数据特征: {data_features}
 
-## 工具调用结果 (部分截取)
+## 工具调用结果
 {tool_results}
 
-## PAGE_CONFIG 生成规则
-请生成一个JSON对象，包含以下字段：
-1. `meta`: 页面元信息 (title, description, generated_at)
-2. `layout`: 布局配置 (type: grid/flex, rows: [...])
-3. `components`: 组件详细配置 (key: component_config)
-4. `api_config`: API数据源配置 (key: api_config)
+## 组件类型 (共17种)
 
-## 组件选择指南
-- **时序数据** (如水位过程线、流量过程线): 使用 `Echarts` (line/bar)。
-- **键值对/摘要信息** (如最高水位、洪峰流量): 使用 `InfoCard` 或 `StatCard`。
-- **列表/表格数据**: 使用 `SimpleTable`。
-- **地理信息**: 使用 `GISMap`。
-- **富文本/Markdown**: 使用 `HtmlContent`。
-- **时间线**: 使用 `Timeline`。
+**数据展示类：**
+| 组件类型 | 适用场景 | 关键配置 |
+|---------|---------|---------|
+| `Echarts` | 时序曲线、柱状图、饼图 | chartType: line/bar/pie, options: {{...}} |
+| `StatCard` | 单个关键指标 | value, unit, status |
+| `InfoCard` | 多个键值对信息 | 直接传入对象 |
+| `SimpleTable` | 列表/表格数据 | columns, dataSource |
+| `GISMap` | 地图展示 | 使用固定Portal地图 |
+| `HtmlContent` | 富文本/Markdown | content |
+| `List` | 简单列表 | items: ["item1"] 或 [{{text, link}}], ordered |
+| `Divider` | 分割线 | text (可选标题), color |
 
-## 布局设计指南
-- 将关键摘要信息(`InfoCard`, `StatCard`)放在顶部。
-- 图表(`Echarts`)和地图(`GISMap`)应占据较大空间。
-- 表格(`SimpleTable`)通常放在底部或侧边。
-- 使用 `grid` 布局来组织这些组件。
+**媒体类：**
+| 组件类型 | 适用场景 | 关键配置 |
+|---------|---------|---------|
+| `Image` | 单张图片 | src, alt, fit: cover/contain, caption |
+| `Video` | 视频播放 | src, poster, autoplay, controls |
+| `Gallery` | 图片画廊 | images: [{{src, caption}}], columns: 3 |
 
-## API配置指南
-- 如果数据可以通过API获取，请在 `api_config` 中配置API接口。
-- 支持参数占位符 `{{context.path.to.value}}`。
-- 如果数据无法通过API获取，请标记为需要放入 `static_data`。
+**表单类：**
+| 组件类型 | 适用场景 | 关键配置 |
+|---------|---------|---------|
+| `Radio` | 单选按钮 | options: [{{value, label}}], defaultValue |
+| `Checkbox` | 多选勾选 | options: [{{value, label}}], defaultValues |
+| `Select` | 下拉选择 | options: [{{value, label}}], placeholder |
+| `Switch` | 开关切换 | checked, label, onText, offText |
 
-## JSON 输出格式示例
+**导航/交互类：**
+| 组件类型 | 适用场景 | 关键配置 |
+|---------|---------|---------|
+| `Tabs` | 标签页切换 | tabs: [{{key, label, content}}], defaultTab |
+| `ActionBar` | 操作按钮 | buttons: [{{label, action, type, url}}], align |
+
+## 布局原则
+1. 关键指标(StatCard) → 顶部
+2. 图表(Echarts)/地图(GISMap) → 中部，占大空间
+3. 表格(SimpleTable) → 底部或侧边
+4. 使用 grid 布局，rows 数组定义行，cols 定义列
+
+## 输出格式 (JSON)
 ```json
 {{
-  "meta": {{ "title": "...", "description": "..." }},
-  "layout": {{ "type": "grid", "rows": [...] }},
-  "components": {{ ... }},
-  "api_config": {{ ... }}
+  "meta": {{ "title": "根据数据内容确定", "description": "页面描述" }},
+  "layout": {{
+    "type": "grid",
+    "rows": [
+      {{ "cols": ["组件key1", "组件key2", ...], "height": "可选高度" }},
+      {{ "cols": ["组件key3"] }}
+    ]
+  }},
+  "components": {{
+    "组件key": {{
+      "type": "组件类型",
+      "title": "标题",
+      "其他配置": "根据组件类型填写"
+    }}
+  }},
+  "api_config": {{}}
 }}
 ```
-请仅返回JSON，不要包含Markdown代码块标记。
+
+**注意：**
+1. 深色主题样式已内置，无需配置颜色
+2. Echarts 图表会自动应用深色主题
+3. GISMap 使用河南省水利厅 Portal WebMap (固定地图服务)
+4. 根据工具调用结果中的实际数据类型选择合适的组件
+5. 仅返回JSON，不要包含Markdown代码块标记
 """
 
 class DynamicPageGenerator:

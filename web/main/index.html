@@ -244,10 +244,10 @@
 
                                 if (category === 'business') {
                                     // 业务类：显示类别，等待子意图
-                                    stageEl.innerHTML = '<span class="process-icon" style="color:#1890ff">⏳</span><span>意图识别: <span style="color:#1890ff;font-weight:500">' + categoryName + '</span> <span style="color:#999">(' + confidence + '%)</span> <span style="color:#999;font-size:12px">正在分析子意图...</span></span>';
+                                    stageEl.innerHTML = '<span class="process-icon" style="color:#00d4ff">⏳</span><span>意图识别: <span style="color:#00d4ff;font-weight:500">' + categoryName + '</span> <span style="color:#a0aec0">(' + confidence + '%)</span> <span style="color:#a0aec0;font-size:12px">正在分析子意图...</span></span>';
                                 } else {
                                     // 非业务类：直接完成
-                                    stageEl.innerHTML = '<span class="process-icon" style="color:#52c41a">✓</span><span>意图识别: <span style="color:#1890ff;font-weight:500">' + categoryName + '</span> <span style="color:#999">(' + confidence + '%)</span></span>';
+                                    stageEl.innerHTML = '<span class="process-icon" style="color:#00ff9d">✓</span><span>意图识别: <span style="color:#00d4ff;font-weight:500">' + categoryName + '</span> <span style="color:#a0aec0">(' + confidence + '%)</span></span>';
                                 }
                             } else if (stageName === 'business_sub_intent') {
                                 // 第2阶段：追加业务子意图
@@ -259,7 +259,7 @@
                                 const confidenceMatch = currentHtml.match(/\((\d+)%\)/);
                                 const confidence = confidenceMatch ? confidenceMatch[1] : '90';
 
-                                stageEl.innerHTML = '<span class="process-icon" style="color:#1890ff">⏳</span><span>意图识别: <span style="color:#1890ff;font-weight:500">业务操作</span> > <span style="color:#52c41a;font-weight:500">' + subIntentName + '</span> <span style="color:#999">(' + confidence + '%)</span> <span style="color:#999;font-size:12px">正在匹配工作流...</span></span>';
+                                stageEl.innerHTML = '<span class="process-icon" style="color:#00d4ff">⏳</span><span>意图识别: <span style="color:#00d4ff;font-weight:500">业务操作</span> > <span style="color:#00ff9d;font-weight:500">' + subIntentName + '</span> <span style="color:#a0aec0">(' + confidence + '%)</span> <span style="color:#a0aec0;font-size:12px">正在匹配工作流...</span></span>';
                             } else if (stageName === 'workflow_match') {
                                 // 第3阶段：工作流匹配完成
                                 const matchedWorkflow = data.matched_workflow || '';
@@ -272,19 +272,19 @@
                                 const confidence = confidenceMatch ? confidenceMatch[1] : '90';
 
                                 // 构建意图文本
-                                let intentText = '<span style="color:#1890ff;font-weight:500">业务操作</span>';
+                                let intentText = '<span style="color:#00d4ff;font-weight:500">业务操作</span>';
                                 if (subIntentName) {
-                                    intentText += ' > <span style="color:#52c41a;font-weight:500">' + subIntentName + '</span>';
+                                    intentText += ' > <span style="color:#00ff9d;font-weight:500">' + subIntentName + '</span>';
                                 }
-                                intentText += ' <span style="color:#999">(' + confidence + '%)</span>';
+                                intentText += ' <span style="color:#a0aec0">(' + confidence + '%)</span>';
 
                                 // 添加工作流名称（使用中文）
                                 if (matchedWorkflow) {
                                     const workflowDisplayName = workflowNameMap[matchedWorkflow] || matchedWorkflow;
-                                    intentText += ' <span style="color:#722ed1;font-size:12px">→ ' + workflowDisplayName + '</span>';
+                                    intentText += ' <span style="color:#00ffd4;font-size:12px">→ ' + workflowDisplayName + '</span>';
                                 }
 
-                                stageEl.innerHTML = '<span class="process-icon" style="color:#52c41a">✓</span><span>意图识别: ' + intentText + '</span>';
+                                stageEl.innerHTML = '<span class="process-icon" style="color:#00ff9d">✓</span><span>意图识别: ' + intentText + '</span>';
                             }
                         }
                         break;
@@ -302,13 +302,13 @@
                             let intentText = '';
                             if (category === 'business' && subIntent) {
                                 // 业务类：显示类别 > 子意图
-                                intentText = '<span style="color:#1890ff;font-weight:500">' + categoryName + '</span> > <span style="color:#52c41a;font-weight:500">' + subIntentName + '</span> <span style="color:#999">(' + confidence + '%)</span>';
+                                intentText = '<span style="color:#00d4ff;font-weight:500">' + categoryName + '</span> > <span style="color:#00ff9d;font-weight:500">' + subIntentName + '</span> <span style="color:#a0aec0">(' + confidence + '%)</span>';
                             } else {
                                 // 非业务类：显示类别名称
-                                intentText = '<span style="color:#1890ff;font-weight:500">' + categoryName + '</span> <span style="color:#999">(' + confidence + '%)</span>';
+                                intentText = '<span style="color:#00d4ff;font-weight:500">' + categoryName + '</span> <span style="color:#a0aec0">(' + confidence + '%)</span>';
                             }
 
-                            intentEl.innerHTML = '<span class="process-icon" style="color:#52c41a">✓</span><span>意图识别: ' + intentText + '</span>';
+                            intentEl.innerHTML = '<span class="process-icon" style="color:#00ff9d">✓</span><span>意图识别: ' + intentText + '</span>';
                         }
                         break;
                     case 'rag':
@@ -323,7 +323,7 @@
                     case 'plan':
                         const planDiv = document.createElement('div');
                         planDiv.className = 'process-item';
-                        planDiv.innerHTML = '<div style="width:100%"><div style="margin-bottom:5px;color:#666">执行计划:</div><div class="steps-container" style="padding-left:10px"></div></div>';
+                        planDiv.innerHTML = '<div style="width:100%"><div style="margin-bottom:5px;color:var(--text-muted)">执行计划:</div><div class="steps-container" style="padding-left:10px"></div></div>';
                         ui.processBody.appendChild(planDiv);
                         const container = planDiv.querySelector('.steps-container');
                         (data.steps || []).forEach((s, index) => {
