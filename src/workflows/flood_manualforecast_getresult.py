@@ -329,7 +329,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
                 'tool_name': 'login_basin_system',
                 'success': True,
                 'execution_time_ms': execution_time_ms,
-                'data': {'token': '***'},  # 隐藏token
+                'data': {'token': auth_token},
                 'error': None
             })
 
@@ -1910,7 +1910,7 @@ class FloodManualForecastGetResultWorkflow(BaseWorkflow):
 
         return {
             'success': True,
-            'result': {'token': '***'},  # 隐藏token
+            'result': {'token': auth_token},
             'workflow_context': ctx
         }
 
