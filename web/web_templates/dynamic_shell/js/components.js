@@ -292,12 +292,12 @@ class DynamicPageEngine {
 
     renderInfoCard(container, data, config) {
         let content = '';
-        // 优先使用 config 中的数据，其次使用传入的 data
-        const displayData = data || config;
+        // 优先使用传入的 data，其次使用 config.data，最后使用 config 本身
+        const displayData = data || config.data || config;
         if (typeof displayData === 'object') {
             for (const [k, v] of Object.entries(displayData)) {
                 // 跳过非显示字段
-                if (['title', 'type'].includes(k)) continue;
+                if (['title', 'type', 'data', 'data_source', 'style'].includes(k)) continue;
                 content += `
                     <div class="info-item">
                         <span class="label">${k}</span>
@@ -443,44 +443,79 @@ class DynamicPageEngine {
             color: ['#00d4ff', '#7c3aed', '#10b981', '#f59e0b', '#ef4444', '#ec4899']
         };
 
+        // ========== 数据格式转换 ==========
+        // 支持字典格式数据: { "2026/01/27 18:00:00": 78.54, ... }
+        // 转换为 ECharts 需要的格式: { x_data: [...], y_data: [...] }
+        let processedData = data;
+        if (data && typeof data === 'object' && !Array.isArray(data) && !data.series && !data.x_data) {
+            // 检查是否是字典格式 (键是时间字符串，值是数字)
+            const keys = Object.keys(data);
+            if (keys.length > 0 && typeof data[keys[0]] === 'number') {
+                // 转换字典为 x_data 和 y_data
+                processedData = {
+                    x_data: keys.map(k => {
+                        // 简化时间显示格式: "2026/01/27 18:00:00" -> "01/27 18:00"
+                        const match = k.match(/(\d{2})\/(\d{2})\s+(\d{2}:\d{2})/);
+                        return match ? `${match[1]}/${match[2]} ${match[3]}` : k;
+                    }),
+                    y_data: keys.map(k => data[k])
+                };
+            }
+        }
+
         // 支持两种配置格式：
         // 1. config.option (新格式，直接是 ECharts option)
         // 2. config.options (旧格式)
         let option = config.option || config.options || {};
 
-        // 如果只有数据源，自动生成简单的 option
-        if (Object.keys(option).length === 0 && config.chart_type) {
-            option = {
-                tooltip: { trigger: 'axis' },
-                xAxis: { type: 'category', data: data?.x_data || [] },
-                yAxis: { type: 'value' },
-                series: [{
-                    type: config.chart_type,
-                    data: data?.y_data || data?.series || [],
-                    // 线形图默认添加渐变填充
-                    ...(config.chart_type === 'line' ? {
-                        lineStyle: { color: '#00d4ff', width: 2 },
-                        areaStyle: {
-                            color: {
-                                type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-                                colorStops: [
-                                    { offset: 0, color: 'rgba(0, 212, 255, 0.4)' },
-                                    { offset: 1, color: 'rgba(0, 212, 255, 0.05)' }
-                                ]
-                            }
-                        },
-                        itemStyle: { color: '#00d4ff', borderColor: '#0a1628', borderWidth: 2 }
-                    } : {})
-                }]
-            };
-        } else if (data) {
-            // 如果提供了 data，尝试将数据注入到 option 中
-            if (data.series) {
-                option.series = data.series;
+        // 获取图表类型
+        const chartType = config.chartType || config.chart_type || 'line';
+
+        // 如果有处理后的数据，注入到 option 中
+        if (processedData && (processedData.x_data || processedData.y_data)) {
+            // 设置 xAxis 数据
+            if (processedData.x_data) {
+                if (!option.xAxis) option.xAxis = {};
+                if (typeof option.xAxis === 'object' && !Array.isArray(option.xAxis)) {
+                    option.xAxis.data = processedData.x_data;
+                }
             }
-            if (data.xAxis) {
-                option.xAxis = data.xAxis;
+            // 设置 series 数据
+            if (processedData.y_data) {
+                if (!option.series || option.series.length === 0) {
+                    option.series = [{ type: chartType, data: processedData.y_data }];
+                } else if (Array.isArray(option.series) && option.series.length > 0) {
+                    option.series[0].data = processedData.y_data;
+                }
             }
+        } else if (processedData) {
+            // 如果提供了其他格式的 data，尝试将数据注入到 option 中
+            if (processedData.series) {
+                option.series = processedData.series;
+            }
+            if (processedData.xAxis) {
+                option.xAxis = processedData.xAxis;
+            }
+        }
+
+        // 为线形图添加渐变填充效果
+        if (chartType === 'line' && option.series && option.series.length > 0) {
+            option.series.forEach(s => {
+                if (!s.lineStyle) s.lineStyle = { color: '#00d4ff', width: 2 };
+                if (!s.areaStyle) {
+                    s.areaStyle = {
+                        color: {
+                            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(0, 212, 255, 0.4)' },
+                                { offset: 1, color: 'rgba(0, 212, 255, 0.05)' }
+                            ]
+                        }
+                    };
+                }
+                if (!s.itemStyle) s.itemStyle = { color: '#00d4ff', borderColor: '#0a1628', borderWidth: 2 };
+                if (!s.smooth) s.smooth = true;
+            });
         }
 
         // 深度合并主题配置 (用户配置优先)
@@ -525,7 +560,7 @@ class DynamicPageEngine {
 
             // ========== 使用固定的 Portal WebMap (河南省水利厅地图服务) ==========
             // 配置Portal地址
-            esriConfig.portalUrl = "https://map.slt.henan.gov.cn/geoscene/portal";
+            esriConfig.portalUrl = "https://map.slt.henan.gov.cn/geoscene";
 
             // 使用固定的 Portal WebMap ID (与预定义模板 res_module 一致)
             const portalItemId = config.portalItemId || "0217daabff7a4b45a0cca3f975efa7f3";

@@ -82,6 +82,10 @@ class ConversationContext:
     matched_workflow: Optional[str] = None
     workflow_params: Dict[str, Any] = field(default_factory=dict)
 
+    # 工作流提取的业务数据（如洪水预报结果）
+    extracted_result: Optional[Dict[str, Any]] = None
+    forecast_target: Optional[Dict[str, Any]] = None
+
     # 最终结果
     final_response: Optional[str] = None
     output_type: str = "text"  # text/web_page
@@ -257,6 +261,26 @@ class ConversationContextCollector:
         self._context.workflow_params = workflow_params or {}
         logger.debug(f"记录工作流信息: {matched_workflow}")
 
+    def set_extracted_result(self, extracted_result: Dict[str, Any]):
+        """
+        记录工作流提取的业务数据
+
+        Args:
+            extracted_result: 工作流提取的结果数据（如洪水预报结果）
+        """
+        self._context.extracted_result = deepcopy(extracted_result)
+        logger.debug(f"记录工作流提取结果: {list(extracted_result.keys()) if extracted_result else None}")
+
+    def set_forecast_target(self, forecast_target: Dict[str, Any]):
+        """
+        记录预报目标信息
+
+        Args:
+            forecast_target: 预报目标信息（水库/流域/站点等）
+        """
+        self._context.forecast_target = deepcopy(forecast_target)
+        logger.debug(f"记录预报目标: {forecast_target.get('name') if forecast_target else None}")
+
     def set_final_response(self, response: str, output_type: str = "text"):
         """
         记录最终响应
@@ -348,6 +372,11 @@ class ConversationContextCollector:
             "retrieval": {
                 "documents": data.get("retrieved_documents", [])
             },
+            # 工作流提取的业务数据（核心数据，用于页面渲染）
+            "workflow_result": {
+                "extracted_result": data.get("extracted_result"),
+                "forecast_target": data.get("forecast_target")
+            },
             "response": data.get("final_response")
         }
 
@@ -386,6 +415,9 @@ class ConversationContextCollector:
         从 WorkflowContext 合并数据
 
         将 WorkflowContext 中的步骤执行结果合并到工具调用记录中。
+        支持两种格式：
+        1. 旧格式: { "steps": { "step_name": result, ... } }
+        2. 新格式: { "results": { "extracted_result": {...}, ... }, "context_data": { "steps": {...} } }
 
         Args:
             workflow_context: WorkflowContext.to_dict() 的结果
@@ -393,7 +425,17 @@ class ConversationContextCollector:
         if not workflow_context:
             return
 
-        steps = workflow_context.get("steps", {})
+        # 尝试从 context_data.steps 获取步骤数据（新格式）
+        context_data = workflow_context.get("context_data", {})
+        if isinstance(context_data, dict):
+            steps = context_data.get("steps", {})
+        else:
+            steps = {}
+
+        # 如果没有 context_data.steps，尝试从顶层 steps 获取（旧格式）
+        if not steps:
+            steps = workflow_context.get("steps", {})
+
         for step_name, step_result in steps.items():
             # 检查是否已有该步骤的记录
             existing = None
@@ -414,6 +456,20 @@ class ConversationContextCollector:
                     execution_time_ms=0
                 )
 
+        # 如果 workflow_context 中有 results.extracted_result，也设置到 context 中
+        results = workflow_context.get("results", {})
+        if results and isinstance(results, dict):
+            extracted_result = results.get("extracted_result")
+            if extracted_result and not self._context.extracted_result:
+                self._context.extracted_result = deepcopy(extracted_result)
+                logger.debug(f"从 workflow_context.results 合并了 extracted_result")
+
+        # 如果有 forecast_target，也设置
+        forecast_target = workflow_context.get("forecast_target")
+        if forecast_target and not self._context.forecast_target:
+            self._context.forecast_target = deepcopy(forecast_target)
+            logger.debug(f"从 workflow_context 合并了 forecast_target")
+
         logger.debug(f"从 WorkflowContext 合并了 {len(steps)} 个步骤")
 
     def merge_from_execution_results(self, execution_results: List[Dict[str, Any]], plan: List[Dict[str, Any]]):
@@ -431,12 +487,20 @@ class ConversationContextCollector:
             step_id = result.get("step_id", 0)
             plan_step = plan_map.get(step_id, {})
 
+            # 兼容两种字段名：'output' (ExecutionResult格式) 和 'result' (工作流步骤格式)
+            output_result = result.get("output") or result.get("result")
+
+            # 优先使用执行结果中的 tool_name，其次使用计划中的
+            tool_name = result.get("tool_name") or plan_step.get("tool_name", "unknown")
+            # 优先使用执行结果中的 step_name，其次使用计划中的 description
+            step_description = result.get("step_name") or plan_step.get("description", "")
+
             self.record_tool_call(
-                tool_name=plan_step.get("tool_name", "unknown"),
+                tool_name=tool_name,
                 step_id=step_id,
-                step_description=plan_step.get("description", ""),
+                step_description=step_description,
                 input_params=plan_step.get("tool_args", {}),
-                output_result=result.get("output"),
+                output_result=output_result,
                 success=result.get("success", False),
                 execution_time_ms=result.get("execution_time_ms", 0),
                 error_message=result.get("error")
@@ -491,7 +555,7 @@ def create_collector_from_state(state: Dict[str, Any]) -> ConversationContextCol
         )
 
     # 从执行结果合并工具调用记录
-    if state.get("execution_results") and state.get("plan"):
+    if state.get("execution_results"):
         collector.merge_from_execution_results(
             execution_results=state.get("execution_results", []),
             plan=state.get("plan", [])
@@ -504,5 +568,14 @@ def create_collector_from_state(state: Dict[str, Any]) -> ConversationContextCol
     # 从 workflow_context 合并（如果有）
     if state.get("workflow_context"):
         collector.merge_from_workflow_context(state.get("workflow_context"))
+
+    # 合并工作流提取的结果数据（extracted_result）
+    # 这是工作流最终提取的业务数据，如洪水预报结果
+    if state.get("extracted_result"):
+        collector.set_extracted_result(state.get("extracted_result"))
+
+    # 合并预报目标信息
+    if state.get("forecast_target"):
+        collector.set_forecast_target(state.get("forecast_target"))
 
     return collector

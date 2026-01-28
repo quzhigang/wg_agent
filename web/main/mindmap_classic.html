@@ -1135,7 +1135,7 @@
                     <div class="stat-label">🎯 意图分类</div>
                 </div>
                 <div class="stat-card" id="card-predefined-templates" onclick="showPredefinedTemplatesModal()" title="点击查看预定义模板">
-                    <div class="stat-number">1</div>
+                    <div class="stat-number" id="predefined-template-count">-</div>
                     <div class="stat-label">📦 预定义web模板</div>
                 </div>
                 <div class="stat-card" id="card-dynamic-templates" onclick="openDynamicTemplates()" title="点击管理动态模板">
@@ -1832,6 +1832,7 @@
         // ============================================================================
         let toolsData = null;           // 缓存工具列表数据
         let llmConfigData = null;       // 缓存LLM配置数据
+        let templatesData = null;       // 缓存Web模板数据
 
         // 预定义工作流数据（静态定义，包含步骤详情）
         const predefinedWorkflows = [
@@ -2513,20 +2514,25 @@
             `);
 
             try {
-                // Fetch template list from backend
-                const response = await fetch('/web-templates?page=1&size=100'); 
-                if (!response.ok) throw new Error('获取模板列表失败');
+                // 优先使用缓存数据
+                let allTemplates = [];
+                if (typeof templatesData !== 'undefined' && templatesData && templatesData.length > 0) {
+                    allTemplates = templatesData;
+                } else {
+                    const response = await fetch('/web-templates?page=1&size=100'); 
+                    if (!response.ok) throw new Error('获取模板列表失败');
+                    const data = await response.json();
+                    allTemplates = data.items || [];
+                    templatesData = allTemplates; // 更新缓存
+                }
                 
-                const data = await response.json();
-                const allTemplates = data.items || [];
-                
-                // Filter for predefined (not dynamic) templates
-                // We assume is_dynamic is boolean true/false. Using !t.is_dynamic handles false and null/undefined for backward compatibility
+                // 筛选预定义模板 (is_dynamic 为 false 或 undefined)
                 const predefinedTemplates = allTemplates.filter(t => !t.is_dynamic);
 
-                // Update the count on the card
-                const countElement = document.getElementById('card-predefined-templates').querySelector('.stat-number');
+                // 更新卡片上的数字
+                const countElement = document.getElementById('predefined-template-count');
                 if (countElement) countElement.textContent = predefinedTemplates.length;
+
 
                 if (predefinedTemplates.length === 0) {
                      openModal('📦 预定义Web模板清单', '<div style="padding: 20px; text-align: center; color: #64748b;">暂无预定义模板</div>');
@@ -2541,11 +2547,11 @@
                      if (!path) path = '#';
 
                     content += `
-                        <div class="workflow-item" style="cursor: pointer;" onclick="window.open('${path}', '_blank'); closeModal();">
+                        <div class="workflow-item" style="cursor: pointer;" onclick="window.open('/ui/${path}', '_blank'); closeModal();">
                             <div class="workflow-name">${index + 1}. ${tpl.display_name || tpl.name}</div>
                             <div class="workflow-desc">${tpl.description || '暂无描述'}</div>
                             <div style="margin-top: 10px; font-family: 'Consolas', monospace; font-size: 0.85em; color: #6b7280;">
-                                目录名称: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">web/web_templates/${tpl.name}</code>
+                                目录名称: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px;">/ui/${path}</code>
                             </div>
                         </div>
                     `;
@@ -2575,17 +2581,38 @@
         }
 
         /**
-         * 获取动态模板数量
+         * 获取Web模板数量（包括预定义和动态）
          */
-        async function loadDynamicTemplateCount() {
+        async function loadTemplateCounts() {
             try {
-                const response = await fetch('/web-templates?page=1&size=1');
+                // 使用 size=100，符合后端 Query(20, ge=1, le=100) 的约束
+                const response = await fetch('/web-templates?page=1&size=100');
                 if (response.ok) {
                     const data = await response.json();
-                    document.getElementById('dynamic-template-count').textContent = data.total || 0;
+                    const allTemplates = data.items || [];
+                    
+                    // 过滤出预定义模板和动态模板
+                    const predefinedTemplates = allTemplates.filter(t => !t.is_dynamic);
+                    const dynamicTemplates = allTemplates.filter(t => t.is_dynamic);
+                    
+                    // 更新界面上的数字
+                    const predefinedCountEl = document.getElementById('predefined-template-count');
+                    const dynamicCountEl = document.getElementById('dynamic-template-count');
+                    
+                    if (predefinedCountEl) predefinedCountEl.textContent = predefinedTemplates.length;
+                    if (dynamicCountEl) dynamicCountEl.textContent = dynamicTemplates.length;
+                    
+                    // 缓存数据供弹窗使用，避免重复请求
+                    templatesData = allTemplates;
+                } else {
+                    console.error('获取模板列表失败:', response.statusText);
+                    document.getElementById('predefined-template-count').textContent = '0';
+                    document.getElementById('dynamic-template-count').textContent = '0';
                 }
             } catch (error) {
-                console.error('获取动态模板数量失败:', error);
+                console.error('获取模板数量失败:', error);
+                document.getElementById('predefined-template-count').textContent = '-';
+                document.getElementById('dynamic-template-count').textContent = '-';
             }
         }
 
@@ -2635,7 +2662,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadDynamicWorkflowCount();
             loadToolsCount();
-            loadDynamicTemplateCount();
+            loadTemplateCounts();
         });
     </script>
 </body>

@@ -32,16 +32,19 @@ PAGE_CONFIG_GENERATION_PROMPT = """你是Web前端架构师，根据用户对话
 ## 工具调用结果
 {tool_results}
 
+## 工作流业务数据摘要
+{workflow_data_summary}
+
 ## 组件类型 (共17种)
 
 **数据展示类：**
 | 组件类型 | 适用场景 | 关键配置 |
 |---------|---------|---------|
-| `Echarts` | 时序曲线、柱状图、饼图 | chartType: line/bar/pie, options: {{...}} |
+| `Echarts` | 时序曲线、柱状图、饼图 | chartType: line/bar/pie, options: {{...}}, 同一对象的多条曲线应尽量合并到一个图表 |
 | `StatCard` | 单个关键指标 | value, unit, status |
 | `InfoCard` | 多个键值对信息 | 直接传入对象 |
 | `SimpleTable` | 列表/表格数据 | columns, dataSource |
-| `GISMap` | 地图展示 | 使用固定Portal地图 |
+| `GISMap` | 地图展示 | 使用固定Portal地图, zoom: 10 (必须设置缩放等级为10) |
 | `HtmlContent` | 富文本/Markdown | content |
 | `List` | 简单列表 | items: ["item1"] 或 [{{text, link}}], ordered |
 | `Divider` | 分割线 | text (可选标题), color |
@@ -67,8 +70,22 @@ PAGE_CONFIG_GENERATION_PROMPT = """你是Web前端架构师，根据用户对话
 | `Tabs` | 标签页切换 | tabs: [{{key, label, content}}], defaultTab |
 | `ActionBar` | 操作按钮 | buttons: [{{label, action, type, url}}], align |
 
+## 数据引用方式
+组件可以通过 `data_source` 引用 data.js 中的上下文数据：
+```json
+"data_source": {{
+  "type": "context",
+  "path": "workflow_result.extracted_result.data.Level_Dic"
+}}
+```
+可用的数据路径：
+- `workflow_result.extracted_result.data` - 工作流提取的业务数据
+- `workflow_result.extracted_result.data.Level_Dic` - 水位时序数据
+- `workflow_result.extracted_result.data.Discharge_Dic` - 流量时序数据
+- `workflow_result.forecast_target` - 预报目标信息
+
 ## 布局原则
-1. 关键指标(StatCard) → 顶部
+1. 关键指标(StatCard) → 顶部，使用工作流数据摘要中的实际数值
 2. 图表(Echarts)/地图(GISMap) → 中部，占大空间
 3. 表格(SimpleTable) → 底部或侧边
 4. 使用 grid 布局，rows 数组定义行，cols 定义列
@@ -95,12 +112,13 @@ PAGE_CONFIG_GENERATION_PROMPT = """你是Web前端架构师，根据用户对话
 }}
 ```
 
-**注意：**
-1. 深色主题样式已内置，无需配置颜色
-2. Echarts 图表会自动应用深色主题
-3. GISMap 使用河南省水利厅 Portal WebMap (固定地图服务)
-4. 根据工具调用结果中的实际数据类型选择合适的组件
+**重要：**
+1. StatCard 的 value 必须使用工作流数据摘要中的实际数值，不要使用模拟数据
+2. Echarts 图表的 options.series.data 应使用 data_source 引用上下文数据，或直接使用工作流数据摘要中的实际数据
+3. 深色主题样式已内置，无需配置颜色
+4. GISMap 使用河南省水利厅 Portal WebMap (固定地图服务)，zoom 必须设置为 10
 5. 仅返回JSON，不要包含Markdown代码块标记
+6. **图表合并原则**：同一对象（如同一水文站点）的多条相关曲线必须放在同一个 Echarts 图表中，例如水位过程线和流量过程线应合并为一个双Y轴图表，而不是分成两个独立图表
 """
 
 class DynamicPageGenerator:
@@ -164,7 +182,7 @@ class DynamicPageGenerator:
         return page_url
         
     def _prepare_llm_context(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """准备LLM输入数据"""
+        """准备LLM输入数据（智能提取关键特征，而非简单截断）"""
         # 提取关键信息
         # 优先从 meta 中获取 user_message（to_frontend_format 格式）
         user_message = context.get('meta', {}).get('user_message', '') or context.get('user_message', '')
@@ -176,44 +194,164 @@ class DynamicPageGenerator:
         intent = intent_data.get('intent_category') or intent_data.get('category', 'unknown')
         sub_intent = intent_data.get('business_sub_intent') or intent_data.get('sub_intent', 'unknown')
         entities = intent_data.get('entities', {})
-        
-        # 工具调用结果摘要 (避免token过长)
+
+        # 工具调用结果摘要
         tool_results = []
         tools_executed = context.get('execution', {}).get('tool_calls', [])
-        
+
         data_features = set()
-        
+
         for tool in tools_executed:
             name = tool.get('tool_name')
             result = tool.get('output_result')
             success = tool.get('success')
-            
+
             # 保存token以便后续注入
             if name == 'login' and success and isinstance(result, dict):
                 self.auth_token = result.get('data')
-                
+
             if success and result:
                 # 分析数据特征
                 if self._has_timeseries(result):
                     data_features.add("has_timeseries")
                 if self._has_list_data(result):
                     data_features.add("has_list_data")
-                    
-                # 截断Result用于Prompt
-                result_str = str(result)
-                if len(result_str) > 500:
-                    result_str = result_str[:500] + "...(truncated)"
-                
-                tool_results.append(f"- Tool: {name}\n  Result: {result_str}")
-        
+
+                # 智能提取数据特征（而非简单截断）
+                extracted_features = self._extract_data_features(name, result)
+                tool_results.append(f"- Tool: {name}\n  Result: {extracted_features}")
+
+        # 提取工作流结果的关键数据（核心业务数据）
+        workflow_result = context.get('workflow_result', {})
+        extracted_result = workflow_result.get('extracted_result')
+        forecast_target = workflow_result.get('forecast_target')
+
+        workflow_data_summary = ""
+        if extracted_result:
+            # 提取工作流结果的关键特征
+            workflow_data_summary = self._extract_workflow_result_features(extracted_result, forecast_target)
+            data_features.add("has_workflow_result")
+
         return {
             "user_message": user_message,
             "intent": intent,
             "sub_intent": sub_intent,
             "entities": str(entities),
             "tool_results": "\n".join(tool_results) or "无工具调用结果",
-            "data_features": ", ".join(data_features)
+            "data_features": ", ".join(data_features),
+            "workflow_data_summary": workflow_data_summary
         }
+
+    def _extract_data_features(self, tool_name: str, result: Any) -> str:
+        """
+        智能提取数据特征供LLM使用（而非简单截断）
+
+        Args:
+            tool_name: 工具名称
+            result: 工具返回结果
+
+        Returns:
+            提取的特征描述字符串
+        """
+        if not isinstance(result, dict):
+            # 非字典类型，简单截断
+            result_str = str(result)
+            if len(result_str) > 300:
+                return result_str[:300] + "...(truncated)"
+            return result_str
+
+        features = {"keys": list(result.keys())}
+
+        # 提取关键数值字段（洪水预报相关）
+        key_fields = [
+            'Max_Level', 'Max_Qischarge', 'MaxQ_AtTime', 'SectionName',
+            'Total_Flood', 'Stcd', 'warning_level', 'guarantee_level',
+            'name', 'type', 'summary'
+        ]
+        for key in key_fields:
+            if key in result:
+                features[key] = result[key]
+
+        # 处理时序数据字典（只提取范围和采样点数）
+        for key in ['Level_Dic', 'Discharge_Dic', 'level_data', 'flow_data']:
+            if key in result and isinstance(result[key], dict):
+                data_dict = result[key]
+                if data_dict:
+                    times = list(data_dict.keys())
+                    values = list(data_dict.values())
+                    features[f'{key}_info'] = {
+                        'time_range': f"{times[0]} ~ {times[-1]}",
+                        'value_range': f"{min(values):.2f} ~ {max(values):.2f}",
+                        'data_points': len(values)
+                    }
+
+        # 处理嵌套的 data 字段
+        if 'data' in result and isinstance(result['data'], dict):
+            nested_features = self._extract_data_features(tool_name, result['data'])
+            features['nested_data'] = nested_features
+
+        return json.dumps(features, ensure_ascii=False, default=str)
+
+    def _extract_workflow_result_features(self, extracted_result: Dict[str, Any], forecast_target: Dict[str, Any] = None) -> str:
+        """
+        提取工作流结果的关键特征
+
+        Args:
+            extracted_result: 工作流提取的结果数据
+            forecast_target: 预报目标信息
+
+        Returns:
+            工作流数据摘要字符串
+        """
+        summary_parts = []
+
+        # 目标信息
+        if forecast_target:
+            target_name = forecast_target.get('name', '')
+            target_type = forecast_target.get('type', '')
+            summary_parts.append(f"预报目标: {target_name} ({target_type})")
+
+        # 提取结果摘要
+        if extracted_result:
+            result_summary = extracted_result.get('summary', '')
+            if result_summary:
+                summary_parts.append(f"结果摘要: {result_summary}")
+
+            # 提取核心数据
+            data = extracted_result.get('data', {})
+            if data:
+                # 关键指标
+                key_metrics = []
+                if 'SectionName' in data:
+                    key_metrics.append(f"断面: {data['SectionName']}")
+                if 'Stcd' in data:
+                    key_metrics.append(f"站码: {data['Stcd']}")
+                if 'Max_Level' in data:
+                    key_metrics.append(f"最大水位: {data['Max_Level']}m")
+                if 'Max_Qischarge' in data:
+                    key_metrics.append(f"最大流量: {data['Max_Qischarge']}m³/s")
+                if 'MaxQ_AtTime' in data:
+                    key_metrics.append(f"峰值时间: {data['MaxQ_AtTime']}")
+                if 'Total_Flood' in data:
+                    key_metrics.append(f"总洪量: {data['Total_Flood']}万m³")
+
+                if key_metrics:
+                    summary_parts.append("关键指标: " + ", ".join(key_metrics))
+
+                # 时序数据信息
+                if 'Level_Dic' in data:
+                    level_dic = data['Level_Dic']
+                    times = list(level_dic.keys())
+                    values = list(level_dic.values())
+                    summary_parts.append(f"水位预报: {len(values)}个时间点, 范围 {min(values):.2f}~{max(values):.2f}m, 时段 {times[0]}~{times[-1]}")
+
+                if 'Discharge_Dic' in data:
+                    discharge_dic = data['Discharge_Dic']
+                    times = list(discharge_dic.keys())
+                    values = list(discharge_dic.values())
+                    summary_parts.append(f"流量预报: {len(values)}个时间点, 范围 {min(values):.2f}~{max(values):.2f}m³/s")
+
+        return "\n".join(summary_parts) if summary_parts else "无工作流数据"
 
     async def _generate_page_config(self, llm_context: Dict[str, Any]) -> Dict[str, Any]:
         """调用LLM生成配置"""

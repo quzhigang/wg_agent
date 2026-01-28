@@ -10,6 +10,7 @@ from .knowledge import router as knowledge_router
 from .saved_workflows import router as saved_workflows_router
 from .system_info import router as system_info_router
 from .web_templates import router as web_templates_router
+from .proxy import router as proxy_router
 
 __all__ = [
     "health_router",
@@ -18,6 +19,7 @@ __all__ = [
     "knowledge_router",
     "saved_workflows_router",
     "system_info_router",
-    "web_templates_router"
+    "web_templates_router",
+    "proxy_router"
 ]
 

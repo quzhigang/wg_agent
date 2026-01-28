@@ -1,35 +1,58 @@
-2026-01-27 18:20:43.478 | INFO     | src.config.logging_config:setup_logging:88 | 日志系统初始化完成
-2026-01-27 18:20:43.478 | INFO     | src.config.logging_config:setup_logging:89 | 日志级别: INFO
-2026-01-27 18:20:43.478 | INFO     | src.config.logging_config:setup_logging:90 | 日志文件: ./logs/wg_agent.log
-2026-01-27 18:20:43.502 | INFO     | src.main:lifespan:29 | ==================================================
-2026-01-27 18:20:43.502 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
-2026-01-27 18:20:43.502 | INFO     | src.main:lifespan:31 | ==================================================
-2026-01-27 18:20:43.554 | INFO     | src.main:lifespan:36 | 数据库初始化完成
-2026-01-27 18:20:43.554 | INFO     | src.main:lifespan:45 | 目录结构检查完成
-2026-01-27 18:20:43.554 | INFO     | src.tools.registry:init_default_tools:395 | 初始化默认工具...
-2026-01-27 18:20:43.556 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
-2026-01-27 18:20:43.558 | INFO     | src.tools.basin_info:register_basin_info_tools:1100 | 流域基本信息工具注册完成，共注册14个工具
-2026-01-27 18:20:43.559 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1449 | 水雨情监测工具注册完成，共15个工具
-2026-01-27 18:20:43.560 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1378 | 模型及方案管理相关业务工具注册完成，共注册20个工具
-2026-01-27 18:20:43.561 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
-2026-01-27 18:20:43.564 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
-2026-01-27 18:20:43.565 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
-2026-01-27 18:20:43.566 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
-2026-01-27 18:20:43.566 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
-2026-01-27 18:20:43.567 | INFO     | src.tools.registry:init_default_tools:412 | 默认工具加载完成
-2026-01-27 18:20:43.567 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
-2026-01-27 18:20:43.567 | INFO     | src.tools.registry:init_default_tools:426 | RAG知识库搜索工具注册完成
-2026-01-27 18:20:43.567 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: generate_report_page
-2026-01-27 18:20:43.567 | INFO     | src.tools.registry:init_default_tools:440 | 页面生成工具注册完成
-2026-01-27 18:20:43.567 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
-2026-01-27 18:20:43.568 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
-2026-01-27 18:20:43.569 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
-2026-01-27 18:20:43.569 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
-2026-01-27 18:20:43.569 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
-2026-01-27 18:20:43.570 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
-2026-01-27 18:20:43.571 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manual_forecast_result
-2026-01-27 18:20:43.572 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
-2026-01-27 18:20:43.573 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
-2026-01-27 18:20:43.573 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
-2026-01-27 18:20:46.947 | INFO     | src.rag.knowledge_base:_init_vector_db:97 | PageIndex向量索引连接成功: 107 个文档, 37459 个节点
-2026-01-27 18:20:46.949 | INFO     | src.rag.knowledge_base:__init__:82 | 知识库初始化完成（对接PageIndex）
+2026-01-28 09:32:30.479 | INFO     | src.config.logging_config:setup_logging:88 | 日志系统初始化完成
+2026-01-28 09:32:30.479 | INFO     | src.config.logging_config:setup_logging:89 | 日志级别: INFO
+2026-01-28 09:32:30.480 | INFO     | src.config.logging_config:setup_logging:90 | 日志文件: ./logs/wg_agent.log
+2026-01-28 09:32:30.504 | INFO     | src.main:create_app:144 | 挂载模板目录: dynamic_shell -> /ui/dynamic_shell
+2026-01-28 09:32:30.505 | INFO     | src.main:create_app:144 | 挂载模板目录: reach_module -> /ui/reach_module
+2026-01-28 09:32:30.505 | INFO     | src.main:create_app:144 | 挂载模板目录: res_module -> /ui/res_module
+2026-01-28 09:32:30.506 | INFO     | src.main:lifespan:29 | ==================================================
+2026-01-28 09:32:30.506 | INFO     | src.main:lifespan:30 | 卫共流域数字孪生智能体 启动中...
+2026-01-28 09:32:30.506 | INFO     | src.main:lifespan:31 | ==================================================
+2026-01-28 09:32:30.562 | INFO     | src.main:lifespan:36 | 数据库初始化完成
+2026-01-28 09:32:30.563 | INFO     | src.main:lifespan:45 | 目录结构检查完成
+2026-01-28 09:32:30.563 | INFO     | src.tools.registry:init_default_tools:395 | 初始化默认工具...
+2026-01-28 09:32:30.564 | INFO     | src.tools.registry:__init__:41 | 工具注册表初始化完成
+2026-01-28 09:32:30.565 | INFO     | src.tools.basin_info:register_basin_info_tools:1100 | 流域基本信息工具注册完成，共注册14个工具
+2026-01-28 09:32:30.565 | INFO     | src.tools.hydro_monitor:register_hydro_monitor_tools:1449 | 水雨情监测工具注册完成，共15个工具
+2026-01-28 09:32:30.566 | INFO     | src.tools.modelplan_control:register_modelplan_control_tools:1378 | 模型及方案管理相关业务工具注册完成，共注册20个工具
+2026-01-28 09:32:30.568 | INFO     | src.tools.damage_assess:register_damage_assess_tools:308 | 灾损评估和避险转移工具注册完成（共3个工具）
+2026-01-28 09:32:30.570 | INFO     | src.tools.hydromodel_set:register_hydromodel_set_tools:1240 | 水利专业模型-方案新建计算及参数设置相关工具注册完成，共16个接口
+2026-01-28 09:32:30.571 | INFO     | src.tools.hydromodel_baseinfo:register_hydromodel_baseinfo_tools:802 | 水利专业模型-获取与专业模型相关的基础信息工具注册完成，共13个接口
+2026-01-28 09:32:30.571 | INFO     | src.tools.hydromodel_parget:register_hydromodel_parget_tools:489 | 水利专业模型-获取专业模型参数及边界条件相关工具注册完成，共8个接口
+2026-01-28 09:32:30.572 | INFO     | src.tools.hydromodel_resultget:register_hydromodel_resultget_tools:1489 | 水利专业模型-获取专业模型方案及结果数据相关工具注册完成，共24个接口
+2026-01-28 09:32:30.573 | INFO     | src.tools.registry:init_default_tools:412 | 默认工具加载完成
+2026-01-28 09:32:30.573 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: search_knowledge
+2026-01-28 09:32:30.573 | INFO     | src.tools.registry:init_default_tools:426 | RAG知识库搜索工具注册完成
+2026-01-28 09:32:30.573 | INFO     | src.tools.registry:register_function:84 | 注册函数工具: generate_report_page
+2026-01-28 09:32:30.573 | INFO     | src.tools.registry:init_default_tools:440 | 页面生成工具注册完成
+2026-01-28 09:32:30.573 | INFO     | src.main:lifespan:50 | 工具注册表初始化完成
+2026-01-28 09:32:30.574 | INFO     | src.workflows.registry:init_default_workflows:178 | 初始化默认工作流...
+2026-01-28 09:32:30.575 | INFO     | src.workflows.registry:__init__:36 | 工作流注册表初始化完成
+2026-01-28 09:32:30.575 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_auto_forecast_result
+2026-01-28 09:32:30.576 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_history_autoforecast_result
+2026-01-28 09:32:30.577 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_autoforecast_getresult
+2026-01-28 09:32:30.578 | INFO     | src.workflows.registry:register:51 | 注册工作流: get_manual_forecast_result
+2026-01-28 09:32:30.579 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
+2026-01-28 09:32:30.579 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
+2026-01-28 09:32:30.579 | INFO     | src.main:lifespan:57 | 工作流注册表初始化完成
+2026-01-28 09:32:33.985 | INFO     | src.rag.knowledge_base:_init_vector_db:97 | PageIndex向量索引连接成功: 107 个文档, 37459 个节点
+2026-01-28 09:32:33.986 | INFO     | src.rag.knowledge_base:__init__:82 | 知识库初始化完成（对接PageIndex）
+2026-01-28 09:32:35.787 | INFO     | src.main:lifespan:66 | 知识库初始化完成，文档数: 107
+2026-01-28 09:32:35.787 | INFO     | src.main:lifespan:70 | API服务地址: http://0.0.0.0:8000
+2026-01-28 09:32:35.787 | INFO     | src.main:lifespan:71 | 智能体启动完成，等待请求...
+2026-01-28 09:32:38.626 | INFO     | src.api.proxy:get_station_info:33 | 代理请求站点信息: http://10.20.2.153/api/model/proxy/mike11?request_type=get_station_info
+2026-01-28 09:32:38.842 | INFO     | src.api.proxy:get_section_data:70 | 代理请求断面数据: http://10.20.2.153/api/model/proxy/mike11?request_type=get_sectiondata&request_pars=%5B%22DSH%22%2C%2064250.0%5D
+2026-01-28 09:32:39.012 | INFO     | src.api.proxy:get_section_data:75 | 断面数据响应状态: 200
+2026-01-28 09:45:21.210 | INFO     | src.api.proxy:get_station_info:33 | 代理请求站点信息: http://10.20.2.153/api/model/proxy/mike11?request_type=get_station_info
+2026-01-28 09:45:21.450 | INFO     | src.api.proxy:get_section_data:70 | 代理请求断面数据: http://10.20.2.153/api/model/proxy/mike11?request_type=get_sectiondata&request_pars=%5B%22DSH%22%2C%2064250.0%5D
+2026-01-28 09:45:21.620 | INFO     | src.api.proxy:get_section_data:75 | 断面数据响应状态: 200
+2026-01-28 09:55:22.053 | INFO     | src.api.proxy:get_station_info:33 | 代理请求站点信息: http://10.20.2.153/api/model/proxy/mike11?request_type=get_station_info
+2026-01-28 09:55:22.296 | INFO     | src.api.proxy:get_section_data:70 | 代理请求断面数据: http://10.20.2.153/api/model/proxy/mike11?request_type=get_sectiondata&request_pars=%5B%22DSH%22%2C%2064250.0%5D
+2026-01-28 09:55:22.454 | INFO     | src.api.proxy:get_section_data:75 | 断面数据响应状态: 200
+2026-01-28 10:04:48.193 | INFO     | src.api.proxy:get_station_info:33 | 代理请求站点信息: http://10.20.2.153/api/model/proxy/mike11?request_type=get_station_info
+2026-01-28 10:04:48.387 | INFO     | src.api.proxy:get_section_data:70 | 代理请求断面数据: http://10.20.2.153/api/model/proxy/mike11?request_type=get_sectiondata&request_pars=%5B%22DSH%22%2C%2064250.0%5D
+2026-01-28 10:04:48.584 | INFO     | src.api.proxy:get_section_data:75 | 断面数据响应状态: 200
+2026-01-28 10:10:54.469 | INFO     | src.api.proxy:get_station_info:33 | 代理请求站点信息: http://10.20.2.153/api/model/proxy/mike11?request_type=get_station_info
+2026-01-28 10:10:54.691 | INFO     | src.api.proxy:get_section_data:70 | 代理请求断面数据: http://10.20.2.153/api/model/proxy/mike11?request_type=get_sectiondata&request_pars=%5B%22DSH%22%2C%2064250.0%5D
+2026-01-28 10:10:54.867 | INFO     | src.api.proxy:get_section_data:75 | 断面数据响应状态: 200
+2026-01-28 10:19:22.438 | INFO     | src.main:lifespan:76 | 智能体正在关闭...
+2026-01-28 10:19:22.438 | INFO     | src.main:lifespan:77 | 智能体已关闭

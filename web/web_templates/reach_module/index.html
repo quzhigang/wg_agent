@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>河道洪水预报结果展示 - 主内容区</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/echarts.min.js"></script>
+    <script src="https://js.arcgis.com/4.29/"></script>
+    <link rel="icon" href="data:;base64,=">
+</head>
+<body>
+    <div class="main-container">
+        <!-- Main Content -->
+        <main class="right-main">
+            <!-- Top Row -->
+            <div class="top-section">
+                <div class="conclusion-box panel-style">
+                    <div class="conclusion-inner">
+                        <div id="conclusionTitle" class="conclusion-title">河道洪水预报结果</div>
+                        <div id="statsGrid" class="stats-grid"></div>
+
+                    </div>
+                </div>
+
+                <!-- 后面内容保持不变 -->
+                <!-- Horizontal Resizer (Conclusion / Map) -->
+                <div class="resizer resizer-h" id="resizer-top"></div>
+
+                <div class="map-box panel-style">
+                    <div id="viewDiv"></div>
+                </div>
+            </div>
+
+            <!-- Horizontal Resizer (Top section / Bottom section) -->
+            <div class="resizer resizer-v" id="resizer-main-v"></div>
+
+            <!-- Bottom Row -->
+            <div class="bottom-section">
+                <!-- Left: Water Level and Flow Process -->
+                <div id="processChartDiv" class="panel-style chart-box">
+                    <div class="chart-header">
+                        <span class="chart-title">水位流量过程曲线</span>
+                    </div>
+                    <div id="processChart" class="chart-container"></div>
+                </div>
+
+                <!-- Resizer for bottom section charts -->
+                <div class="resizer resizer-h" id="resizer-bottom-h"></div>
+
+                <!-- Right: Cross-section plot -->
+                <div id="sectionChartDiv" class="panel-style chart-box">
+                    <div class="chart-header">
+                        <span class="chart-title">河道断面图</span>
+                    </div>
+                    <div id="sectionChart" class="chart-container"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/resizer.js"></script>
+    <script type="module" src="js/main.js?_t=1769508978169"></script>
+</body>
+</html>

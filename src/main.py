@@ -12,7 +12,7 @@ from pathlib import Path
 from .config.settings import settings
 from .config.logging_config import setup_logging, get_logger
 from .models.database import init_database
-from .api import chat_router, health_router, pages_router, knowledge_router, saved_workflows_router, system_info_router, web_templates_router
+from .api import chat_router, health_router, pages_router, knowledge_router, saved_workflows_router, system_info_router, web_templates_router, proxy_router
 from .tools.registry import init_default_tools
 from .workflows.registry import init_default_workflows
 
@@ -129,14 +129,19 @@ def create_app() -> FastAPI:
     app.include_router(saved_workflows_router)
     app.include_router(system_info_router)
     app.include_router(web_templates_router)
+    app.include_router(proxy_router)
     
     # 静态文件挂载 (注意顺序：更具体的路径应先挂载)
-    
-    # 1. 挂载页面模板组件 (web/web_templates/res_module -> /ui/res_module)
-    # 这样 index.html 里的 res_module/ 相对路径就能正确匹配
+
+    # 1. 挂载页面模板组件 (web/web_templates/* -> /ui/*)
+    # 动态挂载所有模板子目录，使模板的相对路径能正确匹配
     web_templates_path = Path(settings.web_templates_dir)
-    if (web_templates_path / "res_module").exists():
-        app.mount("/ui/res_module", StaticFiles(directory=str(web_templates_path / "res_module")), name="ui_res_module")
+    if web_templates_path.exists():
+        for subdir in web_templates_path.iterdir():
+            if subdir.is_dir():
+                mount_path = f"/ui/{subdir.name}"
+                app.mount(mount_path, StaticFiles(directory=str(subdir)), name=f"ui_{subdir.name}")
+                logger.info(f"挂载模板目录: {subdir.name} -> {mount_path}")
 
     # 2. 挂载主界面 (web/main -> /ui)
     web_main_path = Path(settings.web_main_dir)
