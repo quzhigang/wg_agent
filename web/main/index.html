@@ -434,8 +434,35 @@
                         (result.data || []).forEach(conv => {
                             const li = document.createElement('li');
                             li.className = 'history-item';
-                            li.innerHTML = '<input type="checkbox" class="history-checkbox" data-id="' + conv.id + '"><span class="history-title">' + (conv.title || conv.id) + '</span>';
+                            li.innerHTML = '<input type="checkbox" class="history-checkbox" data-id="' + conv.id + '">' +
+                                '<span class="history-title">' + (conv.title || conv.id) + '</span>' +
+                                '<button class="delete-single-btn" title="删除此对话" data-id="' + conv.id + '">' +
+                                '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>' +
+                                '</button>';
+                            // 点击标题加载对话
                             li.querySelector('.history-title').addEventListener('click', () => loadConversation(conv.id));
+                            // 点击删除按钮删除对话
+                            li.querySelector('.delete-single-btn').addEventListener('click', async (e) => {
+                                e.stopPropagation();  // 阻止事件冒泡
+                                const convId = e.currentTarget.getAttribute('data-id');
+                                if (confirm('确定要删除这条对话记录吗？')) {
+                                    try {
+                                        const delRes = await fetch('/chat/conversations/' + convId, { method: 'DELETE' });
+                                        const delResult = await delRes.json();
+                                        if (delResult.success) {
+                                            li.remove();  // 从列表中移除该项
+                                            // 如果删除的是当前对话，清空当前对话ID
+                                            if (currentConversationId === convId) {
+                                                currentConversationId = null;
+                                            }
+                                        } else {
+                                            alert('删除失败: ' + (delResult.message || '未知错误'));
+                                        }
+                                    } catch (err) {
+                                        alert('删除请求失败: ' + err.message);
+                                    }
+                                }
+                            });
                             historyListContainer.appendChild(li);
                         });
                         historyModal.style.display = 'flex';

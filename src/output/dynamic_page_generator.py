@@ -23,6 +23,21 @@ logger = get_logger(__name__)
 PAGE_CONFIG_GENERATION_PROMPT = """你是Web前端架构师，根据用户对话生成页面配置 (PAGE_CONFIG)。
 **风格要求：深色科技风格 (深蓝背景 #0a1628，青色强调 #00d4ff，发光效果)**
 
+## ⚠️ 最重要的硬性规则（违反则配置无效）
+**一屏完整展示：页面尽量在一屏内完整显示，尽量不要生成需要滚动的长页面！**
+- 屏幕可用高度约 980px，
+- **最多3行布局**，绝对不能超过3行
+- 内容多时要精简合并，必要时采用切换标签
+
+## ⚠️ 数据绑定规则（核心规则，必须遵守）
+**所有动态数据必须通过 data_source 绑定，禁止硬编码具体数据值！**
+
+模板需要支持复用，因此：
+- ✅ 正确：使用 `data_source: {{ type: "context", path: "retrieval.documents[0].metadata.images" }}`
+- ❌ 错误：直接写 `src: "/knowledge/kb-doc/xxx.jpg"`
+- ✅ 正确：使用 `data_source: {{ type: "context", path: "retrieval.documents" }}` 绑定表格数据
+- ❌ 错误：直接写 `dataSource: [{{ "label": "xxx", "value": "yyy" }}]`
+
 ## 用户对话上下文
 用户问题: {user_message}
 意图: {intent} (子意图: {sub_intent})
@@ -35,90 +50,182 @@ PAGE_CONFIG_GENERATION_PROMPT = """你是Web前端架构师，根据用户对话
 ## 工作流业务数据摘要
 {workflow_data_summary}
 
-## 组件类型 (共17种)
+## 组件类型及分组
 
-**数据展示类：**
+**A组 - 媒体可视化类（同组可并排）：**
 | 组件类型 | 适用场景 | 关键配置 |
 |---------|---------|---------|
-| `Echarts` | 时序曲线、柱状图、饼图 | chartType: line/bar/pie, options: {{...}}, 同一对象的多条曲线应尽量合并到一个图表 |
-| `StatCard` | 单个关键指标 | value, unit, status |
-| `InfoCard` | 多个键值对信息 | 直接传入对象 |
-| `SimpleTable` | 列表/表格数据 | columns, dataSource |
-| `GISMap` | 地图展示 | 使用固定Portal地图, zoom: 10 (必须设置缩放等级为10) |
-| `HtmlContent` | 富文本/Markdown | content |
-| `List` | 简单列表 | items: ["item1"] 或 [{{text, link}}], ordered |
-| `Divider` | 分割线 | text (可选标题), color |
-
-**媒体类：**
-| 组件类型 | 适用场景 | 关键配置 |
-|---------|---------|---------|
-| `Image` | 单张图片 | src, alt, fit: cover/contain, caption |
+| `GISMap` | 地图展示 | zoom: 10 (不小于10级), center: [lng, lat] 或 data_source 绑定 |
+| `Image` | **仅用于单张图片** | data_source 绑定 src，或静态 src |
 | `Video` | 视频播放 | src, poster, autoplay, controls |
-| `Gallery` | 图片画廊 | images: [{{src, caption}}], columns: 3 |
+| `Carousel` | **多张图片必须使用轮播**（≥2张图片时强制使用） | data_source 绑定 images 数组 |
 
-**表单类：**
+**B组 - 数据分析类（同组可并排）：**
+| 组件类型 | 适用场景 | 关键配置 |
+|---------|---------|---------|
+| `Echarts` | 时序曲线、柱状图、饼图 | chartType: line/bar/pie, options 或 data_source |
+| `SimpleTable` | 列表/表格数据（**优先使用**） | columns 定义列，data_source 绑定数据，**maxRows: 10**（最多显示10行，超出滚动） |
+
+**SimpleTable 配置规范（重要）：**
+- **必须设置 maxRows: 10**，表格最多显示10行，超出部分滚动显示
+- 示例：`{{ "type": "SimpleTable", "title": "参数列表", "maxRows": 10, "columns": [...], "data_source": {{...}} }}`
+
+**Echarts 配置规范（重要）：**
+- 对于散点图或XY数值曲线，使用 `series.data: [[x1,y1], [x2,y2], ...]` 格式
+- **坐标轴范围**：必须根据数据实际范围设置 `min` 和 `max`，避免从0开始导致图形压缩
+- 示例：数据X范围0-900，Y范围56-60，则设置 `xAxis: {{type:"value", min:0, max:900}}, yAxis: {{type:"value", min:55, max:61}}`
+
+**C组 - 紧凑信息类（同组可并排）：**
+| 组件类型 | 适用场景 | 关键配置 |
+|---------|---------|---------|
+| `StatCard` | 单个关键指标（**最多2-5个**） | data_source 绑定 value，或静态 value, unit, status |
+| `InfoCard` | 多个键值对信息 | data_source 绑定对象 |
+| `HtmlContent` | 富文本/Markdown | data_source 绑定 content |
+| `List` | 简单列表 | data_source 绑定 items |
+
+**表单类（按需使用）：**
 | 组件类型 | 适用场景 | 关键配置 |
 |---------|---------|---------|
 | `Radio` | 单选按钮 | options: [{{value, label}}], defaultValue |
 | `Checkbox` | 多选勾选 | options: [{{value, label}}], defaultValues |
 | `Select` | 下拉选择 | options: [{{value, label}}], placeholder |
 | `Switch` | 开关切换 | checked, label, onText, offText |
-
-**导航/交互类：**
-| 组件类型 | 适用场景 | 关键配置 |
-|---------|---------|---------|
 | `Tabs` | 标签页切换 | tabs: [{{key, label, content}}], defaultTab |
-| `ActionBar` | 操作按钮 | buttons: [{{label, action, type, url}}], align |
 
-## 数据引用方式
-组件可以通过 `data_source` 引用 data.js 中的上下文数据：
-```json
-"data_source": {{
-  "type": "context",
-  "path": "workflow_result.extracted_result.data.Level_Dic"
-}}
+## 布局规则
+
+### 行数限制（硬性规则）
+**最多3行，绝对不能超过3行！**
+- 1行布局：简单内容
+- 2行布局：内容较多时的上限
+- 3行布局：少数情况，必须精简合并内容
+
+### 组件分组并排原则
+**只有同组的组件才能放在同一行：**
+- ✅ A组并排：GISMap + Image、Image + Carousel
+- ✅ B组并排：SimpleTable + Echarts
+- ✅ C组并排：StatCard + StatCard、InfoCard + HtmlContent
+- ❌ 跨组禁止：GISMap + Echarts、Image + SimpleTable
+
+### 行高度规则
+- StatCard 行：height: "120px"
+- 其他行：不设置或 height: "auto"
+
+### 布局示例（都是1-2行）
+**示例1 - 简单回答（1行）：**
 ```
-可用的数据路径：
-- `workflow_result.extracted_result.data` - 工作流提取的业务数据
-- `workflow_result.extracted_result.data.Level_Dic` - 水位时序数据
-- `workflow_result.extracted_result.data.Discharge_Dic` - 流量时序数据
-- `workflow_result.forecast_target` - 预报目标信息
+第1行: [HtmlContent, Image]  // 文字+配图
+```
 
-## 布局原则
-1. 关键指标(StatCard) → 顶部，使用工作流数据摘要中的实际数值
-2. 图表(Echarts)/地图(GISMap) → 中部，占大空间
-3. 表格(SimpleTable) → 底部或侧边
-4. 使用 grid 布局，rows 数组定义行，cols 定义列
+**示例2 - 数据展示（2行）：**
+```
+第1行: [StatCard, StatCard, StatCard]  // 关键指标，height: "120px"
+第2行: [SimpleTable, Echarts]          // 数据详情
+```
+
+**示例3 - 媒体展示（2行）：**
+```
+第1行: [GISMap, Carousel]  // 地图+图片轮播
+第2行: [HtmlContent]       // 说明文字
+```
+
+## 实时数据展示规则
+**只有当意图为 business 且子意图为 realtime_query 时，才展示实时数据。**
+
+## data_source 路径说明
+context 数据结构如下，使用点号访问嵌套属性（支持数组索引如 [0]）：
+
+**预处理后的便捷路径（强烈推荐使用，已从原始数据中提取整理）：**
+- `all_images` - 所有图片URL数组（已从所有文档中提取）
+- `all_images[0]` - 第一张图片URL
+- `parsed_info_table` - 解析后的表格数据数组，格式: [{{label, value}}, ...]，用于 SimpleTable
+- `geo_info.center` - 地理坐标 [lng, lat]（如果有）
+- `discharge_curve` - 泄流曲线数据 [[流量, 水位], ...]，用于 Echarts 图表
+- `key_metrics.design_flow` - 设计流量（用于 StatCard）
+- `key_metrics.bottom_elevation` - 闸底高程（用于 StatCard）
+- `key_metrics.gate_count` - 闸孔数量（用于 StatCard）
+- `key_metrics.current_state` - 当前状态（用于 StatCard）
+- `key_metrics.gate_width` - 单孔净宽
+- `key_metrics.gate_height` - 闸门高度
+- `key_metrics.capacity` - 库容
+- `key_metrics.normal_level` - 正常蓄水位
+
+**StatCard 组件必须使用 key_metrics 路径：**
+- ✅ 正确：`data_source: {{ type: "context", path: "key_metrics.design_flow" }}`
+- ❌ 错误：`data_source: {{ type: "context", path: "retrieval.documents[1].metadata.design_flow" }}`
+
+**Echarts 泄流曲线必须使用 discharge_curve 路径：**
+- ✅ 正确：在 series.data 中使用 `data_source: {{ type: "context", path: "discharge_curve" }}`
+- ❌ 错误：使用 `retrieval.documents[2].metadata.curve_points`
+
+**原始数据路径（仅在预处理路径不满足需求时使用）：**
+- `meta.user_message` - 用户问题
+- `intent.entities` - 提取的实体
+- `retrieval.documents` - 检索到的文档数组
+- `retrieval.documents[0].content` - 第一个文档内容
+- `retrieval.documents[0].metadata.images` - 第一个文档的图片数组
+- `workflow_result.extracted_result` - 工作流结果
 
 ## 输出格式 (JSON)
 ```json
 {{
-  "meta": {{ "title": "根据数据内容确定", "description": "页面描述" }},
+  "meta": {{ "title": "通用标题（不含具体对象名）", "description": "描述" }},
   "layout": {{
     "type": "grid",
     "rows": [
-      {{ "cols": ["组件key1", "组件key2", ...], "height": "可选高度" }},
-      {{ "cols": ["组件key3"] }}
+      {{ "cols": ["comp1", "comp2"] }},
+      {{ "cols": ["comp3"] }}
     ]
   }},
   "components": {{
-    "组件key": {{
-      "type": "组件类型",
-      "title": "标题",
-      "其他配置": "根据组件类型填写"
+    "site_image": {{
+      "type": "Image",
+      "title": "现场实景",
+      "data_source": {{ "type": "context", "path": "all_images[0]" }},
+      "alt": "现场照片",
+      "fit": "cover"
+    }},
+    "gallery": {{
+      "type": "Carousel",
+      "title": "图片展示",
+      "data_source": {{ "type": "context", "path": "all_images" }},
+      "autoplay": true,
+      "interval": 3000
+    }},
+    "gis_map": {{
+      "type": "GISMap",
+      "title": "地理位置",
+      "zoom": 13,
+      "data_source": {{ "type": "context", "path": "geo_info.center" }}
+    }},
+    "info_table": {{
+      "type": "SimpleTable",
+      "title": "基本信息",
+      "columns": [
+        {{ "title": "参数项", "dataIndex": "label" }},
+        {{ "title": "内容", "dataIndex": "value" }}
+      ],
+      "data_source": {{ "type": "context", "path": "parsed_info_table" }}
     }}
   }},
   "api_config": {{}}
 }}
 ```
 
-**重要：**
-1. StatCard 的 value 必须使用工作流数据摘要中的实际数值，不要使用模拟数据
-2. Echarts 图表的 options.series.data 应使用 data_source 引用上下文数据，或直接使用工作流数据摘要中的实际数据
-3. 深色主题样式已内置，无需配置颜色
-4. GISMap 使用河南省水利厅 Portal WebMap (固定地图服务)，zoom 必须设置为 10
-5. 仅返回JSON，不要包含Markdown代码块标记
-6. **图表合并原则**：同一对象（如同一水文站点）的多条相关曲线必须放在同一个 Echarts 图表中，例如水位过程线和流量过程线应合并为一个双Y轴图表，而不是分成两个独立图表
+## 重要约束
+1. **最多3行**：绝对不能超过3行，这是最重要的硬性规则
+2. **数据绑定**：所有动态数据必须使用 data_source 绑定，禁止硬编码
+3. **同组并排**：只有同组（A/B/C）的组件才能放在同一行
+4. **StatCard紧凑**：行高120px，最多2-5个
+5. **列表优先**：用 SimpleTable 整合多个属性
+6. **图表合并**：同一对象的多条曲线放在一个 Echarts 中
+7. **图片规则（严格执行）**：
+   - 单张图片：使用 Image 组件，data_source 绑定图片路径
+   - **多张图片（≥2张）：必须使用 Carousel 轮播组件，data_source 绑定图片数组**
+   - **禁止**：使用多个 Image 组件垂直排列展示多张图片
+8. **StatCard置顶**：若有 StatCard，放在第1行
+9. **标题通用化**：meta.title 不要包含具体对象名称，使用通用描述如"闸站详情"、"水库信息"
+10. 仅返回JSON，不要包含Markdown代码块标记
 """
 
 class DynamicPageGenerator:
@@ -232,12 +339,49 @@ class DynamicPageGenerator:
             workflow_data_summary = self._extract_workflow_result_features(extracted_result, forecast_target)
             data_features.add("has_workflow_result")
 
+        # 提取检索到的文档（知识库查询结果）
+        retrieved_docs_summary = ""
+        retrieved_images = []
+        retrieved_documents = context.get('retrieval', {}).get('documents', [])
+        if retrieved_documents:
+            data_features.add("has_retrieved_documents")
+            docs_info = []
+            for doc in retrieved_documents:
+                content = doc.get('content', '')
+                metadata = doc.get('metadata', {})
+                title = metadata.get('title', '')
+                doc_name = metadata.get('doc_name', '')
+
+                # 提取图片URL
+                images = metadata.get('images', [])
+                if images:
+                    retrieved_images.extend(images)
+                    data_features.add("has_images")
+
+                # 摘要文档内容（限制长度）
+                content_preview = content[:500] + "..." if len(content) > 500 else content
+                docs_info.append(f"- 文档: {doc_name}, 章节: {title}\n  内容: {content_preview}")
+
+            retrieved_docs_summary = "\n".join(docs_info)
+
+        # 构建工具结果（合并工具调用和检索文档）
+        final_tool_results = "\n".join(tool_results) if tool_results else ""
+        if retrieved_docs_summary:
+            if final_tool_results:
+                final_tool_results += "\n\n## 知识库检索结果\n" + retrieved_docs_summary
+            else:
+                final_tool_results = "## 知识库检索结果\n" + retrieved_docs_summary
+
+        # 如果有图片，添加图片信息
+        if retrieved_images:
+            final_tool_results += f"\n\n## 检索到的图片URL\n" + "\n".join([f"- {img}" for img in retrieved_images])
+
         return {
             "user_message": user_message,
             "intent": intent,
             "sub_intent": sub_intent,
             "entities": str(entities),
-            "tool_results": "\n".join(tool_results) or "无工具调用结果",
+            "tool_results": final_tool_results or "无工具调用结果",
             "data_features": ", ".join(data_features),
             "workflow_data_summary": workflow_data_summary
         }

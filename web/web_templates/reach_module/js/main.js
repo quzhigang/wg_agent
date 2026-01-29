@@ -6,15 +6,16 @@ const API_URLS = {
     currentStatus: 'http://10.20.2.153/api/basin/rwdb/river/last',
     // 使用本地代理接口解决CORS问题
     stationInfo: '/proxy/mike11/station_info',
-    sectionData: '/proxy/mike11/section_data'
+    sectionData: '/proxy/mike11/section_data',
+    mapLocation: '/proxy/map/location'
 };
 
 // 本模板所需参数，包括方案名称、站点名称、站点stcd和认证Token
 const DEFAULT_PARAMS = {
-    planCode: 'model_auto',
-    stcd: '31005700',
-    reservoirName: '新村站', // 统一定义站点名称
-    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI1NzQxOTdlYi0yMDdiLTQ1MTQtODFlYy1jYTliMjgxYmVlMmYiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzAxNzUwMzgwOTEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTU3MDIzOCwiZXhwIjoxNzcwMTc1MDM4fQ.veL6g65jQX2zzBoHdzQmF7aMSbxEUiRfgzs3WepVDLDbUg01yRge19zZc31NUW1bDrVZP8hA8OmU_C7KciQL-g' // 认证Token
+    planCode: 'model_20260127101007',
+    stcd: '31004900',
+    reservoirName: '修武站', // 统一定义站点名称
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI3OWQzYmY4Yi0yZDgyLTQyYjgtOThmMC01YzNjMDU4MDI4NDMiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzAyODcxMzkyOTMsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTY4MjMzOSwiZXhwIjoxNzcwMjg3MTM5fQ.pHU2aEYo1P0s3FfRT-_M5RWsCyWHx2CsHthBeiEtJMfIfy1odYo5F1nJBvc4ZZrsU7Njvkej0O12kOXjoiDJnQ' // 认证Token
 };
 
 // 主入口函数
@@ -59,7 +60,9 @@ async function init() {
         }
     }
 
-    initMap();
+    // 获取测站坐标用于地图定位
+    const location = await fetchStationLocation();
+    initMap(location);
 }
 
 /**
@@ -199,6 +202,48 @@ async function fetchSectionData(reach, chainage) {
         return await response.json();
     } catch (e) {
         console.warn("获取断面地形数据失败:", e);
+        return null;
+    }
+}
+
+/**
+ * 获取测站坐标信息
+ * 通过代理接口根据 stcd 查询测站的空间坐标
+ * @returns {Promise<{longitude: number, latitude: number}|null>} 经纬度坐标或null
+ */
+async function fetchStationLocation() {
+    try {
+        const params = new URLSearchParams({
+            'ref_table': 'geo_st_base',
+            'stcd': DEFAULT_PARAMS.stcd
+        });
+
+        const headers = { 'Accept': '*/*' };
+        if (DEFAULT_PARAMS.token) {
+            headers['Authorization'] = DEFAULT_PARAMS.token;
+        }
+
+        const response = await fetch(`${API_URLS.mapLocation}?${params}`, {
+            method: 'GET',
+            headers: headers,
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            console.warn("获取测站坐标接口响应异常:", response.status);
+            return null;
+        }
+
+        const result = await response.json();
+        if (result.success && result.longitude && result.latitude) {
+            console.log(`获取到测站坐标: 经度=${result.longitude}, 纬度=${result.latitude}`);
+            return { longitude: result.longitude, latitude: result.latitude };
+        }
+
+        console.warn("未找到测站坐标数据:", result.message);
+        return null;
+    } catch (e) {
+        console.warn("获取测站坐标失败:", e);
         return null;
     }
 }
@@ -953,8 +998,9 @@ function formatNumber(num) {
 
 /**
  * 初始化地图
+ * @param {Object|null} location - 定位坐标 {longitude, latitude}，为null时使用默认坐标
  */
-function initMap() {
+function initMap(location) {
     require([
         "esri/WebMap",
         "esri/views/MapView",
@@ -962,11 +1008,16 @@ function initMap() {
     ], function (WebMap, MapView, Portal) {
         const portal = new Portal({ url: "https://map.slt.henan.gov.cn/geoscene" });
         const webmap = new WebMap({ portalItem: { id: "0217daabff7a4b45a0cca3f975efa7f3", portal: portal } });
+
+        // 根据是否有坐标决定地图中心和缩放级别
+        const center = location ? [location.longitude, location.latitude] : [114.057818, 35.826884];
+        const zoom = location ? 13 : 10;
+
         const view = new MapView({
             container: "viewDiv",
             map: webmap,
-            center: [114.057818, 35.826884],
-            zoom: 10
+            center: center,
+            zoom: zoom
         });
     });
 }

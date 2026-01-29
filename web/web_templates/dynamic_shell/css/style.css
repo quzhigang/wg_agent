@@ -69,6 +69,13 @@ body {
     align-items: stretch;
 }
 
+/* Grid 列容器 */
+.grid-col {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
 /* 列宽度类 */
 .col-1 {
     flex: 1;
@@ -109,6 +116,8 @@ body {
     backdrop-filter: blur(10px);
     position: relative;
     transition: all 0.3s ease;
+    height: 100%;
+    min-height: 0;
 }
 
 /* 顶部发光线条 */
@@ -148,6 +157,7 @@ body {
     overflow: auto;
     position: relative;
     min-height: 0;
+    height: 100%;
 }
 
 /* ========== InfoCard / 信息卡片网格 ========== */
@@ -290,14 +300,14 @@ body {
 .echarts-container {
     width: 100%;
     height: 100%;
-    min-height: 300px;
+    min-height: 200px;
 }
 
 /* ========== 地图容器 ========== */
 .gis-map-container {
     width: 100%;
     height: 100%;
-    min-height: 350px;
+    min-height: 200px;
     border-radius: 8px;
     overflow: hidden;
 }

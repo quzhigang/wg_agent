@@ -236,6 +236,9 @@ class Controller:
             包含页面URL或错误信息的字典
         """
         try:
+            # 防护：确保 context 不为 None
+            context = context or {}
+
             results = context.get('results', [])
             combined_data = context.get('combined_data', {})
 
@@ -258,48 +261,57 @@ class Controller:
                 object_type=object_type
             )
 
-            # 如果匹配到模板且置信度足够高，使用模板生成页面
-            if matched_template and matched_template.get('confidence', 0) >= 0.7:
-                logger.info(f"匹配到模板: {matched_template.get('display_name')}, 置信度: {matched_template.get('confidence')}")
+            # 如果匹配到模板，直接使用（LLM已经做了筛选，不再用置信度设门槛）
+            if matched_template:
+                logger.info(f"匹配到模板: {matched_template.get('display_name')}")
 
-                # 检查是否为动态模板且有HTML内容（直接复用）
-                if matched_template.get('is_dynamic') and matched_template.get('html_content'):
-                    logger.info(f"复用动态模板HTML内容: {matched_template.get('display_name')}")
+                # 检查是否为动态模板（复用动态模板目录，更新 data.js）
+                if matched_template.get('is_dynamic') and matched_template.get('template_path', '').startswith('dynamic://'):
+                    logger.info(f"复用动态模板: {matched_template.get('display_name')}")
+
+                    # 创建上下文收集器，获取当前对话的上下文数据
+                    collector = create_collector_from_state(state)
+                    context_data = collector.to_frontend_format()
 
                     page_generator = get_page_generator()
-                    page_url = await page_generator.save_html_content(
-                        html_content=matched_template['html_content'],
-                        title=matched_template.get('page_title') or self._generate_page_title(state)
+                    try:
+                        page_url = await page_generator.update_dynamic_template(
+                            template_info=matched_template,
+                            context_data=context_data
+                        )
+
+                        template_match_service.increment_use_count(matched_template.get('id'), success=True)
+                        logger.info(f"动态模板复用成功: {page_url}")
+
+                        return {
+                            "page_url": page_url,
+                            "template_used": matched_template.get('display_name'),
+                            "template_reused": True,
+                            "success": True
+                        }
+                    except FileNotFoundError as e:
+                        logger.warning(f"动态模板目录不存在，回退到动态生成: {e}")
+                        # 回退到动态生成逻辑（下面的代码会处理）
+
+                # 预定义模板：使用模板生成页面
+                else:
+                    template_data = self._prepare_template_data(state, combined_data, matched_template)
+
+                    page_generator = get_page_generator()
+                    page_url = await page_generator.generate_page_with_template(
+                        template_info=matched_template,
+                        data=template_data,
+                        title=self._generate_page_title(state)
                     )
 
                     template_match_service.increment_use_count(matched_template.get('id'), success=True)
-                    logger.info(f"动态模板复用成功: {page_url}")
+                    logger.info(f"使用模板生成页面成功: {page_url}")
 
                     return {
                         "page_url": page_url,
                         "template_used": matched_template.get('display_name'),
-                        "template_reused": True,
                         "success": True
                     }
-
-                # 预定义模板：使用模板生成页面
-                template_data = self._prepare_template_data(state, combined_data, matched_template)
-
-                page_generator = get_page_generator()
-                page_url = await page_generator.generate_page_with_template(
-                    template_info=matched_template,
-                    data=template_data,
-                    title=self._generate_page_title(state)
-                )
-
-                template_match_service.increment_use_count(matched_template.get('id'), success=True)
-                logger.info(f"使用模板生成页面成功: {page_url}")
-
-                return {
-                    "page_url": page_url,
-                    "template_used": matched_template.get('display_name'),
-                    "success": True
-                }
 
             # 未匹配到模板，使用动态生成
             logger.info("未匹配到预定义模板，使用 DynamicPageGenerator 动态生成页面")
@@ -314,27 +326,33 @@ class Controller:
             page_url = await generator.generate(
                 conversation_context=collector.to_frontend_format()
             )
-            # 保存为动态模板（供后续复用）
+            # 保存为动态模板（供后续复用）- 异步执行，不阻塞主流程
             try:
                 # 提取页面目录名
                 # page_url 格式如: /static/pages/dynamic_20260127_abcdefgh/index.html
                 page_dir_name = page_url.strip('/').split('/')[-2] if '/pages/' in page_url else None
-                
+
                 dynamic_service = get_dynamic_template_service()
-                template_id = dynamic_service.save_dynamic_template(
-                    html_content=self._read_generated_page_content(page_url),
-                    user_query=user_message,
-                    sub_intent=sub_intent,
-                    page_title=self._generate_page_title(state),
-                    conversation_id=state.get('conversation_id', ''),
-                    execution_summary=context.get('execution_summary', ''),
-                    object_type=object_type,
-                    name=page_dir_name
+                # 使用 asyncio.create_task 异步保存，不等待完成
+                import asyncio
+                asyncio.create_task(
+                    dynamic_service.save_dynamic_template(
+                        html_content=self._read_generated_page_content(page_url),
+                        user_query=user_message,
+                        sub_intent=sub_intent,
+                        page_title=self._generate_page_title(state),
+                        conversation_id=state.get('conversation_id', ''),
+                        execution_summary=context.get('execution_summary', ''),
+                        object_type=object_type,
+                        name=page_dir_name,
+                        # 新增参数
+                        entities=entities,
+                        intent_category=state.get('intent_category', '')
+                    )
                 )
-                if template_id:
-                    logger.info(f"动态生成页面已保存为模板: {template_id}, 对象类型: {object_type}")
+                logger.info(f"动态模板保存任务已启动（异步）, 对象类型: {object_type}")
             except Exception as save_err:
-                logger.warning(f"保存动态模板失败（不影响页面展示）: {save_err}")
+                logger.warning(f"启动动态模板保存任务失败（不影响页面展示）: {save_err}")
 
             return {
                 "page_url": page_url,
@@ -409,6 +427,11 @@ class Controller:
                     "plan_id": state.get('plan_id'),
                     # 传递实体信息（包含 stcd，来自实体解析阶段）
                     "entities": state.get('entities', {}),
+                    # 传递检索文档（知识库查询结果，包含图片等）
+                    "retrieved_documents": state.get('retrieved_documents', []),
+                    # 传递意图分类信息
+                    "intent_category": state.get('intent_category', ''),
+                    "target_kbs": state.get('target_kbs', []),
                 }
 
             # 不需要页面，只生成文字回复
@@ -788,7 +811,7 @@ class Controller:
         Returns:
             页面标题
         """
-        forecast_target = state.get('forecast_target', {})
+        forecast_target = state.get('forecast_target') or {}
         target_name = forecast_target.get('name', '')
         intent = state.get('intent', '')
         sub_intent = state.get('business_sub_intent', '')
@@ -1277,7 +1300,8 @@ class Controller:
         workflow_params = []  # 工作流参数（工作流执行结果）
 
         # 从 workflow_context 提取关键参数
-        workflow_context = state.get('workflow_context', {})
+        # 注意：使用 or {} 确保即使值为 None 也能得到空字典
+        workflow_context = state.get('workflow_context') or {}
 
         # 调试日志：打印 workflow_context 的结构
         logger.debug(f"workflow_context keys: {workflow_context.keys() if isinstance(workflow_context, dict) else 'not dict'}")

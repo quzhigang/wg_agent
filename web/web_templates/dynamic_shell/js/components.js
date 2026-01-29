@@ -22,6 +22,7 @@ class DynamicPageEngine {
         this.registerComponent('Image', this.renderImage);
         this.registerComponent('Video', this.renderVideo);
         this.registerComponent('Gallery', this.renderGallery);
+        this.registerComponent('Carousel', this.renderCarousel);
 
         // 注册内置组件 - 交互类
         this.registerComponent('ActionBar', this.renderActionBar);
@@ -102,8 +103,11 @@ class DynamicPageEngine {
                     rowEl.style.gridTemplateColumns = `repeat(${colCount}, 1fr)`;
                 }
 
+                // 设置行高度 - 确保子元素也能继承高度
                 if (rowConfig.height) {
                     rowEl.style.height = rowConfig.height;
+                    rowEl.style.minHeight = rowConfig.height;
+                    rowEl.style.maxHeight = rowConfig.height;
                 }
 
                 container.appendChild(rowEl);
@@ -113,6 +117,15 @@ class DynamicPageEngine {
                     const colEl = document.createElement('div');
                     colEl.className = 'grid-col';
                     colEl.style.minWidth = '0'; // 防止Echarts溢出
+                    colEl.style.minHeight = '0'; // 防止内容溢出
+                    colEl.style.overflow = 'hidden'; // 防止内容溢出
+
+                    // 如果行有固定高度，列也需要限制高度
+                    if (rowConfig.height) {
+                        colEl.style.height = '100%';
+                        colEl.style.maxHeight = '100%';
+                    }
+
                     rowEl.appendChild(colEl);
 
                     // 获取组件key：支持对象格式和字符串格式
@@ -268,10 +281,17 @@ class DynamicPageEngine {
         return result;
     }
 
-    // 辅助：获取对象路径值
+    // 辅助：获取对象路径值（支持数组索引，如 "documents[0].metadata.images[0]"）
     getValueByPath(obj, path) {
         if (!path) return obj;
-        return path.split('.').reduce((o, k) => (o || {})[k], obj);
+        // 将 path 拆分为 token，支持 . 和 [index] 格式
+        // 例如: "retrieval.documents[0].metadata.images[0]"
+        // 拆分为: ["retrieval", "documents", "0", "metadata", "images", "0"]
+        const tokens = path.replace(/\[(\d+)\]/g, '.$1').split('.');
+        return tokens.reduce((o, k) => {
+            if (o === null || o === undefined) return undefined;
+            return o[k];
+        }, obj);
     }
 
     // 辅助：模板替换
@@ -384,7 +404,15 @@ class DynamicPageEngine {
         const finalCols = columns.length > 0 ? columns :
             Object.keys(tableData[0] || {}).map(k => ({ key: k, title: k, dataIndex: k }));
 
-        let html = '<table class="simple-table"><thead><tr>';
+        // 最大显示行数，默认10行，超出滚动
+        const maxRows = config.maxRows || 10;
+        const rowHeight = 40; // 每行高度约40px
+        const headerHeight = 44; // 表头高度
+        const maxHeight = headerHeight + (maxRows * rowHeight);
+        const needScroll = tableData.length > maxRows;
+
+        let html = `<div class="table-wrapper" style="max-height: ${maxHeight}px; overflow-y: ${needScroll ? 'auto' : 'hidden'}; border-radius: 8px;">`;
+        html += '<table class="simple-table"><thead><tr>';
         finalCols.forEach(c => {
             const label = c.title || c.label || c.key;
             html += `<th>${label}</th>`;
@@ -399,14 +427,14 @@ class DynamicPageEngine {
             });
             html += '</tr>';
         });
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
         container.innerHTML = html;
     }
 
-    renderEcharts(container, data, config) {
+    async renderEcharts(container, data, config) {
         container.style.width = '100%';
         container.style.height = '100%';
-        container.style.minHeight = '300px';
+        container.style.minHeight = '200px';
         container.classList.add('echarts-container');
 
         const chart = echarts.init(container);
@@ -471,6 +499,33 @@ class DynamicPageEngine {
         // 获取图表类型
         const chartType = config.chartType || config.chart_type || 'line';
 
+        // ========== 处理 series 内部的 data_source 绑定 ==========
+        // LLM 可能在 series[].data_source 或 series[].data 中配置数据绑定
+        if (option.series && Array.isArray(option.series)) {
+            for (let i = 0; i < option.series.length; i++) {
+                const series = option.series[i];
+                // 格式1: series.data_source (推荐格式)
+                if (series.data_source && series.data_source.type === 'context') {
+                    // 从 context 中获取数据
+                    const seriesData = this.getValueByPath(this.data.context, series.data_source.path);
+                    if (seriesData) {
+                        series.data = seriesData;
+                    }
+                    delete series.data_source; // 清理 data_source 配置
+                }
+                // 格式2: series.data 是一个 data_source 对象 (LLM 有时会生成这种格式)
+                // 例如: { data: { type: "context", path: "discharge_curve" } }
+                else if (series.data && typeof series.data === 'object' && series.data.type === 'context') {
+                    const seriesData = this.getValueByPath(this.data.context, series.data.path);
+                    if (seriesData) {
+                        series.data = seriesData;
+                    } else {
+                        series.data = []; // 如果没有数据，设置为空数组
+                    }
+                }
+            }
+        }
+
         // 如果有处理后的数据，注入到 option 中
         if (processedData && (processedData.x_data || processedData.y_data)) {
             // 设置 xAxis 数据
@@ -488,6 +543,13 @@ class DynamicPageEngine {
                     option.series[0].data = processedData.y_data;
                 }
             }
+        } else if (processedData && Array.isArray(processedData)) {
+            // 如果 data 是数组（如泄流曲线 [[x,y], [x,y], ...]），直接注入到 series
+            if (!option.series || option.series.length === 0) {
+                option.series = [{ type: chartType, data: processedData }];
+            } else if (Array.isArray(option.series) && option.series.length > 0 && !option.series[0].data) {
+                option.series[0].data = processedData;
+            }
         } else if (processedData) {
             // 如果提供了其他格式的 data，尝试将数据注入到 option 中
             if (processedData.series) {
@@ -497,6 +559,10 @@ class DynamicPageEngine {
                 option.xAxis = processedData.xAxis;
             }
         }
+
+        // ========== 坐标轴自适应：根据实际数据自动计算 min/max ==========
+        // 针对 [[x, y], [x, y], ...] 格式的数据（如泄流曲线）
+        this._autoScaleAxes(option);
 
         // 为线形图添加渐变填充效果
         if (chartType === 'line' && option.series && option.series.length > 0) {
@@ -538,6 +604,77 @@ class DynamicPageEngine {
         return result;
     }
 
+    /**
+     * 坐标轴自适应：根据 series 数据自动计算 xAxis/yAxis 的 min/max
+     * 支持 [[x, y], [x, y], ...] 格式的数据（如泄流曲线、散点图）
+     */
+    _autoScaleAxes(option) {
+        if (!option.series || !Array.isArray(option.series)) return;
+
+        let allXValues = [];
+        let allYValues = [];
+
+        // 遍历所有 series，收集数据点
+        option.series.forEach(series => {
+            const data = series.data;
+            if (!data || !Array.isArray(data)) return;
+
+            data.forEach(point => {
+                // 支持多种数据格式
+                if (Array.isArray(point) && point.length >= 2) {
+                    // [[x, y], [x, y], ...] 格式
+                    const x = parseFloat(point[0]);
+                    const y = parseFloat(point[1]);
+                    if (!isNaN(x)) allXValues.push(x);
+                    if (!isNaN(y)) allYValues.push(y);
+                } else if (typeof point === 'object' && point !== null) {
+                    // [{ value: [x, y] }, ...] 或 [{ x: ..., y: ... }, ...] 格式
+                    if (Array.isArray(point.value) && point.value.length >= 2) {
+                        const x = parseFloat(point.value[0]);
+                        const y = parseFloat(point.value[1]);
+                        if (!isNaN(x)) allXValues.push(x);
+                        if (!isNaN(y)) allYValues.push(y);
+                    } else if (point.x !== undefined && point.y !== undefined) {
+                        const x = parseFloat(point.x);
+                        const y = parseFloat(point.y);
+                        if (!isNaN(x)) allXValues.push(x);
+                        if (!isNaN(y)) allYValues.push(y);
+                    }
+                }
+            });
+        });
+
+        // 如果收集到了数据点，计算并设置坐标轴范围
+        if (allXValues.length > 0 && allYValues.length > 0) {
+            const xMin = Math.min(...allXValues);
+            const xMax = Math.max(...allXValues);
+            const yMin = Math.min(...allYValues);
+            const yMax = Math.max(...allYValues);
+
+            // 添加 10% 的边距，使图表更美观
+            const xPadding = (xMax - xMin) * 0.1 || 1;
+            const yPadding = (yMax - yMin) * 0.1 || 1;
+
+            // 设置 xAxis 范围（仅当 xAxis.type 为 'value' 时）
+            if (option.xAxis && option.xAxis.type === 'value') {
+                option.xAxis.min = Math.floor(xMin - xPadding);
+                option.xAxis.max = Math.ceil(xMax + xPadding);
+                // 确保 min 不小于 0（对于流量等非负数据）
+                if (option.xAxis.min < 0 && xMin >= 0) {
+                    option.xAxis.min = 0;
+                }
+            }
+
+            // 设置 yAxis 范围（仅当 yAxis.type 为 'value' 时）
+            if (option.yAxis && option.yAxis.type === 'value') {
+                option.yAxis.min = Math.floor((yMin - yPadding) * 10) / 10; // 保留一位小数
+                option.yAxis.max = Math.ceil((yMax + yPadding) * 10) / 10;
+            }
+
+            console.log(`[Echarts] 坐标轴自适应: X[${option.xAxis?.min}, ${option.xAxis?.max}], Y[${option.yAxis?.min}, ${option.yAxis?.max}]`);
+        }
+    }
+
     renderGISMap(container, data, config) {
         // 1. 设置容器ID（ArcGIS要求容器必须有ID）
         const mapDivId = 'viewDiv_' + Math.random().toString(36).substr(2, 9);
@@ -545,7 +682,7 @@ class DynamicPageEngine {
         mapDiv.id = mapDivId;
         mapDiv.style.width = '100%';
         mapDiv.style.height = '100%';
-        mapDiv.style.minHeight = '400px';
+        mapDiv.style.minHeight = '200px';
         mapDiv.classList.add('gis-map-container');
         container.appendChild(mapDiv);
 
@@ -571,10 +708,29 @@ class DynamicPageEngine {
                 }
             });
 
-            // 3. 创建视图
+            // 3. 创建视图 - 固定缩放级别为10
+            const zoom = config.zoom || 10;  // 默认缩放级别为10
+            // center 支持多种来源：
+            // 1. data (从 data_source 绑定，可能是数组 [lng, lat] 或对象 {center: [lng, lat]})
+            // 2. config.center (静态配置)
+            let center = [114.057818, 35.826884];  // 默认河南省中心
+            if (data) {
+                if (Array.isArray(data) && data.length === 2) {
+                    center = data;  // data 直接是 [lng, lat]
+                } else if (data.center && Array.isArray(data.center)) {
+                    center = data.center;  // data 是 { center: [lng, lat] }
+                } else if (data.longitude && data.latitude) {
+                    center = [data.longitude, data.latitude];
+                }
+            } else if (config.center) {
+                center = config.center;
+            }
+
             const view = new MapView({
                 container: mapDivId,
-                map: webmap
+                map: webmap,
+                zoom: zoom,
+                center: center
             });
 
             // 4. 添加标记图层
@@ -582,10 +738,101 @@ class DynamicPageEngine {
             webmap.when(() => {
                 webmap.add(graphicsLayer);
 
+                // ========== 自动在中心点添加标记和文字标注 ==========
+                // 获取标注名称：多种来源尝试
+                let labelText = config.label || '';
+
+                // 1. 从 data 中获取
+                if (!labelText && data) {
+                    labelText = data.name || data.title || data.stnm || '';
+                }
+
+                // 2. 从全局 pageData.context 获取
+                if (!labelText && window.pageData && window.pageData.context) {
+                    const ctx = window.pageData.context;
+                    // 从 intent.entities 中获取对象名称
+                    if (ctx.intent && ctx.intent.entities) {
+                        labelText = ctx.intent.entities['关键词'] || ctx.intent.entities['object'] || ctx.intent.entities['name'] || '';
+                    }
+                }
+
+                // 3. 从 geo_info 中获取（如果有 name 字段）
+                if (!labelText && window.pageData && window.pageData.context && window.pageData.context.geo_info) {
+                    labelText = window.pageData.context.geo_info.name || '';
+                }
+
+                // 4. 从 parsed_info_table 中查找名称字段
+                if (!labelText && window.pageData && window.pageData.context && window.pageData.context.parsed_info_table) {
+                    const infoTable = window.pageData.context.parsed_info_table;
+                    for (const item of infoTable) {
+                        if (item.label && (item.label.includes('名称') || item.label.includes('name') || item.label === 'name')) {
+                            labelText = item.value;
+                            break;
+                        }
+                    }
+                }
+
+                console.log('[GISMap] labelText:', labelText, 'center:', center);
+
+                // 如果有有效的中心坐标（非默认值），添加中心点标记
+                const isCustomCenter = !(center[0] === 114.057818 && center[1] === 35.826884);
+                if (isCustomCenter) {
+                    const centerPoint = {
+                        type: "point",
+                        longitude: center[0],
+                        latitude: center[1]
+                    };
+
+                    // 圆形标记样式 - 科技感青色（减小尺寸）
+                    const centerMarkerSymbol = {
+                        type: "simple-marker",
+                        style: "circle",
+                        color: [0, 212, 255, 0.9],  // 青色填充
+                        size: 8,  // 减小到8px
+                        outline: {
+                            color: [255, 255, 255, 1],  // 白色边框
+                            width: 2
+                        }
+                    };
+
+                    // 添加圆形标记
+                    const centerMarkerGraphic = new Graphic({
+                        geometry: centerPoint,
+                        symbol: centerMarkerSymbol
+                    });
+                    graphicsLayer.add(centerMarkerGraphic);
+
+                    // 添加白色文字标注
+                    // 如果没有获取到标注文本，使用默认文本
+                    const displayText = labelText || '当前位置';
+                    const textSymbol = {
+                        type: "text",
+                        text: displayText,
+                        color: [255, 255, 255, 1],  // 白色文字
+                        haloColor: [0, 0, 0, 0.9],  // 黑色光晕（提高可读性）
+                        haloSize: 2,
+                        font: {
+                            size: 12,
+                            weight: "bold",
+                            family: "Microsoft YaHei, sans-serif"
+                        },
+                        yoffset: -15  // 文字在标记下方
+                    };
+
+                    const textGraphic = new Graphic({
+                        geometry: centerPoint,
+                        symbol: textSymbol
+                    });
+                    graphicsLayer.add(textGraphic);
+
+                    console.log('[GISMap] Added marker and label:', displayText);
+                }
+
+                // ========== 处理额外的标记点 ==========
                 // 支持两种数据来源：
                 // 1. config.markers (新格式，直接在 props 中)
                 // 2. data (旧格式，通过 data_source 获取)
-                const markers = config.markers || (Array.isArray(data) ? data : (data ? [data] : []));
+                const markers = config.markers || [];
 
                 markers.forEach(item => {
                     // 尝试识别经纬度字段
@@ -649,16 +896,28 @@ class DynamicPageEngine {
     /**
      * 渲染图片组件
      * config: { src: "图片URL", alt: "描述", fit: "cover|contain|fill", caption: "图片说明" }
+     * data: 可以是字符串(URL)或对象{src, url}
      */
     renderImage(container, data, config) {
-        const src = config.src || data?.src || data?.url || '';
+        // 支持多种数据格式：
+        // 1. data 是字符串（直接是URL）
+        // 2. data 是对象 { src: "..." } 或 { url: "..." }
+        // 3. config.src 静态配置
+        let src = '';
+        if (typeof data === 'string') {
+            src = data;
+        } else if (data && typeof data === 'object') {
+            src = data.src || data.url || '';
+        }
+        src = src || config.src || '';
+
         const alt = config.alt || config.title || '图片';
         const fit = config.fit || 'cover';
         const caption = config.caption || '';
 
         container.innerHTML = `
             <div class="image-component">
-                <img src="${src}" alt="${alt}" 
+                <img src="${src}" alt="${alt}"
                      style="width: 100%; height: 100%; object-fit: ${fit}; border-radius: 8px;"
                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22150%22><rect fill=%22%231e3a5f%22 width=%22200%22 height=%22150%22/><text fill=%22%2300d4ff%22 x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22>图片加载失败</text></svg>'">
                 ${caption ? `<div class="image-caption">${caption}</div>` : ''}
@@ -721,6 +980,116 @@ class DynamicPageEngine {
             img.addEventListener('mouseenter', () => img.style.transform = 'scale(1.05)');
             img.addEventListener('mouseleave', () => img.style.transform = 'scale(1)');
         });
+    }
+
+    /**
+     * 渲染轮播图组件
+     * config: { images: [{ src, alt, caption }] 或 ["url1", "url2"], autoplay: true, interval: 3000 }
+     */
+    renderCarousel(container, data, config) {
+        const images = config.images || data || [];
+        const autoplay = config.autoplay !== false;
+        const interval = config.interval || 3000;
+        const carouselId = 'carousel_' + Math.random().toString(36).substr(2, 9);
+
+        if (images.length === 0) {
+            container.innerHTML = '<div class="empty-carousel">暂无图片</div>';
+            return;
+        }
+
+        // 构建轮播图HTML
+        let html = `
+            <div class="carousel-component" id="${carouselId}" style="position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 8px;">
+                <div class="carousel-inner" style="display: flex; transition: transform 0.5s ease; height: 100%;">
+        `;
+
+        images.forEach((img, index) => {
+            const src = typeof img === 'string' ? img : (img.src || img.url);
+            const alt = (typeof img === 'object' ? img.alt : '') || `图片${index + 1}`;
+            const caption = typeof img === 'object' ? (img.caption || '') : '';
+
+            html += `
+                <div class="carousel-slide" data-index="${index}" style="min-width: 100%; height: 100%; position: relative;">
+                    <img src="${src}" alt="${alt}"
+                         style="width: 100%; height: 100%; object-fit: contain; background: #0a1628;"
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%231e3a5f%22 width=%22400%22 height=%22300%22/><text fill=%22%2300d4ff%22 x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22>图片加载失败</text></svg>'">
+                    ${caption ? `<div class="carousel-caption" style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.8)); color: #e0e6ed; padding: 20px 16px 12px; font-size: 14px;">${caption}</div>` : ''}
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+                <!-- 左右箭头 -->
+                <button class="carousel-prev" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,212,255,0.3); border: 1px solid rgba(0,212,255,0.5); color: #00d4ff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; transition: all 0.3s;">‹</button>
+                <button class="carousel-next" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,212,255,0.3); border: 1px solid rgba(0,212,255,0.5); color: #00d4ff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; transition: all 0.3s;">›</button>
+                <!-- 指示器 -->
+                <div class="carousel-indicators" style="position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;">
+        `;
+
+        images.forEach((_, index) => {
+            html += `<span class="carousel-dot" data-index="${index}" style="width: 10px; height: 10px; border-radius: 50%; background: ${index === 0 ? '#00d4ff' : 'rgba(255,255,255,0.4)'}; cursor: pointer; transition: all 0.3s; box-shadow: ${index === 0 ? '0 0 8px #00d4ff' : 'none'};"></span>`;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+        // 轮播逻辑
+        const carousel = container.querySelector(`#${carouselId}`);
+        const inner = carousel.querySelector('.carousel-inner');
+        const dots = carousel.querySelectorAll('.carousel-dot');
+        const prevBtn = carousel.querySelector('.carousel-prev');
+        const nextBtn = carousel.querySelector('.carousel-next');
+        let currentIndex = 0;
+        let autoplayTimer = null;
+
+        const goToSlide = (index) => {
+            if (index < 0) index = images.length - 1;
+            if (index >= images.length) index = 0;
+            currentIndex = index;
+            inner.style.transform = `translateX(-${currentIndex * 100}%)`;
+            dots.forEach((dot, i) => {
+                dot.style.background = i === currentIndex ? '#00d4ff' : 'rgba(255,255,255,0.4)';
+                dot.style.boxShadow = i === currentIndex ? '0 0 8px #00d4ff' : 'none';
+            });
+        };
+
+        const startAutoplay = () => {
+            if (autoplay && images.length > 1) {
+                autoplayTimer = setInterval(() => goToSlide(currentIndex + 1), interval);
+            }
+        };
+
+        const stopAutoplay = () => {
+            if (autoplayTimer) {
+                clearInterval(autoplayTimer);
+                autoplayTimer = null;
+            }
+        };
+
+        // 事件绑定
+        prevBtn.addEventListener('click', () => { stopAutoplay(); goToSlide(currentIndex - 1); startAutoplay(); });
+        nextBtn.addEventListener('click', () => { stopAutoplay(); goToSlide(currentIndex + 1); startAutoplay(); });
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => { stopAutoplay(); goToSlide(parseInt(dot.dataset.index)); startAutoplay(); });
+        });
+
+        // 悬停暂停
+        carousel.addEventListener('mouseenter', stopAutoplay);
+        carousel.addEventListener('mouseleave', startAutoplay);
+
+        // 按钮悬停效果
+        [prevBtn, nextBtn].forEach(btn => {
+            btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(0,212,255,0.6)'; btn.style.boxShadow = '0 0 15px rgba(0,212,255,0.5)'; });
+            btn.addEventListener('mouseleave', () => { btn.style.background = 'rgba(0,212,255,0.3)'; btn.style.boxShadow = 'none'; });
+        });
+
+        // 启动自动播放
+        startAutoplay();
     }
 
     // ========== 交互类组件 ==========
@@ -898,23 +1267,92 @@ class DynamicPageEngine {
         const tabs = config.tabs || [];
         const defaultTab = config.defaultTab || (tabs[0] && tabs[0].key);
 
-        let headerHtml = `<div class="tabs-header" style="display: flex; border-bottom: 1px solid #1e3a5f; margin-bottom: 16px;">`;
+        // 设置容器为flex布局，确保内容区域能撑满
+        container.style.cssText = 'display: flex; flex-direction: column; height: 100%;';
+
+        // 创建标签头
+        const headerEl = document.createElement('div');
+        headerEl.className = 'tabs-header';
+        headerEl.style.cssText = 'display: flex; border-bottom: 1px solid #1e3a5f; flex-shrink: 0;';
+
         tabs.forEach(tab => {
             const isActive = tab.key === defaultTab;
-            headerHtml += `<div class="tab-item" data-tab="${tab.key}" style="padding: 10px 20px; cursor: pointer; color: ${isActive ? '#00d4ff' : '#a0aec0'}; border-bottom: 2px solid ${isActive ? '#00d4ff' : 'transparent'};">${tab.label}</div>`;
+            const tabItem = document.createElement('div');
+            tabItem.className = 'tab-item';
+            tabItem.dataset.tab = tab.key;
+            tabItem.style.cssText = `padding: 10px 20px; cursor: pointer; color: ${isActive ? '#00d4ff' : '#a0aec0'}; border-bottom: 2px solid ${isActive ? '#00d4ff' : 'transparent'}; transition: all 0.3s;`;
+            tabItem.textContent = tab.label;
+            headerEl.appendChild(tabItem);
         });
-        headerHtml += '</div><div class="tabs-content">';
-        tabs.forEach(tab => {
-            headerHtml += `<div class="tab-panel" data-tab="${tab.key}" style="display: ${tab.key === defaultTab ? 'block' : 'none'};">${tab.content || ''}</div>`;
-        });
-        headerHtml += '</div>';
-        container.innerHTML = headerHtml;
 
-        container.querySelectorAll('.tab-item').forEach(el => {
+        container.appendChild(headerEl);
+
+        // 创建内容区域 - 使用 flex: 1 撑满剩余空间
+        const contentEl = document.createElement('div');
+        contentEl.className = 'tabs-content';
+        contentEl.style.cssText = 'flex: 1; overflow: hidden; position: relative; min-height: 200px;';
+        container.appendChild(contentEl);
+
+        // 存储需要延迟 resize 的 echarts 实例
+        const echartsInstances = [];
+
+        // 渲染每个标签页的内容
+        tabs.forEach(tab => {
+            const panelEl = document.createElement('div');
+            panelEl.className = 'tab-panel';
+            panelEl.dataset.tab = tab.key;
+            panelEl.style.cssText = `display: ${tab.key === defaultTab ? 'block' : 'none'}; height: 100%; overflow: auto;`;
+            contentEl.appendChild(panelEl);
+
+            // 判断 content 类型：如果是对象且有 type 字段，则作为嵌套组件渲染
+            const content = tab.content;
+            if (content && typeof content === 'object' && content.type) {
+                // 嵌套组件渲染
+                const renderer = this.components[content.type];
+                if (renderer) {
+                    const bodyEl = document.createElement('div');
+                    bodyEl.className = 'nested-component-body';
+                    // 对于 Echarts 组件，设置明确的最小高度
+                    if (content.type === 'Echarts') {
+                        bodyEl.style.cssText = 'width: 100%; height: 100%; min-height: 250px;';
+                    } else {
+                        bodyEl.style.cssText = 'height: 100%;';
+                    }
+                    panelEl.appendChild(bodyEl);
+                    // 调用对应组件的渲染函数
+                    renderer(bodyEl, content.dataSource || null, content);
+                } else {
+                    panelEl.innerHTML = `<div class="error">Unknown component type: ${content.type}</div>`;
+                }
+            } else if (typeof content === 'string') {
+                // 字符串内容直接显示
+                panelEl.innerHTML = content;
+            } else {
+                panelEl.innerHTML = '';
+            }
+        });
+
+        // 标签切换事件 - 切换时触发 echarts resize
+        headerEl.querySelectorAll('.tab-item').forEach(el => {
             el.addEventListener('click', () => {
                 const key = el.dataset.tab;
-                container.querySelectorAll('.tab-item').forEach(t => { t.style.color = t.dataset.tab === key ? '#00d4ff' : '#a0aec0'; t.style.borderBottomColor = t.dataset.tab === key ? '#00d4ff' : 'transparent'; });
-                container.querySelectorAll('.tab-panel').forEach(p => { p.style.display = p.dataset.tab === key ? 'block' : 'none'; });
+                headerEl.querySelectorAll('.tab-item').forEach(t => {
+                    t.style.color = t.dataset.tab === key ? '#00d4ff' : '#a0aec0';
+                    t.style.borderBottomColor = t.dataset.tab === key ? '#00d4ff' : 'transparent';
+                });
+                contentEl.querySelectorAll('.tab-panel').forEach(p => {
+                    p.style.display = p.dataset.tab === key ? 'block' : 'none';
+                    // 切换到该面板时，触发 echarts resize
+                    if (p.dataset.tab === key) {
+                        const echartsContainer = p.querySelector('.echarts-container');
+                        if (echartsContainer) {
+                            const chart = echarts.getInstanceByDom(echartsContainer);
+                            if (chart) {
+                                setTimeout(() => chart.resize(), 100);
+                            }
+                        }
+                    }
+                });
             });
         });
     }

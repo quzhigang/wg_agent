@@ -1082,6 +1082,115 @@ class PageGenerator:
 
         return page_url
 
+    async def update_dynamic_template(
+        self,
+        template_info: Dict[str, Any],
+        context_data: Dict[str, Any]
+    ) -> str:
+        """
+        更新动态模板的数据（不复制模板）
+
+        直接修改动态模板目录下的 data.js 文件，注入新的上下文数据，
+        然后返回模板的固定访问路径。
+
+        Args:
+            template_info: 模板信息，包含 template_path (格式: dynamic://{name})
+            context_data: 要注入的上下文数据（来自 ConversationContextCollector.to_frontend_format()）
+
+        Returns:
+            模板的固定访问URL
+        """
+        import time
+        from datetime import datetime as dt
+
+        template_path = template_info.get('template_path', '')
+        display_name = template_info.get('display_name', 'dynamic_template')
+
+        logger.info(f"更新动态模板数据: {display_name}, template_path: {template_path}")
+
+        # 1. 从 template_path 提取目录名
+        # template_path 格式: dynamic://{name}
+        if not template_path.startswith('dynamic://'):
+            raise ValueError(f"无效的动态模板路径格式: {template_path}")
+
+        template_dir_name = template_path.replace('dynamic://', '')
+
+        # 2. 确定模板目录
+        template_dir = self._output_dir / template_dir_name
+
+        if not template_dir.exists():
+            raise FileNotFoundError(f"动态模板目录不存在: {template_dir}")
+
+        data_js_path = template_dir / 'data.js'
+        if not data_js_path.exists():
+            raise FileNotFoundError(f"data.js 文件不存在: {data_js_path}")
+
+        # 3. 预处理上下文数据（与 DataFileGenerator 保持一致）
+        # 从检索文档中提取结构化信息：all_images, parsed_info_table, geo_info, discharge_curve, key_metrics
+        from .data_file_generator import DataFileGenerator
+        preprocessor = DataFileGenerator(template_dir)
+        processed_context = preprocessor._preprocess_context_data(context_data) if context_data else {}
+
+        # 4. 构建新的 PAGE_DATA
+        page_data = {
+            "static": {},
+            "context": processed_context,
+            "generated_at": dt.now().isoformat()
+        }
+
+        # 5. 生成新的 data.js 内容
+        import json
+        data_json = json.dumps(page_data, ensure_ascii=False, indent=2)
+
+        js_content = f"""/**
+ * 页面数据文件
+ * 自动生成于: {dt.now().strftime('%Y-%m-%d %H:%M:%S')}
+ *
+ * PAGE_DATA 结构说明:
+ * - static: 静态数据（无法通过API获取的数据）
+ * - context: 上下文数据（对话过程中收集的数据）
+ * - generated_at: 生成时间
+ */
+
+window.PAGE_DATA = {data_json};
+
+// 数据加载完成事件
+if (typeof window.onPageDataLoaded === 'function') {{
+    window.onPageDataLoaded(window.PAGE_DATA);
+}}
+"""
+
+        # 6. 写入 data.js
+        with open(data_js_path, 'w', encoding='utf-8') as f:
+            f.write(js_content)
+        logger.info(f"动态模板 data.js 更新完成: {data_js_path}")
+
+        # 7. 更新 index.html 中 data.js 的引用，添加时间戳防止缓存
+        index_html_path = template_dir / 'index.html'
+        if index_html_path.exists():
+            cache_ts = int(time.time() * 1000)
+            with open(index_html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+
+            import re
+            # 替换 data.js 引用，添加或更新时间戳参数
+            new_html, count = re.subn(
+                r'(src=["\'])data\.js(\?_t=\d+)?(["\'])',
+                rf'\1data.js?_t={cache_ts}\3',
+                html_content
+            )
+            if count > 0:
+                with open(index_html_path, 'w', encoding='utf-8') as f:
+                    f.write(new_html)
+                logger.info(f"更新 index.html 中 data.js 引用的缓存时间戳")
+
+        # 8. 返回访问URL
+        cache_buster = int(time.time() * 1000)
+        page_url = f"/static/pages/{template_dir_name}/index.html?_t={cache_buster}"
+        logger.info(f"动态模板复用成功: {page_url}")
+
+        return page_url
+
     async def _generate_with_copy(
         self,
         template_info: Dict[str, Any],

@@ -81,14 +81,15 @@ class WebTemplateVectorIndex:
         构建模板的文本表示（用于生成 embedding）
 
         组合多个字段以提高检索准确性：
-        - trigger_pattern: 触发模式（最重要）
+        - trigger_pattern: 触发模式（最重要，由 LLM 生成，包含关键词和同义词）
         - description: 模板描述
         - display_name: 中文显示名称
         - supported_sub_intents: 支持的子意图
+        - required_object_types: 对象类型同义词列表（由 LLM 生成）
         """
         parts = []
 
-        # 触发模式是最重要的匹配依据
+        # 触发模式是最重要的匹配依据（由 LLM 生成，包含丰富的关键词和同义词）
         trigger_pattern = template_data.get('trigger_pattern', '')
         if trigger_pattern:
             parts.append(trigger_pattern)
@@ -111,7 +112,15 @@ class WebTemplateVectorIndex:
             else:
                 parts.append(str(sub_intents))
 
-        return " ".join(parts)
+        # 对象类型同义词列表（由 LLM 生成，提高对象类型匹配的召回率）
+        required_object_types = template_data.get('required_object_types', [])
+        if required_object_types:
+            if isinstance(required_object_types, list):
+                parts.append(' '.join(required_object_types))
+            else:
+                parts.append(str(required_object_types))
+
+        return " ".join(filter(None, parts))
 
     def _extract_required_params(self, replacement_config: Optional[Dict[str, Any]]) -> str:
         """

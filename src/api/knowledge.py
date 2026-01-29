@@ -253,6 +253,12 @@ async def get_kb_document_file(kb_id: str, doc_name: str):
         kb_id: 知识库ID
         doc_name: 文档名称
     """
+    # URL解码（处理中文路径）
+    from urllib.parse import unquote
+    doc_name = unquote(doc_name)
+
+    logger.info(f"请求知识库文档: kb_id={kb_id}, doc_name={doc_name}")
+
     # 构建文档路径
     doc_path = os.path.join(_PAGEINDEX_KB_DIR, kb_id, "uploads", doc_name)
 
@@ -267,15 +273,27 @@ async def get_kb_document_file(kb_id: str, doc_name: str):
             elif full_path.lower().endswith(('.md', '.markdown')):
                 with open(full_path, 'r', encoding='utf-8') as f:
                     content = f.read()
+                # 使用本地 marked.js（挂载在 /ui/dynamic_shell/js/）
                 html = f'''<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>{doc_name}</title>
-<script src="/pages/js/marked.min.js"></script>
-<style>body{{max-width:900px;margin:40px auto;padding:0 20px;font-family:sans-serif;line-height:1.6}}
-pre{{background:#f4f4f4;padding:10px;overflow-x:auto}}code{{background:#f4f4f4;padding:2px 5px}}</style>
+<script src="/ui/dynamic_shell/js/marked.min.js"></script>
+<style>
+body{{max-width:900px;margin:40px auto;padding:0 20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;color:#333}}
+h1,h2,h3{{color:#1a365d;border-bottom:1px solid #e2e8f0;padding-bottom:0.3em}}
+pre{{background:#f7fafc;padding:16px;border-radius:6px;overflow-x:auto}}
+code{{background:#edf2f7;padding:2px 6px;border-radius:3px;font-size:0.9em}}
+pre code{{background:none;padding:0}}
+table{{border-collapse:collapse;width:100%}}
+th,td{{border:1px solid #e2e8f0;padding:8px 12px;text-align:left}}
+th{{background:#f7fafc}}
+img{{max-width:100%;height:auto}}
+blockquote{{border-left:4px solid #4299e1;margin:0;padding-left:16px;color:#4a5568}}
+</style>
 </head><body><div id="content"></div>
 <script>document.getElementById("content").innerHTML=marked.parse({repr(content)});</script>
 </body></html>'''
                 return HTMLResponse(content=html)
             return FileResponse(full_path)
 
-    raise HTTPException(status_code=404, detail="文档不存在")
+    logger.warning(f"文档不存在: {doc_path}, 尝试的扩展名: ['', '.pdf', '.md', '.markdown']")
+    raise HTTPException(status_code=404, detail=f"文档不存在: {doc_name}")

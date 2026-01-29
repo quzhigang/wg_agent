@@ -3,20 +3,23 @@
 
 负责：
 1. 将实时生成的页面保存为动态模板
-2. 提取页面标题、描述进行向量化
-3. 支持动态模板的复用
+2. 使用 LLM 智能生成模板元数据（异步）
+3. 提取页面标题、描述进行向量化
+4. 支持动态模板的复用
 """
 
 import json
 import uuid
 import re
 import hashlib
+import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime
 
 from ..models.database import WebTemplate, SessionLocal
 from ..config.logging_config import get_logger
 from .template_vector_index import get_template_vector_index
+from .template_metadata_generator import get_template_metadata_generator
 
 logger = get_logger(__name__)
 
@@ -44,7 +47,7 @@ class DynamicTemplateService:
         self._initialized = True
         logger.info("动态模板服务初始化完成")
 
-    def save_dynamic_template(
+    async def save_dynamic_template(
         self,
         html_content: str,
         user_query: str,
@@ -53,10 +56,16 @@ class DynamicTemplateService:
         conversation_id: str = "",
         execution_summary: str = "",
         object_type: str = "",
-        name: Optional[str] = None
+        name: Optional[str] = None,
+        entities: Optional[Dict[str, Any]] = None,
+        intent_category: str = ""
     ) -> Optional[str]:
         """
-        保存动态生成的页面为模板
+        保存动态生成的页面为模板（异步版本）
+
+        采用两阶段处理：
+        1. 先用基础信息快速保存到数据库
+        2. 异步调用 LLM 生成智能元数据并更新
 
         Args:
             html_content: 生成的HTML内容
@@ -65,13 +74,22 @@ class DynamicTemplateService:
             page_title: 页面标题
             conversation_id: 会话ID
             execution_summary: 执行结果摘要
-            object_type: 对象类型（如"水库"、"河道水文站"等，用于后续模板匹配时的对象类型校验）
+            object_type: 对象类型（如"水库"、"河道水文站"等）
+            name: 模板名称（可选）
+            entities: 提取的实体信息（新增）
+            intent_category: 意图大类（新增）
 
         Returns:
             模板ID，失败返回None
         """
         try:
-            # 1. 提取页面信息
+            # 处理子意图：当 intent_category 是 knowledge 且 sub_intent 为空时，使用 "knowledge"
+            effective_sub_intent = sub_intent
+            if not effective_sub_intent and intent_category == "knowledge":
+                effective_sub_intent = "knowledge"
+                logger.info("intent_category 为 knowledge 且 sub_intent 为空，使用 'knowledge' 作为子意图")
+
+            # 1. 提取基础页面信息
             extracted_title = self._extract_title(html_content) or page_title
             extracted_desc = self._extract_description(html_content) or execution_summary
 
@@ -82,21 +100,20 @@ class DynamicTemplateService:
                 content_hash = hashlib.md5(html_content.encode()).hexdigest()[:16]
                 name = f"dynamic_{timestamp}_{content_hash}"
 
-            # 3. 构建显示名称
+            # 3. 构建初始显示名称（后续会被 LLM 更新）
             display_name = extracted_title or f"动态页面 ({timestamp[:8]})"
             if len(display_name) > 50:
                 display_name = display_name[:47] + "..."
 
-            # 4. 构建触发模式（用于向量检索）
+            # 4. 构建初始触发模式（后续会被 LLM 更新）
             trigger_pattern = f"{user_query} {extracted_title} {extracted_desc}"
 
-            # 5. 构建必须匹配的对象类型列表（动态模板只匹配生成时的对象类型）
+            # 5. 构建初始对象类型列表（后续会被 LLM 扩展为同义词）
             required_object_types = [object_type] if object_type else []
 
-            # 6. 保存到数据库
+            # 6. 保存到数据库（使用初始值）
             db = SessionLocal()
             try:
-                # 动态模板使用特殊路径标识（数据库字段不允许NULL）
                 dynamic_template_path = f"dynamic://{name}"
 
                 template = WebTemplate(
@@ -104,12 +121,12 @@ class DynamicTemplateService:
                     name=name,
                     display_name=display_name,
                     description=extracted_desc[:500] if extracted_desc else None,
-                    template_path=dynamic_template_path,  # 动态模板使用特殊路径标识
-                    supported_sub_intents=json.dumps([sub_intent] if sub_intent else ["other"], ensure_ascii=False),
+                    template_path=dynamic_template_path,
+                    supported_sub_intents=json.dumps([effective_sub_intent] if effective_sub_intent else ["other"], ensure_ascii=False),
                     template_type="dynamic",
                     trigger_pattern=trigger_pattern,
                     features=json.dumps(["dynamic"], ensure_ascii=False),
-                    priority=5,  # 动态模板优先级中等
+                    priority=5,
                     is_active=True,
                     is_dynamic=True,
                     html_content=html_content,
@@ -122,7 +139,7 @@ class DynamicTemplateService:
                 db.add(template)
                 db.commit()
 
-                logger.info(f"动态模板已保存: {display_name} (ID: {template_id}, 对象类型: {object_type or '无'})")
+                logger.info(f"动态模板已保存（初始版本）: {display_name} (ID: {template_id})")
 
             except Exception as db_err:
                 db.rollback()
@@ -131,21 +148,20 @@ class DynamicTemplateService:
             finally:
                 db.close()
 
-            # 7. 添加到向量索引
+            # 7. 添加到向量索引（使用初始值）
             template_data = {
                 "name": name,
                 "display_name": display_name,
                 "description": extracted_desc,
                 "trigger_pattern": trigger_pattern,
-                "supported_sub_intents": [sub_intent] if sub_intent else ["other"],
+                "supported_sub_intents": [effective_sub_intent] if effective_sub_intent else ["other"],
                 "template_path": None,
                 "template_type": "dynamic",
                 "priority": 5,
-                "is_dynamic": True,  # 标记为动态模板
-                "required_object_types": required_object_types  # 必须匹配的对象类型
+                "is_dynamic": True,
+                "required_object_types": required_object_types
             }
 
-            # 向量化，如果失败则删除数据库记录保持一致性
             if not self.vector_index.index_template(template_id, template_data):
                 logger.error(f"向量化失败，删除数据库记录以保持一致性: {template_id}")
                 db = SessionLocal()
@@ -160,12 +176,145 @@ class DynamicTemplateService:
                     db.close()
                 return None
 
-            logger.info(f"动态模板已向量化: {template_id}")
+            logger.info(f"动态模板已向量化（初始版本）: {template_id}")
+
+            # 8. 异步启动 LLM 元数据生成任务（不阻塞主流程）
+            asyncio.create_task(
+                self._update_template_metadata_async(
+                    template_id=template_id,
+                    user_query=user_query,
+                    intent_category=intent_category,
+                    sub_intent=effective_sub_intent,
+                    entities=entities,
+                    extracted_title=extracted_title,
+                    extracted_desc=extracted_desc,
+                    execution_summary=execution_summary
+                )
+            )
+
             return template_id
 
         except Exception as e:
             logger.error(f"保存动态模板失败: {e}")
             return None
+
+    async def _update_template_metadata_async(
+        self,
+        template_id: str,
+        user_query: str,
+        intent_category: str,
+        sub_intent: str,
+        entities: Optional[Dict[str, Any]],
+        extracted_title: str,
+        extracted_desc: str,
+        execution_summary: str
+    ) -> bool:
+        """
+        异步更新模板元数据
+
+        使用 LLM 智能生成元数据并更新数据库和向量索引
+
+        Args:
+            template_id: 模板ID
+            user_query: 用户原始问题
+            intent_category: 意图大类
+            sub_intent: 业务子意图
+            entities: 提取的实体
+            extracted_title: 从HTML提取的标题
+            extracted_desc: 从HTML提取的描述
+            execution_summary: 执行结果摘要
+
+        Returns:
+            是否更新成功
+        """
+        try:
+            # 1. 调用 LLM 生成元数据
+            metadata_generator = get_template_metadata_generator()
+            metadata = await metadata_generator.generate_metadata_async(
+                user_query=user_query,
+                intent_category=intent_category,
+                sub_intent=sub_intent,
+                entities=entities,
+                extracted_title=extracted_title,
+                extracted_desc=extracted_desc,
+                execution_summary=execution_summary
+            )
+
+            # 2. 提取 LLM 生成的字段
+            new_display_name = metadata.get('display_name', '')
+            new_page_title = metadata.get('page_title', '')
+            new_description = metadata.get('description', '')
+            new_trigger_pattern = metadata.get('trigger_pattern', '')
+            object_type_synonyms = metadata.get('object_type_synonyms', [])
+            replacement_config = metadata.get('replacement_config')
+
+            # 3. 更新数据库
+            db = SessionLocal()
+            template_name = ""
+            old_display_name = ""
+            old_description = ""
+            old_trigger_pattern = ""
+            try:
+                tpl = db.query(WebTemplate).filter(WebTemplate.id == template_id).first()
+                if not tpl:
+                    logger.warning(f"模板不存在，无法更新元数据: {template_id}")
+                    return False
+
+                # 保存旧值（用于后续向量化，避免会话分离问题）
+                template_name = tpl.name
+                old_display_name = tpl.display_name
+                old_description = tpl.description
+                old_trigger_pattern = tpl.trigger_pattern
+
+                # 更新字段
+                if new_display_name:
+                    tpl.display_name = new_display_name[:100]
+                if new_page_title:
+                    tpl.page_title = new_page_title[:255]
+                if new_description:
+                    tpl.description = new_description[:500]
+                if new_trigger_pattern:
+                    tpl.trigger_pattern = new_trigger_pattern[:500]
+                if object_type_synonyms:
+                    tpl.required_object_types = json.dumps(object_type_synonyms, ensure_ascii=False)
+                if replacement_config:
+                    tpl.replacement_config = json.dumps(replacement_config, ensure_ascii=False)
+
+                db.commit()
+                logger.info(f"动态模板元数据已更新: {template_id}, display_name={new_display_name}")
+
+            except Exception as db_err:
+                db.rollback()
+                logger.error(f"更新模板元数据到数据库失败: {db_err}")
+                return False
+            finally:
+                db.close()
+
+            # 4. 重新向量化（使用保存的值，避免会话分离问题）
+            template_data = {
+                "name": template_name,
+                "display_name": new_display_name or old_display_name,
+                "description": new_description or old_description,
+                "trigger_pattern": new_trigger_pattern or old_trigger_pattern,
+                "supported_sub_intents": [sub_intent] if sub_intent else ["other"],
+                "template_path": None,
+                "template_type": "dynamic",
+                "priority": 5,
+                "is_dynamic": True,
+                "required_object_types": object_type_synonyms,
+                "replacement_config": replacement_config
+            }
+
+            if self.vector_index.index_template(template_id, template_data):
+                logger.info(f"动态模板已重新向量化: {template_id}")
+                return True
+            else:
+                logger.warning(f"重新向量化失败: {template_id}")
+                return False
+
+        except Exception as e:
+            logger.error(f"异步更新模板元数据失败: {e}")
+            return False
 
     def _extract_title(self, html_content: str) -> str:
         """从HTML中提取标题"""

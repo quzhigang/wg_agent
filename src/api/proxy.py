@@ -14,6 +14,77 @@ router = APIRouter(prefix="/proxy", tags=["代理"])
 
 # 外部API基础URL
 MIKE11_API_BASE = "http://10.20.2.153/api/model/proxy/mike11"
+MAP_DATA_API = "http://10.20.2.153/api/basin/map/dataSource/table/map"
+
+
+@router.get("/map/location")
+async def get_map_location(
+    ref_table: str = Query(..., description="数据表名: geo_st_base(测站), geo_res_base(水库)"),
+    stcd: str = Query(..., description="测站/水库编码"),
+    authorization: Optional[str] = Header(None)
+):
+    """
+    获取测站或水库的坐标位置
+    代理转发到: http://10.20.2.153/api/basin/map/dataSource/table/map
+    """
+    # 根据表名确定查询字段：测站表用code，水库表用stcd
+    if ref_table == 'geo_st_base':
+        filter_field = 'code'
+    else:
+        filter_field = 'stcd'
+
+    # 构建请求参数
+    params = {
+        'refTable': ref_table,
+        'where[0][filed]': filter_field,
+        'where[0][rela]': '=',
+        'where[0][value]': f"'{stcd}'"
+    }
+
+    headers = {"Accept": "*/*"}
+    if authorization:
+        headers["Authorization"] = authorization
+
+    logger.info(f"代理请求地图坐标: ref_table={ref_table}, {filter_field}={stcd}")
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.get(MAP_DATA_API, params=params, headers=headers)
+            response.raise_for_status()
+            result = response.json()
+
+            # 解析坐标
+            if result.get('success') and result.get('data') and len(result['data']) > 0:
+                data = result['data'][0]
+
+                # 优先从 longitude/latitude 字段获取（测站表）
+                lng = data.get('longitude')
+                lat = data.get('latitude')
+
+                # 如果没有，尝试从 shape 字段获取（水库表）
+                if not lng or not lat:
+                    shape = data.get('shape')
+                    if shape:
+                        lng = shape.get('x')
+                        lat = shape.get('y')
+
+                if lng and lat:
+                    logger.info(f"获取到坐标: 经度={lng}, 纬度={lat}")
+                    return {
+                        "success": True,
+                        "longitude": lng,
+                        "latitude": lat
+                    }
+
+            logger.warning(f"未找到坐标数据: ref_table={ref_table}, {filter_field}={stcd}")
+            return {"success": False, "message": "未找到坐标数据"}
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"地图坐标接口HTTP错误: {e.response.status_code} - {e.response.text}")
+            raise HTTPException(status_code=e.response.status_code, detail=str(e))
+        except Exception as e:
+            logger.error(f"地图坐标接口请求失败: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"代理请求失败: {str(e)}")
 
 
 @router.get("/mike11/station_info")

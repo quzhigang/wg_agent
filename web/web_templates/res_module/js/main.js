@@ -3,7 +3,8 @@
 const API_URLS = {
     floodResult: 'http://172.16.16.253/wg_modelserver/hd_mike11server/Model_Ser.ashx',
     rainProcess: 'http://10.20.2.153/api/basin/modelPlatf/model/modelRainArea/getByRsvr',
-    currentStatus: 'http://10.20.2.153/api/basin/rwdb/rsvr/last'
+    currentStatus: 'http://10.20.2.153/api/basin/rwdb/rsvr/last',
+    mapLocation: '/proxy/map/location'
 };
 
 // 本模板所需参数，包括方案名称、水库名称、水库stcd和认证Token
@@ -11,7 +12,7 @@ const DEFAULT_PARAMS = {
     planCode: 'model_20260127101007',
     stcd: '31005650',
     reservoirName: '盘石头水库', // 统一定义水库名称
-    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiIzYThhMmNmMC1mNGQ2LTRmMmItOTljOS05MWI0MWM4ODM5OGYiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzAxNzE4NjM3ODQsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTU2NzA2MywiZXhwIjoxNzcwMTcxODYzfQ._h8wPZyx7jXu7fGup9ghuUAX_I-QuxqJl1O6wJbCvJF0ft8MsDvSYKM8WqcV2wy8nVrju4OOIIOMWK8-JT_ywg' // 认证Token
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI2MzVmMmNlNC1kYTYwLTQ4ZDMtYTg1ZC02NWY1YjkwZTVlNTUiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzAyODQ1NjcxOTYsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc2OTY3OTc2NywiZXhwIjoxNzcwMjg0NTY3fQ.9dkbaKVhd5fwk66ISzyqzrAt5th8UozxOSJPJtiwVB0z_tpOlzFpQiS6EVaHpcwb9D9qTYPvlR95s4eLAfTsWA' // 认证Token
 };
 
 // 主入口函数
@@ -45,7 +46,9 @@ async function init() {
         }
     }
 
-    initMap();
+    // 获取水库坐标用于地图定位
+    const location = await fetchReservoirLocation();
+    initMap(location);
 }
 
 /**
@@ -127,6 +130,48 @@ async function fetchCurrentStatus() {
         return (result.success && result.data && result.data.length > 0) ? result.data[0] : null;
     } catch (e) {
         console.warn("获取实时水情失败:", e);
+        return null;
+    }
+}
+
+/**
+ * 获取水库坐标信息
+ * 通过代理接口根据 stcd 查询水库的空间坐标
+ * @returns {Promise<{longitude: number, latitude: number}|null>} 经纬度坐标或null
+ */
+async function fetchReservoirLocation() {
+    try {
+        const params = new URLSearchParams({
+            'ref_table': 'geo_res_base',
+            'stcd': DEFAULT_PARAMS.stcd
+        });
+
+        const headers = { 'Accept': '*/*' };
+        if (DEFAULT_PARAMS.token) {
+            headers['Authorization'] = DEFAULT_PARAMS.token;
+        }
+
+        const response = await fetch(`${API_URLS.mapLocation}?${params}`, {
+            method: 'GET',
+            headers: headers,
+            cache: 'no-cache'
+        });
+
+        if (!response.ok) {
+            console.warn("获取水库坐标接口响应异常:", response.status);
+            return null;
+        }
+
+        const result = await response.json();
+        if (result.success && result.longitude && result.latitude) {
+            console.log(`获取到水库坐标: 经度=${result.longitude}, 纬度=${result.latitude}`);
+            return { longitude: result.longitude, latitude: result.latitude };
+        }
+
+        console.warn("未找到水库坐标数据:", result.message);
+        return null;
+    } catch (e) {
+        console.warn("获取水库坐标失败:", e);
         return null;
     }
 }
@@ -243,16 +288,12 @@ function renderChart(data, rainData) {
     const peakWaterLevel = findPeak(waterLevelData);
 
     const option = {
-        backgroundColor: '#fff',
-        title: {
-            show: false
-        },
+        backgroundColor: 'transparent',
         legend: {
             data: ['降雨量', '入库流量', '出库流量', '库水位', '汛限水位', '防洪高水位'],
-            top: 2,
-            right: 70,
-            orient: 'horizontal',
-            textStyle: { fontWeight: 'bold', fontSize: 12 },
+            top: 5,
+            right: 20,
+            textStyle: { color: '#a0aec0', fontSize: 12 },
             itemGap: 15,
             selected: {
                 '防洪高水位': false
@@ -260,7 +301,10 @@ function renderChart(data, rainData) {
         },
         tooltip: {
             trigger: 'axis',
-            axisPointer: { type: 'cross' }
+            axisPointer: { type: 'cross' },
+            backgroundColor: 'rgba(13, 27, 42, 0.9)',
+            borderColor: 'rgba(0, 212, 255, 0.3)',
+            textStyle: { color: '#e0e6ed' }
         },
         axisPointer: {
             link: [{ xAxisIndex: 'all' }],
@@ -279,7 +323,7 @@ function renderChart(data, rainData) {
                 axisLabel: { show: false },
                 axisLine: { show: false },
                 axisTick: { show: false },
-                splitLine: { show: true, lineStyle: { type: 'dashed' } }
+                splitLine: { show: true, lineStyle: { type: 'dashed', color: 'rgba(255, 255, 255, 0.1)' } }
             },
             {
                 type: 'time',
@@ -287,46 +331,51 @@ function renderChart(data, rainData) {
                 min: minTime,
                 max: maxTime,
                 axisLabel: {
+                    color: '#c0c8d0',
+                    fontSize: 12,
                     fontWeight: 'bold',
                     formatter: '{MM}/{dd}\n{HH}:{mm}',
                     interval: 12 * 3600 * 1000
                 },
-                axisLine: { lineStyle: { color: '#333' } },
-                splitLine: { show: true, lineStyle: { type: 'dashed' } }
+                axisLine: { lineStyle: { color: '#c0c8d0' } },
+                splitLine: { show: true, lineStyle: { type: 'dashed', color: 'rgba(255, 255, 255, 0.1)' } }
             }
         ],
         yAxis: [
             {
                 type: 'value',
                 name: '降雨(mm)',
-                nameTextStyle: { fontWeight: 'bold' },
+                nameTextStyle: { color: '#c0c8d0', fontSize: 13, fontWeight: 'bold' },
                 gridIndex: 0,
                 inverse: true,
                 min: 0,
                 max: rainRange.max,
-                axisLabel: { fontWeight: 'bold' },
-                axisLine: { show: true, lineStyle: { color: 'black' } }
+                axisLabel: { color: '#c0c8d0', fontSize: 12, fontWeight: 'bold' },
+                axisLine: { show: true, lineStyle: { color: '#c0c8d0' } },
+                splitLine: { show: true, lineStyle: { type: 'dashed', color: 'rgba(255, 255, 255, 0.1)' } }
             },
             {
                 type: 'value',
                 name: '流量(m³/s)',
-                nameTextStyle: { fontWeight: 'bold' },
+                nameTextStyle: { color: '#c0c8d0', fontSize: 13, fontWeight: 'bold' },
                 gridIndex: 1,
                 min: flowRange.min,
                 max: flowRange.max,
-                axisLabel: { fontWeight: 'bold' },
-                axisLine: { show: true, lineStyle: { color: 'black' } }
+                axisLabel: { color: '#c0c8d0', fontSize: 12, fontWeight: 'bold' },
+                axisLine: { show: true, lineStyle: { color: '#c0c8d0' } },
+                splitLine: { show: true, lineStyle: { type: 'dashed', color: 'rgba(255, 255, 255, 0.1)' } }
             },
             {
                 type: 'value',
                 name: '水位(m)',
-                nameTextStyle: { fontWeight: 'bold' },
+                nameTextStyle: { color: '#c0c8d0', fontSize: 13, fontWeight: 'bold' },
                 gridIndex: 1,
                 position: 'right',
                 min: waterLevelRange.min,
                 max: waterLevelRange.max,
-                axisLabel: { fontWeight: 'bold' },
-                axisLine: { show: true, lineStyle: { color: 'black' } }
+                axisLabel: { color: '#c0c8d0', fontSize: 12, fontWeight: 'bold' },
+                axisLine: { show: true, lineStyle: { color: '#c0c8d0' } },
+                splitLine: { show: false }
             }
         ],
         series: [
@@ -346,6 +395,7 @@ function renderChart(data, rainData) {
                         offset: [0, 10], // 向下偏移 10 像素，确保不被柱子压住
                         color: '#5470c6',
                         fontWeight: 'bold',
+                        fontSize: 13,
                         formatter: '{c}mm'
                     }
                 } : {}
@@ -358,13 +408,13 @@ function renderChart(data, rainData) {
                 data: inflowData,
                 smooth: true,
                 symbol: 'none',
-                itemStyle: { color: 'orange' },
-                lineStyle: { width: 3, color: 'orange' },
+                itemStyle: { color: '#fb7185' },
+                lineStyle: { width: 2, color: '#fb7185' },
                 markPoint: peakInflow ? {
                     data: [{ coord: peakInflow.coord, value: peakInflow.coord[1] + ' m³/s' }],
-                    symbol: 'circle', symbolSize: 6,
-                    itemStyle: { color: 'orange' },
-                    label: { show: true, position: 'top', fontWeight: 'bold' }
+                    symbol: 'circle', symbolSize: 8,
+                    itemStyle: { color: '#fb7185' },
+                    label: { show: true, position: 'top', fontWeight: 'bold', fontSize: 13, color: '#fb7185' }
                 } : {}
             },
             {
@@ -375,13 +425,13 @@ function renderChart(data, rainData) {
                 data: outflowData,
                 smooth: true,
                 symbol: 'none',
-                itemStyle: { color: 'green' },
-                lineStyle: { width: 3, color: 'green' },
+                itemStyle: { color: '#4ade80' },
+                lineStyle: { width: 2, color: '#4ade80' },
                 markPoint: peakOutflow ? {
                     data: [{ coord: peakOutflow.coord, value: peakOutflow.coord[1] + ' m³/s' }],
-                    symbol: 'circle', symbolSize: 6,
-                    itemStyle: { color: 'green' },
-                    label: { show: true, position: 'top', fontWeight: 'bold' }
+                    symbol: 'circle', symbolSize: 8,
+                    itemStyle: { color: '#4ade80' },
+                    label: { show: true, position: 'top', fontWeight: 'bold', fontSize: 13, color: '#4ade80' }
                 } : {}
             },
             {
@@ -392,13 +442,19 @@ function renderChart(data, rainData) {
                 data: waterLevelData,
                 smooth: true,
                 symbol: 'none',
-                itemStyle: { color: 'blue' },
-                lineStyle: { width: 3, color: 'blue', type: 'dashed' },
+                itemStyle: { color: '#00d4ff' },
+                lineStyle: { width: 2, color: '#00d4ff' },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(0, 212, 255, 0.2)' },
+                        { offset: 1, color: 'rgba(0, 212, 255, 0)' }
+                    ])
+                },
                 markPoint: peakWaterLevel ? {
                     data: [{ coord: peakWaterLevel.coord, value: peakWaterLevel.coord[1] + ' m' }],
-                    symbol: 'circle', symbolSize: 6,
-                    itemStyle: { color: 'blue' },
-                    label: { show: true, position: 'top', fontWeight: 'bold' }
+                    symbol: 'circle', symbolSize: 8,
+                    itemStyle: { color: '#00d4ff' },
+                    label: { show: true, position: 'top', fontWeight: 'bold', fontSize: 13, color: '#00d4ff' }
                 } : {}
             },
             {
@@ -407,14 +463,14 @@ function renderChart(data, rainData) {
                 xAxisIndex: 1,
                 yAxisIndex: 2,
                 data: [],
-                itemStyle: { color: 'red' },
+                itemStyle: { color: '#fbbf24' },
                 markLine: {
                     silent: true,
                     symbol: 'none',
                     data: [{
                         yAxis: 248,
-                        lineStyle: { color: 'red', width: 1, type: [10, 5, 2, 5] },
-                        label: { show: true, position: 'insideEndTop', formatter: '汛限水位 248m' }
+                        lineStyle: { color: '#fbbf24', width: 1, type: [10, 5, 2, 5] },
+                        label: { show: true, position: 'insideEndTop', formatter: '汛限水位 248m', color: '#fbbf24' }
                     }]
                 }
             },
@@ -424,14 +480,14 @@ function renderChart(data, rainData) {
                 xAxisIndex: 1,
                 yAxisIndex: 2,
                 data: [],
-                itemStyle: { color: 'red' },
+                itemStyle: { color: '#f44336' },
                 markLine: {
                     silent: true,
                     symbol: 'none',
                     data: [{
                         yAxis: 270,
-                        lineStyle: { color: 'red', width: 1, type: [10, 5, 2, 5] },
-                        label: { show: true, position: 'insideEndTop', formatter: '防洪高水位 270m' }
+                        lineStyle: { color: '#f44336', width: 1, type: [10, 5, 2, 5] },
+                        label: { show: true, position: 'insideEndTop', formatter: '防洪高水位 270m', color: '#f44336' }
                     }]
                 }
             }
@@ -556,8 +612,9 @@ function formatNumber(num) {
 
 /**
  * 初始化地图 - 加载Portal WebMap
+ * @param {Object|null} location - 定位坐标 {longitude, latitude}，为null时使用默认坐标
  */
-function initMap() {
+function initMap(location) {
     require([
         "esri/WebMap",
         "esri/views/MapView",
@@ -576,11 +633,15 @@ function initMap() {
             }
         });
 
+        // 根据是否有坐标决定地图中心和缩放级别
+        const center = location ? [location.longitude, location.latitude] : [114.057818, 35.826884];
+        const zoom = location ? 13 : 10;
+
         const view = new MapView({
             container: "viewDiv",
             map: webmap,
-            center: [114.057818, 35.826884],
-            zoom: 10
+            center: center,
+            zoom: zoom
         });
     });
 }

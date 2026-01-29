@@ -443,8 +443,8 @@ iframe {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 450px;
-    max-height: 550px;
+    width: 550px;
+    max-height: 650px;
     background: var(--light-blue-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -454,6 +454,8 @@ iframe {
     flex-direction: column;
     color: var(--text-main);
     backdrop-filter: blur(20px);
+    overflow: hidden;
+    /* 确保内容不溢出弹窗 */
 }
 
 .history-header {
@@ -509,6 +511,36 @@ iframe {
 
 .delete-btn:hover {
     background: #ff7875;
+}
+
+/* 历史对话列表容器 - 启用滚动 */
+.history-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    /* 确保flex子项可以正确收缩 */
+}
+
+/* 历史列表滚动条样式 */
+.history-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.history-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.history-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.4);
+    border-radius: 3px;
+}
+
+.history-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 212, 255, 0.6);
 }
 
 .history-item {

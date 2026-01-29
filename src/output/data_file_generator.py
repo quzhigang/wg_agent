@@ -92,10 +92,13 @@ class DataFileGenerator:
         Returns:
             生成的文件路径
         """
+        # 预处理上下文数据，提取结构化信息供组件使用
+        processed_context = self._preprocess_context_data(context_data) if context_data else {}
+
         # 合并数据
         data = {
             "static": static_data,
-            "context": context_data or {},
+            "context": processed_context,
             "generated_at": datetime.now().isoformat()
         }
 
@@ -109,6 +112,312 @@ class DataFileGenerator:
 
         logger.info(f"生成 data.js: {file_path}")
         return file_path
+
+    def _preprocess_context_data(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        预处理上下文数据，提取结构化信息供组件使用
+
+        从检索到的文档中提取：
+        - 所有图片URL列表
+        - 解析后的表格数据
+        - 关键属性信息
+
+        Args:
+            context: 原始上下文数据
+
+        Returns:
+            预处理后的上下文数据
+        """
+        import re
+
+        # 复制原始数据
+        processed = context.copy()
+
+        # 提取检索文档中的结构化数据
+        retrieval = context.get('retrieval', {})
+        documents = retrieval.get('documents', [])
+
+        if documents:
+            # 1. 收集所有图片URL
+            all_images = []
+            for doc in documents:
+                metadata = doc.get('metadata', {})
+                images = metadata.get('images', [])
+                all_images.extend(images)
+
+            # 2. 解析文档内容，提取结构化信息
+            parsed_info = []
+            for doc in documents:
+                content = doc.get('content', '')
+                metadata = doc.get('metadata', {})
+
+                # 解析 Markdown 格式的键值对（如 "- **key**: value"）
+                kv_pattern = r'-\s*\*\*([^*]+)\*\*[：:]\s*(.+?)(?=\n|$)'
+                matches = re.findall(kv_pattern, content)
+
+                for key, value in matches:
+                    # 跳过一些不需要展示的字段
+                    skip_keys = ['id', 'update_time', '模型实例']
+                    if key.strip().lower() not in [k.lower() for k in skip_keys]:
+                        parsed_info.append({
+                            'label': key.strip(),
+                            'value': value.strip()
+                        })
+
+            # 3. 提取地理坐标（用于地图组件）
+            geo_info = self._extract_geo_info(documents)
+
+            # 4. 提取泄流曲线数据（用于图表组件）
+            discharge_curve = self._extract_discharge_curve(documents)
+
+            # 5. 提取关键指标（用于 StatCard 组件）
+            key_metrics = self._extract_key_metrics(parsed_info)
+
+            # 6. 添加预处理后的数据到 context
+            processed['all_images'] = all_images
+            processed['parsed_info_table'] = parsed_info
+            if geo_info:
+                processed['geo_info'] = geo_info
+            if discharge_curve:
+                processed['discharge_curve'] = discharge_curve
+            if key_metrics:
+                processed['key_metrics'] = key_metrics
+
+        return processed
+
+    def _extract_geo_info(self, documents: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        从文档中提取地理坐标信息
+
+        支持多种坐标格式：
+        1. 经纬度格式（latitude/longitude, 纬度/经度, lgtd/lttd）
+        2. 投影坐标格式（坐标X/坐标Y）- 自动转换为经纬度
+
+        Args:
+            documents: 文档列表
+
+        Returns:
+            地理信息字典，包含 latitude, longitude, center, name
+        """
+        import re
+
+        for doc in documents:
+            content = doc.get('content', '')
+
+            # 提取对象名称（用于地图标注）
+            name = ''
+            name_match = re.search(r'\*{0,2}(?:name|名称|stnm)\*{0,2}[：:*]+\s*(.+?)(?:\n|$)', content, re.IGNORECASE)
+            if name_match:
+                name = name_match.group(1).strip()
+
+            # 方式1：匹配 latitude/纬度 和 longitude/经度 格式
+            # 支持普通格式和 markdown 加粗格式（如 **latitude:** 35.740422）
+            # 注意：markdown格式中冒号后可能还有星号，如 **latitude:** 中的 :**
+            lat_match = re.search(r'\*{0,2}(?:latitude|纬度)\*{0,2}[：:*]+\s*([\d.]+)', content, re.IGNORECASE)
+            lng_match = re.search(r'\*{0,2}(?:longitude|经度)\*{0,2}[：:*]+\s*([\d.]+)', content, re.IGNORECASE)
+
+            if lat_match and lng_match:
+                lat = float(lat_match.group(1))
+                lng = float(lng_match.group(1))
+                # 验证是否为有效的经纬度范围（中国范围）
+                if 73 <= lng <= 136 and 18 <= lat <= 54:
+                    return {
+                        'latitude': lat,
+                        'longitude': lng,
+                        'center': [lng, lat],
+                        'name': name
+                    }
+
+            # 方式2：匹配 lgtd/lttd 格式（水利系统常用）
+            # 支持普通格式和 markdown 加粗格式
+            lgtd_match = re.search(r'\*{0,2}(?:lgtd|经度)\*{0,2}[：:*]+\s*([\d.]+)', content, re.IGNORECASE)
+            lttd_match = re.search(r'\*{0,2}(?:lttd|纬度)\*{0,2}[：:*]+\s*([\d.]+)', content, re.IGNORECASE)
+
+            if lgtd_match and lttd_match:
+                lng = float(lgtd_match.group(1))
+                lat = float(lttd_match.group(1))
+                if 73 <= lng <= 136 and 18 <= lat <= 54:
+                    return {
+                        'latitude': lat,
+                        'longitude': lng,
+                        'center': [lng, lat],
+                        'name': name
+                    }
+
+            # 方式3：匹配投影坐标格式（坐标X/坐标Y）
+            # 水利系统常用高斯-克吕格投影坐标
+            # 支持普通格式和 markdown 加粗格式
+            x_match = re.search(r'\*{0,2}(?:坐标X|X坐标|x)\*{0,2}[：:*]+\s*([\d.]+)', content, re.IGNORECASE)
+            y_match = re.search(r'\*{0,2}(?:坐标Y|Y坐标|y)\*{0,2}[：:*]+\s*([\d.]+)', content, re.IGNORECASE)
+
+            if x_match and y_match:
+                x = float(x_match.group(1))
+                y = float(y_match.group(1))
+                # 尝试将投影坐标转换为经纬度
+                geo_result = self._convert_projection_to_latlon(x, y)
+                if geo_result:
+                    geo_result['name'] = name
+                    return geo_result
+
+        return None
+
+    def _convert_projection_to_latlon(self, x: float, y: float) -> Optional[Dict[str, Any]]:
+        """
+        将投影坐标（CGCS 2000 114E 3度带投影）转换为经纬度
+
+        本项目所有投影坐标统一使用 CGCS 2000 114E 投影坐标系（3度带，中央经线114度）
+
+        Args:
+            x: X坐标（东向坐标）
+            y: Y坐标（北向坐标）
+
+        Returns:
+            地理信息字典，包含 latitude, longitude, center
+        """
+        import math
+
+        # CGCS2000 椭球参数
+        a = 6378137.0  # 长半轴
+        f = 1 / 298.257222101  # 扁率
+        b = a * (1 - f)  # 短半轴
+        e2 = (a * a - b * b) / (a * a)  # 第一偏心率的平方
+        e12 = (a * a - b * b) / (b * b)  # 第二偏心率的平方
+
+        # 本项目统一使用 CGCS 2000 114E 投影坐标系（3度带，中央经线114度）
+        central_meridian = 114
+        x_offset = x
+
+        # 添加500km偏移（高斯投影的假东坐标）
+        x_offset = x_offset - 500000
+
+        # 高斯-克吕格反算
+        try:
+            # 底点纬度迭代计算
+            M = y  # 子午线弧长
+            mu = M / (a * (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256))
+
+            e1 = (1 - math.sqrt(1 - e2)) / (1 + math.sqrt(1 - e2))
+
+            phi1 = mu + (3 * e1 / 2 - 27 * e1 * e1 * e1 / 32) * math.sin(2 * mu) \
+                   + (21 * e1 * e1 / 16 - 55 * e1 * e1 * e1 * e1 / 32) * math.sin(4 * mu) \
+                   + (151 * e1 * e1 * e1 / 96) * math.sin(6 * mu) \
+                   + (1097 * e1 * e1 * e1 * e1 / 512) * math.sin(8 * mu)
+
+            # 计算辅助参数
+            N1 = a / math.sqrt(1 - e2 * math.sin(phi1) * math.sin(phi1))
+            T1 = math.tan(phi1) * math.tan(phi1)
+            C1 = e12 * math.cos(phi1) * math.cos(phi1)
+            R1 = a * (1 - e2) / math.pow(1 - e2 * math.sin(phi1) * math.sin(phi1), 1.5)
+            D = x_offset / N1
+
+            # 计算纬度
+            lat_rad = phi1 - (N1 * math.tan(phi1) / R1) * (
+                D * D / 2
+                - (5 + 3 * T1 + 10 * C1 - 4 * C1 * C1 - 9 * e12) * D * D * D * D / 24
+                + (61 + 90 * T1 + 298 * C1 + 45 * T1 * T1 - 252 * e12 - 3 * C1 * C1) * D * D * D * D * D * D / 720
+            )
+
+            # 计算经度
+            lon_rad = math.radians(central_meridian) + (
+                D
+                - (1 + 2 * T1 + C1) * D * D * D / 6
+                + (5 - 2 * C1 + 28 * T1 - 3 * C1 * C1 + 8 * e12 + 24 * T1 * T1) * D * D * D * D * D / 120
+            ) / math.cos(phi1)
+
+            # 转换为度
+            lat = math.degrees(lat_rad)
+            lng = math.degrees(lon_rad)
+
+            # 验证结果是否在中国范围内
+            if 73 <= lng <= 136 and 18 <= lat <= 54:
+                logger.info(f"投影坐标转换成功: ({x}, {y}) -> ({lng:.6f}, {lat:.6f})")
+                return {
+                    'latitude': round(lat, 6),
+                    'longitude': round(lng, 6),
+                    'center': [round(lng, 6), round(lat, 6)]
+                }
+            else:
+                logger.warning(f"转换后的坐标超出中国范围: ({lng}, {lat})")
+                return None
+
+        except Exception as e:
+            logger.error(f"投影坐标转换失败: {e}")
+            return None
+
+    def _extract_discharge_curve(self, documents: List[Dict[str, Any]]) -> Optional[List[List[float]]]:
+        """
+        从文档中提取泄流曲线数据
+
+        Args:
+            documents: 文档列表
+
+        Returns:
+            泄流曲线数据 [[流量, 水位], ...]
+        """
+        import re
+        import json
+
+        for doc in documents:
+            content = doc.get('content', '')
+
+            # 匹配泄流曲线数据格式：[[0,58],[20,58.86],...]
+            # 关键词：水位和流量的关系、泄流曲线
+            # 支持 Markdown 格式 **字段名**: 值
+            curve_pattern = r'\*\*[^*]*(?:水位和流量的关系|泄流曲线)[^*]*\*\*[：:]\s*(\[\[[\d.,\s\[\]]+\]\])'
+            match = re.search(curve_pattern, content)
+
+            if match:
+                try:
+                    curve_data = json.loads(match.group(1))
+                    return curve_data
+                except json.JSONDecodeError:
+                    continue
+
+        return None
+
+    def _extract_key_metrics(self, parsed_info: List[Dict[str, str]]) -> Dict[str, Any]:
+        """
+        从解析后的信息中提取关键指标（用于 StatCard）
+
+        Args:
+            parsed_info: 解析后的键值对列表
+
+        Returns:
+            关键指标字典
+        """
+        # 定义需要提取的关键指标及其映射
+        metric_mappings = {
+            '设计流量': 'design_flow',
+            '闸底高程': 'bottom_elevation',
+            '闸孔数': 'gate_count',
+            '闸孔数量': 'gate_count',
+            'now_state': 'current_state',
+            '当前状态': 'current_state',
+            '单孔净宽': 'gate_width',
+            '闸门高度': 'gate_height',
+            '闸顶高程': 'top_elevation',
+            '库容': 'capacity',
+            '总库容': 'total_capacity',
+            '正常蓄水位': 'normal_level',
+            '汛限水位': 'flood_limit_level',
+            '设计洪水位': 'design_flood_level',
+            '校核洪水位': 'check_flood_level',
+            '坝顶高程': 'dam_crest_elevation',
+            '坝长': 'dam_length',
+            '坝高': 'dam_height',
+            '流域面积': 'catchment_area',
+        }
+
+        key_metrics = {}
+        for item in parsed_info:
+            label = item.get('label', '')
+            value = item.get('value', '')
+
+            if label in metric_mappings:
+                metric_key = metric_mappings[label]
+                key_metrics[metric_key] = value
+
+        return key_metrics
 
     def _ensure_config_structure(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """

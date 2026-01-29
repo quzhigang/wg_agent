@@ -91,7 +91,43 @@ class RAGRetriever:
             if 'nodes' in structure:
                 self._get_node_mapping(structure['nodes'], mapping)
         return mapping
-    
+
+    def _extract_images_from_content(self, content: str, kb_id: str, doc_name: str) -> List[str]:
+        """
+        从文档内容中提取图片URL
+
+        Args:
+            content: 文档内容（可能包含Markdown图片语法）
+            kb_id: 知识库ID
+            doc_name: 文档名称
+
+        Returns:
+            图片URL列表（完整的可访问路径）
+        """
+        import re
+        images = []
+
+        # 匹配 Markdown 图片语法: ![alt](path)
+        pattern = r'!\[([^\]]*)\]\(([^)]+)\)'
+        matches = re.findall(pattern, content)
+
+        for alt, path in matches:
+            # 构建完整的图片URL
+            # 图片存储在 PageIndex/knowledge_bases/{kb_id}/uploads/images/{filename}
+            if path.startswith('images/'):
+                # 相对路径，使用 API 路径: /knowledge/kb-doc/{kb_id}/images/{filename}
+                full_url = f"/knowledge/kb-doc/{kb_id}/{path}"
+                images.append(full_url)
+            elif path.startswith('http'):
+                # 已经是完整URL
+                images.append(path)
+            else:
+                # 其他相对路径
+                full_url = f"/knowledge/kb-doc/{kb_id}/{path}"
+                images.append(full_url)
+
+        return images
+
     async def retrieve(
         self,
         query: str,
@@ -158,6 +194,9 @@ class RAGRetriever:
                     if node and node.get("text"):
                         content = node["text"]
 
+                # 提取图片URL
+                images = self._extract_images_from_content(content, kb_id, doc_name)
+
                 results.append({
                     'content': content,
                     'metadata': {
@@ -165,7 +204,9 @@ class RAGRetriever:
                         'node_id': node_id,
                         'title': title,
                         'category': kb_id or doc_name,
-                        'source': 'pageindex'
+                        'source': 'pageindex',
+                        'has_images': len(images) > 0,
+                        'images': images  # 图片URL列表
                     },
                     'id': f"{doc_name}_{node_id}",
                     'score': score

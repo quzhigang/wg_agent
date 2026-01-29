@@ -1134,7 +1134,7 @@ async def run_agent_stream(
                         }
                         # 启动异步页面生成任务
                         import asyncio
-                        _page_context = node_output.get('response_context', {})
+                        _page_context = node_output.get('response_context') or {}
                         # 创建页面生成任务（不等待），存储到外层变量
                         pending_page_task = asyncio.create_task(
                             controller.generate_page_only(node_output, _page_context)

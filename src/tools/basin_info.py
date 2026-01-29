@@ -57,7 +57,7 @@ class GetMapDataTool(BaseTool):
             ToolParameter(
                 name="filter_field",
                 type="string",
-                description="查询字段名。水库使用stcd(编码)和res_name(名称)；测站、蓄滞洪区、分洪闸堰使用code(编码)和name(名称)",
+                description="查询字段名。水库使用stcd(编码)和res_name(名称)；测站使用stcd(编码)和stnm(名称)；蓄滞洪区、分洪闸堰使用code(编码)和name(名称)",
                 required=False
             ),
             ToolParameter(
