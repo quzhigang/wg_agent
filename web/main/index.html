@@ -201,8 +201,6 @@
             }
 
             function handleEvent(data, ui) {
-                console.log('[DEBUG] Received event:', data.type, data);  // 调试日志
-
                 // 意图类别中文映射
                 const categoryMap = {
                     'chat': '一般对话',
@@ -376,7 +374,6 @@
                         break;
                     case 'page_generating':
                         // 页面开始生成，可以显示loading提示（可选）
-                        console.log('[DEBUG] 页面生成中...');
                         break;
                     case 'final_text':
                         // 文字回复完成，立即显示（不等待页面）

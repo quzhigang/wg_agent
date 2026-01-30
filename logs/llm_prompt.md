@@ -1,14 +1,14 @@
 
-*****会话ID: fc70bcd7-8174-45e5-b908-d4c24cc9a99b | 问题: 查看展示月山水库视频监控，我想看看当前月山水库的实况*****
+*****会话ID: b34dd587-1f19-4936-acbd-4eb2b1a0349d | 问题: 新村站当前水位流量？*****
 
-## 一、意图分析 [2.87s] (Planner.analyze_intent)
-**时间**: 2026-01-30 18:55:22
+## 一、意图分析 [2.33s] (Planner.analyze_intent)
+**时间**: 2026-01-30 19:43:36
 **提示词模板**: INTENT_ANALYSIS_PROMPT
 
 **上下文变量**:
 - context_summary: 无
 - chat_history: 无
-- user_message: 查看展示月山水库视频监控，我想看看当前月山水库的实况
+- user_message: 新村站当前水位流量？
 
 **完整提示词**:
 ```
@@ -58,7 +58,7 @@
 无
 
 ## 用户当前消息
-查看展示月山水库视频监控，我想看看当前月山水库的实况
+新村站当前水位流量？
 
 ## 输出要求
 请分析用户意图，返回JSON格式:
@@ -130,26 +130,26 @@
 
 **LLM响应**:
 ```
-{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '月山水库', 'object_type': '水库', 'action': '查看视频监控', 'time': '当前'}, 'target_kbs': ['monitor_site']}
+{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '新村站', 'object_type': None, 'action': '查询当前水位和流量', 'time': '当前'}, 'target_kbs': ['monitor_site']}
 ```
 
-## 二、业务子意图分类 [1.98s] (Planner.classify_business_sub_intent)
-**时间**: 2026-01-30 18:55:24
+## 二、业务子意图分类 [1.86s] (Planner.classify_business_sub_intent)
+**时间**: 2026-01-30 19:43:38
 **提示词模板**: BUSINESS_SUB_INTENT_PROMPT
 
 **上下文变量**:
-- user_message: 查看展示月山水库视频监控，我想看看当前月山水库的实况
-- entities: {"object": "月山水库", "object_type": "水库", "action": "查看视频监控", "time": "当前"}
+- user_message: 新村站当前水位流量？
+- entities: {"object": "新村站", "object_type": null, "action": "查询当前水位和流量", "time": "当前"}
 
 **完整提示词**:
 ```
 你是河南省卫共流域数字孪生系统的业务意图分类器，负责对业务类意图进行细分。
 
 ## 用户消息
-查看展示月山水库视频监控，我想看看当前月山水库的实况
+新村站当前水位流量？
 
 ## 提取的实体
-{"object": "月山水库", "object_type": "水库", "action": "查看视频监控", "time": "当前"}
+{"object": "新村站", "object_type": null, "action": "查询当前水位和流量", "time": "当前"}
 
 ## 业务子意图分类体系
 
@@ -215,27 +215,27 @@
 
 **LLM响应**:
 ```
-{'business_sub_intent': 'data_query', 'confidence': 0.95, 'reason': '用户请求查看月山水库的当前视频监控，属于对实时监测数据（视频）的查询，不涉及对比、分析或判断，符合data_query类别的定义。'}
+{'business_sub_intent': 'data_query', 'confidence': 0.95, 'reason': '用户请求查询新村站当前的水位和流量，属于实时监测数据的单一查询，不涉及对比、分析或判断，符合data_query类别。'}
 ```
 
-## 三、多类型站点选择 [0.89s] (Planner._llm_select_station_type)
-**时间**: 2026-01-30 18:55:25
+## 三、多类型站点选择 [0.43s] (Planner._llm_select_station_type)
+**时间**: 2026-01-30 19:43:39
 **提示词模板**: STATION_TYPE_SELECT_PROMPT
 
 **上下文变量**:
-- object_name: 月山水库
-- user_message: 查看展示月山水库视频监控，我想看看当前月山水库的实况
-- candidate_types: ['雨量站', '水库水文站', '视频监测']
+- object_name: 新村站
+- user_message: 新村站当前水位流量？
+- candidate_types: ['雨量站', '视频监测', '河道水文站', '墒情站']
 
 **完整提示词**:
 ```
-根据用户的对话意图，判断"月山水库"最可能是哪种类型的监测站点。
+根据用户的对话意图，判断"新村站"最可能是哪种类型的监测站点。
 
 ## 用户消息
-查看展示月山水库视频监控，我想看看当前月山水库的实况
+新村站当前水位流量？
 
 ## 候选类型（数据库查询到的）
-雨量站, 水库水文站, 视频监测
+雨量站, 视频监测, 河道水文站, 墒情站
 
 ## 所有监测站点类型参考
 - 水库水文站：监测水库水位、入库流量、出库流量等
@@ -259,46 +259,46 @@
 
 **LLM响应**:
 ```
-视频监测
+河道水文站
 ```
 
-## 四、工作流选择 [2.35s] (Planner.check_workflow_match)
-**时间**: 2026-01-30 18:55:28
+## 四、工作流选择 [2.32s] (Planner.check_workflow_match)
+**时间**: 2026-01-30 19:43:41
 **提示词模板**: WORKFLOW_SELECT_PROMPT
 
 **上下文变量**:
-- user_message: 查看展示月山水库视频监控，我想看看当前月山水库的实况
-- entities: {"object": "月山水库", "object_type": "视频监测", "action": "查看视频监控", "time": "当前", "stcd": "41082240001-A4"}
+- user_message: 新村站当前水位流量？
+- entities: {"object": "新村站", "object_type": "河道水文站", "action": "查询当前水位和流量", "time": "当前", "stcd": "31005700"}
 - business_sub_intent: data_query
 - predefined_workflows: 
 暂无预定义的数据查询工作流模板，请检查已保存的动态工作流或进行动态规划。
 
-- saved_workflows: - ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
-  名称: query_reservoir_realtime_water_level
-  中文名: 水库实时水情查询
-  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。
-  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容，仅适用于水库水文站数据来源
-  相似度: 0.496
-- ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
+- saved_workflows: - ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
   名称: query_river_realtime_water_flow
   中文名: 河道实时水情查询
   描述: 查询指定河道水文站的实时水情，包括水位、流量等
   触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，仅适用于河道水文站数据来源
-  相似度: 0.441
-- ID: c2280d42-5aaf-4858-b8bf-73ad513564fa
-  名称: query_video_monitoring
-  中文名: 视频监控查询
-  描述: 用于查询特定对象的实时视频监控信息，适用于水库、站点等具备视频监测能力的对象。
-  触发模式: 用户请求查看{{对象}}的实时视频监控，且该对象类型为{{对象类型}}，数据来源为视频监测系统。
-  相似度: 0.425
+  相似度: 0.448
+- ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
+  名称: query_reservoir_realtime_water_level
+  中文名: 水库实时水情查询
+  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。
+  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容，仅适用于水库水文站数据来源
+  相似度: 0.434
+- ID: b9a9440d-5bcc-4c39-8282-aef25e67b75e
+  名称: query_video_monitor_realtime
+  中文名: 视频监控实时查看
+  描述: 用于查询特定对象的视频监控实时信息，适用于水库、站点等具备视频监测能力的对象。
+  触发模式: 用户意图是查看{{对象类型}}的实时视频监控，且数据来源为视频监测系统。
+  相似度: 0.328
 
 **完整提示词**:
 ```
 你是河南省卫共流域数字孪生系统的业务流程选择器，负责从可用工作流中选择最匹配的一个。
 
 ## 输入信息
-- 用户消息：查看展示月山水库视频监控，我想看看当前月山水库的实况
-- 实体：{"object": "月山水库", "object_type": "视频监测", "action": "查看视频监控", "time": "当前", "stcd": "41082240001-A4"}
+- 用户消息：新村站当前水位流量？
+- 实体：{"object": "新村站", "object_type": "河道水文站", "action": "查询当前水位和流量", "time": "当前", "stcd": "31005700"}
 - 子意图：data_query
 
 ## 可用的预定义工作流
@@ -307,24 +307,24 @@
 
 
 ## 可用的已保存工作流
-- ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
-  名称: query_reservoir_realtime_water_level
-  中文名: 水库实时水情查询
-  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。
-  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容，仅适用于水库水文站数据来源
-  相似度: 0.496
 - ID: d4f5231d-8f26-4fb1-818f-d2d45498d2c5
   名称: query_river_realtime_water_flow
   中文名: 河道实时水情查询
   描述: 查询指定河道水文站的实时水情，包括水位、流量等
   触发模式: 用户意图是查询特定河道水文站的实时水情，包括水位、流量等，仅适用于河道水文站数据来源
-  相似度: 0.441
-- ID: c2280d42-5aaf-4858-b8bf-73ad513564fa
-  名称: query_video_monitoring
-  中文名: 视频监控查询
-  描述: 用于查询特定对象的实时视频监控信息，适用于水库、站点等具备视频监测能力的对象。
-  触发模式: 用户请求查看{{对象}}的实时视频监控，且该对象类型为{{对象类型}}，数据来源为视频监测系统。
-  相似度: 0.425
+  相似度: 0.448
+- ID: 1a1cafb9-04e4-447e-b16d-afa641e8d7e9
+  名称: query_reservoir_realtime_water_level
+  中文名: 水库实时水情查询
+  描述: 查询指定水库的实时水情数据，包括当前水位、当前蓄水量(库容)、入库和出库流量等。
+  触发模式: 查询水库当前水位、水库实时水情、水库当前蓄水量或库容，仅适用于水库水文站数据来源
+  相似度: 0.434
+- ID: b9a9440d-5bcc-4c39-8282-aef25e67b75e
+  名称: query_video_monitor_realtime
+  中文名: 视频监控实时查看
+  描述: 用于查询特定对象的视频监控实时信息，适用于水库、站点等具备视频监测能力的对象。
+  触发模式: 用户意图是查看{{对象类型}}的实时视频监控，且数据来源为视频监测系统。
+  相似度: 0.328
 
 ## 匹配规则
 
@@ -354,62 +354,178 @@
 
 **LLM响应**:
 ```
-{'matched_workflow': None, 'saved_workflow_id': 'c2280d42-5aaf-4858-b8bf-73ad513564fa', 'output_type': 'web_page'}
+{'matched_workflow': '河道实时水情查询', 'saved_workflow_id': 'd4f5231d-8f26-4fb1-818f-d2d45498d2c5', 'output_type': 'text'}
 ```
 
-## 五、模板LLM精选 [3.25s] (TemplateMatchService._llm_select_template)
-**时间**: 2026-01-30 18:55:32
+## 五、文字响应生成 [3.05s] (Controller.generate_text_only)
+**时间**: 2026-01-30 19:43:44
+**提示词模板**: RESPONSE_GENERATION_PROMPT
+
+**上下文变量**:
+- chat_history: 无
+- user_message: 新村站当前水位流量？
+- intent: data_query
+- plan_summary: 1. 登录流域数字孪生系统获取访问令牌 [completed]
+2. 根据站点名称和类型查询测站编码 [completed]
+3. 根据测站编码查询实时水位和流量数据 [completed]
+- execution_results: 步骤1:   - success: True
+  - data: {'userId': '1339550467939639299', 'message': '使用现有有效Token'}
+  - error: None
+  - execution_time_ms: 0
+  - metadata: None
+
+步骤2:   - success: True
+  - data: {'stcd': '31005700', 'stnm': '新村', 'stations': [{'stnm': '新村', 'stcd': '31005700', 'type': '河道水文站'}, {'stnm': '新村', 'stcd': '31005700', 'type': '雨量站'}, {'stnm': '新村', 'stcd': '31021606', 'type': '雨量站'}, {'stnm': '新村(Ⅱ)', 'stcd': '310A5700', 'type': '墒情站'}, {'stnm': '鹤壁市淇河新村水文站', 'stcd': '31005700', 'type': '视频监测'}]}
+  - error: None
+  - execution_time_ms: 6
+  - metadata: {'query': '新村站', 'count': 5}
+
+步骤3:   - success: True
+  - data: [{'lgtd': 114.235, 'lttd': 35.7616, 'stnm': '新村', 'warn': None, 'rvnm': '淇河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '淇滨区庞村镇新村', 'addvcd': '410601', 'sttp': 'ZQ', 'stazt': '100', 'q': 2.06, 'stcd': '31005700', 'z': 97.88, 'tm': '2026-01-30 08:00:00', 'flwchrcd': None, 'wptn': '5'}]
+  - error: None
+  - execution_time_ms: 117
+  - metadata: {'query_type': 'river_last', 'record_count': 1}
+- retrieved_documents: 无相关知识
+
+**完整提示词**:
+```
+你是卫共流域数字孪生系统的智能助手，负责生成最终响应。
+
+## 最近对话历史
+无
+
+## 用户原始问题
+新村站当前水位流量？
+
+## 用户意图
+data_query
+
+## 执行计划
+1. 登录流域数字孪生系统获取访问令牌 [completed]
+2. 根据站点名称和类型查询测站编码 [completed]
+3. 根据测站编码查询实时水位和流量数据 [completed]
+
+## 执行结果
+步骤1:   - success: True
+  - data: {'userId': '1339550467939639299', 'message': '使用现有有效Token'}
+  - error: None
+  - execution_time_ms: 0
+  - metadata: None
+
+步骤2:   - success: True
+  - data: {'stcd': '31005700', 'stnm': '新村', 'stations': [{'stnm': '新村', 'stcd': '31005700', 'type': '河道水文站'}, {'stnm': '新村', 'stcd': '31005700', 'type': '雨量站'}, {'stnm': '新村', 'stcd': '31021606', 'type': '雨量站'}, {'stnm': '新村(Ⅱ)', 'stcd': '310A5700', 'type': '墒情站'}, {'stnm': '鹤壁市淇河新村水文站', 'stcd': '31005700', 'type': '视频监测'}]}
+  - error: None
+  - execution_time_ms: 6
+  - metadata: {'query': '新村站', 'count': 5}
+
+步骤3:   - success: True
+  - data: [{'lgtd': 114.235, 'lttd': 35.7616, 'stnm': '新村', 'warn': None, 'rvnm': '淇河', 'hnnm': '漳卫南运河', 'bsnm': '海河', 'stlc': '淇滨区庞村镇新村', 'addvcd': '410601', 'sttp': 'ZQ', 'stazt': '100', 'q': 2.06, 'stcd': '31005700', 'z': 97.88, 'tm': '2026-01-30 08:00:00', 'flwchrcd': None, 'wptn': '5'}]
+  - error: None
+  - execution_time_ms: 117
+  - metadata: {'query_type': 'river_last', 'record_count': 1}
+
+## 检索到的相关知识
+无相关知识
+
+## 输出要求
+1. 结合对话历史理解用户问题的完整含义（如用户说"小南海呢？"，需结合历史知道是在问流域面积）
+2. 根据执行结果，生成清晰、准确、专业的回答
+3. 回答应该简洁明了，直接切中主题，突出关键数据和结论
+4. 如果执行过程中有错误，请适当说明并给出建议
+5. 【重要】如果使用了检索到的知识，必须在回答末尾添加"参考来源"部分。直接复制上面每条知识的"来源引用格式"字段内容作为来源链接，不要修改或简化！
+
+## 格式禁止
+- 【禁止】不要使用Markdown表格格式（如 | 列1 | 列2 | 这种格式）
+- 【禁止】不要罗列大量数据项，表格和详细数据应在左侧报告页面中展示
+- 【建议】使用简洁的文字描述或短列表（如"- 项目: 值"）来呈现关键信息
+- 【建议】如果数据较多，只提取最关键的2-3个指标进行说明，并提示用户查看左侧报告页面获取完整信息
+
+请生成最终回答:
+
+```
+
+**LLM响应**:
+```
+新村站的实时水文数据如下：
+
+- **当前水位**：97.88米  
+- **当前流量**：2.06立方米/秒  
+- **时间戳**：2026年01月30日 08:00:00  
+
+以上数据来源于流域数字孪生系统实时监测。
+```
+
+## 六、模板LLM精选 [4.33s] (TemplateMatchService._llm_select_template)
+**时间**: 2026-01-30 19:43:46
 **提示词模板**: TEMPLATE_SELECT_PROMPT
 
 **上下文变量**:
-- user_message: 查看展示月山水库视频监控，我想看看当前月山水库的实况
+- user_message: 新村站当前水位流量？
 - sub_intent: data_query
-- object_type: 视频监测
-- entity_params: - stcd: 41082240001-A4 (站点代码)
-- object_type: 视频监测 (对象类型)
+- object_type: 河道水文站
+- entity_params: - stcd: 31005700 (站点代码)
+- object_type: 河道水文站 (对象类型)
 - workflow_params: 无
-- candidates: - ID: 9505fce1-60b1-49e5-a8e0-fd1575c10919
-  名称: 视频监控展示
-  描述: 展示某水库的实时视频监控信息，包括设备状态和访问链接。
-  触发模式: 查看 视频监控 实况 当前 水库 监测 展示
+- candidates: - ID: 9c5080cb-3723-43b4-8d03-91ffbd1d92c4
+  名称: 查询河道水情
+  描述: 展示某河道水文站的基本信息及当前水情数据，用于实时水文监测与分析。
+  触发模式: 查询 水文站 河道水文站 水情 当前水位 实时水情 信息 详情 参数
   支持子意图: data_query
-  所需参数: stcd(站点编码),title(标题名称),url(视频流地址)
-  必须匹配的对象类型: 视频监测,小型水库
+  所需参数: stcd(站点编码),stnm(站点名称)
+  必须匹配的对象类型: 河道水文站,雨量站,墒情站,闸站监测
   优先级: 5
-  向量分数: 0.586
+  向量分数: 0.516
+- ID: 8a11bb4d-5e81-42b7-adca-8c59640927c1
+  名称: 视频监控展示
+  描述: 展示某水库的实时视频监控信息，包括设备状态和访问地址等。
+  触发模式: 查看 视频监控 实况 当前 水库 监测站 视频 视频监测
+  支持子意图: data_query
+  所需参数: stcd(站点编码),code(设备编码)
+  必须匹配的对象类型: 视频监测,视频监测站
+  优先级: 5
+  向量分数: 0.455
 
 **完整提示词**:
 ```
 你是一个Web模板选择专家。根据用户问题和可提供的参数，从候选模板中选择最合适的模板。
 
 ## 用户问题
-查看展示月山水库视频监控，我想看看当前月山水库的实况
+新村站当前水位流量？
 
 ## 业务子意图
 data_query
 
 ## 当前对象类型
-视频监测
+河道水文站
 
 ## 对象识别可提供的参数
 （来自实体解析阶段：数据库查询+知识库查询+LLM匹配）
-- stcd: 41082240001-A4 (站点代码)
-- object_type: 视频监测 (对象类型)
+- stcd: 31005700 (站点代码)
+- object_type: 河道水文站 (对象类型)
 
 ## 工作流可提供的参数
 （来自工作流执行结果）
 无
 
 ## 候选模板列表
-- ID: 9505fce1-60b1-49e5-a8e0-fd1575c10919
-  名称: 视频监控展示
-  描述: 展示某水库的实时视频监控信息，包括设备状态和访问链接。
-  触发模式: 查看 视频监控 实况 当前 水库 监测 展示
+- ID: 9c5080cb-3723-43b4-8d03-91ffbd1d92c4
+  名称: 查询河道水情
+  描述: 展示某河道水文站的基本信息及当前水情数据，用于实时水文监测与分析。
+  触发模式: 查询 水文站 河道水文站 水情 当前水位 实时水情 信息 详情 参数
   支持子意图: data_query
-  所需参数: stcd(站点编码),title(标题名称),url(视频流地址)
-  必须匹配的对象类型: 视频监测,小型水库
+  所需参数: stcd(站点编码),stnm(站点名称)
+  必须匹配的对象类型: 河道水文站,雨量站,墒情站,闸站监测
   优先级: 5
-  向量分数: 0.586
+  向量分数: 0.516
+- ID: 8a11bb4d-5e81-42b7-adca-8c59640927c1
+  名称: 视频监控展示
+  描述: 展示某水库的实时视频监控信息，包括设备状态和访问地址等。
+  触发模式: 查看 视频监控 实况 当前 水库 监测站 视频 视频监测
+  支持子意图: data_query
+  所需参数: stcd(站点编码),code(设备编码)
+  必须匹配的对象类型: 视频监测,视频监测站
+  优先级: 5
+  向量分数: 0.455
 
 ## 选择标准（按优先级排序）
 
@@ -436,96 +552,11 @@ data_query
 
 **LLM响应**:
 ```
-```json
 {
-    "selected_template_id": "9505fce1-60b1-49e5-a8e0-fd1575c10919",
-    "confidence": 0.88,
-    "reason": "模板支持data_query子意图，对象类型匹配（视频监测），且提供的参数stcd满足模板需求。虽然缺少title和url参数，但stcd已足够用于识别目标站点，因此基本满足使用条件。"
+    "selected_template_id": "9c5080cb-3723-43b4-8d03-91ffbd1d92c4",
+    "confidence": 0.9,
+    "reason": "模板所需参数 stcd 已提供，且子意图 data_query 匹配。对象类型 '河道水文站' 在模板支持的对象类型列表中。触发模式与用户问题高度相关（查询当前水位流量），因此该模板是最佳选择。"
 }
-```
-```
-
-## 六、文字响应生成 [4.64s] (Controller.generate_text_only)
-**时间**: 2026-01-30 18:55:34
-**提示词模板**: RESPONSE_GENERATION_PROMPT
-
-**上下文变量**:
-- chat_history: 无
-- user_message: 查看展示月山水库视频监控，我想看看当前月山水库的实况
-- intent: data_query
-- plan_summary: 1. 获取{{对象}}的视频监控摄像头列表 [completed]
-2. 获取{{对象}}摄像头的实时视频预览流地址 [completed]
-- execution_results: 步骤1:   - success: True
-  - data: [{'aiEnable': '1', 'code': '53fff90231e24307b78b77055c354156', 'stcd': 'ST_AI85', 'pt': 'wgly', 'stnm': '烈杠营村断面', 'lgtd': '113.4450358072916', 'lttd': '35.2701131184895', 'id': 1629, 'sort': 1, 'state': 1, 'title': '修武县烈杠营断面全景', 'type': '重要河道'}, {'aiEnable': '1', 'code': '205842b059fa499b8bfa125d3bebb645', 'stcd': 'ST_AI4', 'pt': 'wgly', 'stnm': '安阳河断面4', 'lgtd': '114.7826009114583', 'lttd': '35.9862182617187', 'id': 81134, 'sort': 1, 'state': 1, 'title': '内黄县安阳河断面4全景', 'type': '重要河道'}, {'aiEnable': '1', 'code': '995361afb41142199a78976e5de033da', 'stcd': 'ST_AI33', 'pt': 'wgly', 'stnm': '民丰排水沟卫河交叉断面', 'lgtd': '114.4891276041666', 'lttd': '35.7583536783854', 'id': 28801, 'sort': 1, 'state': 1, 'title': '浚县民丰排水沟卫河交叉断面全景', 'type': '重要河道'}, {'aiEnable': '1', 'code': '5c4e6b2e83294113b5cbb187853855bd', 'stcd': 'ST_AI36', 'pt': 'wgly', 'stnm': '卫河断面10', 'lgtd': '114.5356119791666', 'lttd': '35.6743326822916', 'id': 43201, 'sort': 1, 'state': 1, 'title': '浚县卫河断面10全景', 'type': '重要河道'}, {'aiEnable': '1', 'code': '4fd9934371064d1bb2b98efbb25f1ec8', 'stcd': 'ST_AI84', 'pt': 'wgly', 'stnm': '百泉河断面2', 'lgtd': '113.7589029947916', 'lttd': '35.5027140299479', 'id': 19934, 'sort': 1, 'state': 1, 'title': '辉县市百泉河断面2全景', 'type': '重要河道'}, '...(共441项)']
-  - error: None
-  - execution_time_ms: 809
-  - metadata: {'code': '00000', 'message': '请求成功'}
-
-步骤2:   - success: True
-  - data: {'msg': 'SUCCESS', 'code': '53fff90231e24307b78b77055c354156', 'data': {'url': 'ws://222.143.69.26:559/openUrl/vsigD6ohDZC88ef6ef05efd470092d92'}}
-  - error: None
-  - execution_time_ms: 540
-  - metadata: {'query_type': 'camera_preview', 'camera_code': '53fff90231e24307b78b77055c354156'}
-- retrieved_documents: 无相关知识
-
-**完整提示词**:
-```
-你是卫共流域数字孪生系统的智能助手，负责生成最终响应。
-
-## 最近对话历史
-无
-
-## 用户原始问题
-查看展示月山水库视频监控，我想看看当前月山水库的实况
-
-## 用户意图
-data_query
-
-## 执行计划
-1. 获取{{对象}}的视频监控摄像头列表 [completed]
-2. 获取{{对象}}摄像头的实时视频预览流地址 [completed]
-
-## 执行结果
-步骤1:   - success: True
-  - data: [{'aiEnable': '1', 'code': '53fff90231e24307b78b77055c354156', 'stcd': 'ST_AI85', 'pt': 'wgly', 'stnm': '烈杠营村断面', 'lgtd': '113.4450358072916', 'lttd': '35.2701131184895', 'id': 1629, 'sort': 1, 'state': 1, 'title': '修武县烈杠营断面全景', 'type': '重要河道'}, {'aiEnable': '1', 'code': '205842b059fa499b8bfa125d3bebb645', 'stcd': 'ST_AI4', 'pt': 'wgly', 'stnm': '安阳河断面4', 'lgtd': '114.7826009114583', 'lttd': '35.9862182617187', 'id': 81134, 'sort': 1, 'state': 1, 'title': '内黄县安阳河断面4全景', 'type': '重要河道'}, {'aiEnable': '1', 'code': '995361afb41142199a78976e5de033da', 'stcd': 'ST_AI33', 'pt': 'wgly', 'stnm': '民丰排水沟卫河交叉断面', 'lgtd': '114.4891276041666', 'lttd': '35.7583536783854', 'id': 28801, 'sort': 1, 'state': 1, 'title': '浚县民丰排水沟卫河交叉断面全景', 'type': '重要河道'}, {'aiEnable': '1', 'code': '5c4e6b2e83294113b5cbb187853855bd', 'stcd': 'ST_AI36', 'pt': 'wgly', 'stnm': '卫河断面10', 'lgtd': '114.5356119791666', 'lttd': '35.6743326822916', 'id': 43201, 'sort': 1, 'state': 1, 'title': '浚县卫河断面10全景', 'type': '重要河道'}, {'aiEnable': '1', 'code': '4fd9934371064d1bb2b98efbb25f1ec8', 'stcd': 'ST_AI84', 'pt': 'wgly', 'stnm': '百泉河断面2', 'lgtd': '113.7589029947916', 'lttd': '35.5027140299479', 'id': 19934, 'sort': 1, 'state': 1, 'title': '辉县市百泉河断面2全景', 'type': '重要河道'}, '...(共441项)']
-  - error: None
-  - execution_time_ms: 809
-  - metadata: {'code': '00000', 'message': '请求成功'}
-
-步骤2:   - success: True
-  - data: {'msg': 'SUCCESS', 'code': '53fff90231e24307b78b77055c354156', 'data': {'url': 'ws://222.143.69.26:559/openUrl/vsigD6ohDZC88ef6ef05efd470092d92'}}
-  - error: None
-  - execution_time_ms: 540
-  - metadata: {'query_type': 'camera_preview', 'camera_code': '53fff90231e24307b78b77055c354156'}
-
-## 检索到的相关知识
-无相关知识
-
-## 输出要求
-1. 结合对话历史理解用户问题的完整含义（如用户说"小南海呢？"，需结合历史知道是在问流域面积）
-2. 根据执行结果，生成清晰、准确、专业的回答
-3. 回答应该简洁明了，直接切中主题，突出关键数据和结论
-4. 如果执行过程中有错误，请适当说明并给出建议
-5. 【重要】如果使用了检索到的知识，必须在回答末尾添加"参考来源"部分。直接复制上面每条知识的"来源引用格式"字段内容作为来源链接，不要修改或简化！
-
-## 格式禁止
-- 【禁止】不要使用Markdown表格格式（如 | 列1 | 列2 | 这种格式）
-- 【禁止】不要罗列大量数据项，表格和详细数据应在左侧报告页面中展示
-- 【建议】使用简洁的文字描述或短列表（如"- 项目: 值"）来呈现关键信息
-- 【建议】如果数据较多，只提取最关键的2-3个指标进行说明，并提示用户查看左侧报告页面获取完整信息
-
-请生成最终回答:
-
-```
-
-**LLM响应**:
-```
-目前月山水库相关的视频监控摄像头信息已获取，以下是其中一个摄像头的实时视频预览流地址：
-
-- 摄像头名称：修武县烈杠营断面全景
-- 视频流地址: `ws://222.143.69.26:559/openUrl/vsigD6ohDZC88ef6ef05efd470092d92`
-
-您可以通过该链接查看实时视频。如需了解更多摄像头的信息，请参考左侧报告页面。
 ```
 
 ---

@@ -316,15 +316,8 @@ class Controller:
             # 未匹配到模板，使用动态生成
             logger.info("未匹配到预定义模板，使用 DynamicPageGenerator 动态生成页面")
 
-            # 调试日志：检查 state 中的关键数据
-            logger.info(f"[DEBUG] state.execution_results 数量: {len(state.get('execution_results', []))}")
-            logger.info(f"[DEBUG] state.plan 数量: {len(state.get('plan', []))}")
-
             # 创建上下文收集器
             collector = create_collector_from_state(state)
-
-            # 调试日志：检查 collector 中的数据
-            logger.info(f"[DEBUG] collector.tool_calls 数量: {len(collector._context.tool_calls)}")
 
             # 获取生成器实例
             generator = get_dynamic_page_generator()

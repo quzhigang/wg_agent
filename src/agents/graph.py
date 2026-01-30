@@ -936,9 +936,6 @@ async def run_agent_stream(
                     confidence = node_output.get('intent_confidence', 0)
                     intent_category = node_output.get('intent_category', '')
 
-                    # 调试日志
-                    logger.info(f"[DEBUG] plan节点输出: intent={intent}, intent_category={intent_category}")
-
                     if intent_category:
                         yield {
                             "type": "intent_stage",
@@ -960,8 +957,6 @@ async def run_agent_stream(
                 elif node_name == "sub_intent":
                     # 第2阶段：子意图分类节点
                     business_sub_intent = node_output.get('business_sub_intent', '')
-
-                    logger.info(f"[DEBUG] sub_intent节点输出: business_sub_intent={business_sub_intent}")
 
                     if business_sub_intent:
                         yield {
@@ -985,8 +980,6 @@ async def run_agent_stream(
                     matched_workflow = node_output.get('matched_workflow') or node_output.get('saved_workflow_name') or ''
                     business_sub_intent = node_output.get('business_sub_intent') or node_output.get('intent') or ''
                     plan = node_output.get('plan', [])
-
-                    logger.info(f"[DEBUG] workflow_match节点输出: matched_workflow={matched_workflow}, business_sub_intent={business_sub_intent}, plan_steps={len(plan)}")
 
                     yield {
                         "type": "intent_stage",

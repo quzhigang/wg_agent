@@ -185,15 +185,31 @@ class DataFileGenerator:
             # 5. 提取关键指标（用于 StatCard 组件）
             key_metrics = self._extract_key_metrics(parsed_info)
 
-            # 6. 添加预处理后的数据到 context
-            processed['all_images'] = all_images
-            processed['parsed_info_table'] = parsed_info
+            # 6. 添加预处理后的数据到 context（合并而非覆盖）
+            # 合并图片列表
+            if 'all_images' not in processed:
+                processed['all_images'] = []
+            processed['all_images'].extend(all_images)
+
+            # 合并表格数据（知识库数据追加到工具调用数据之后）
+            if 'parsed_info_table' not in processed:
+                processed['parsed_info_table'] = []
+            processed['parsed_info_table'].extend(parsed_info)
+
+            # 合并地理信息（优先使用知识库数据，因为通常更准确）
             if geo_info:
                 processed['geo_info'] = geo_info
+
+            # 合并泄流曲线
             if discharge_curve:
                 processed['discharge_curve'] = discharge_curve
+
+            # 合并关键指标（知识库数据优先）
             if key_metrics:
-                processed['key_metrics'] = key_metrics
+                if 'key_metrics' not in processed:
+                    processed['key_metrics'] = {}
+                # 知识库数据覆盖工具调用数据（知识库数据通常更完整）
+                processed['key_metrics'].update(key_metrics)
 
         return processed
 
@@ -261,6 +277,37 @@ class DataFileGenerator:
                 water_level_data = self._extract_water_level_data(output)
                 if water_level_data:
                     extracted['water_level_data'] = water_level_data
+
+            # ========== 实时监测数据工具处理 ==========
+            elif tool_name == 'query_river_last':
+                # 河道最新水情数据
+                realtime_data = self._extract_realtime_monitor_data(output, 'river')
+                if realtime_data:
+                    self._merge_realtime_data(extracted, realtime_data)
+
+            elif tool_name == 'query_reservoir_last':
+                # 水库最新水情数据
+                realtime_data = self._extract_realtime_monitor_data(output, 'reservoir')
+                if realtime_data:
+                    self._merge_realtime_data(extracted, realtime_data)
+
+            elif tool_name in ['query_rain_process', 'query_rain_statistics', 'query_rain_sum']:
+                # 雨情数据
+                realtime_data = self._extract_realtime_monitor_data(output, 'rain')
+                if realtime_data:
+                    self._merge_realtime_data(extracted, realtime_data)
+
+            elif tool_name in ['query_ai_water_last', 'query_ai_water_process']:
+                # AI水情监测数据
+                realtime_data = self._extract_realtime_monitor_data(output, 'ai_water')
+                if realtime_data:
+                    self._merge_realtime_data(extracted, realtime_data)
+
+            elif tool_name in ['query_ai_rain_last', 'query_ai_rain_process']:
+                # AI雨情监测数据
+                realtime_data = self._extract_realtime_monitor_data(output, 'ai_rain')
+                if realtime_data:
+                    self._merge_realtime_data(extracted, realtime_data)
 
             # 通用处理：将所有成功的工具调用结果按工具名存储
             # 这样页面可以通过 data_source: { type: "context", path: "tool_results.{tool_name}" } 访问
@@ -332,16 +379,31 @@ class DataFileGenerator:
         """
         提取站点信息
 
+        处理 lookup_station_code 工具的返回格式：
+        {success: true, data: {stcd: "xxx", stnm: "xxx", stations: [...]}}
+
         Args:
             output: 工具输出结果
 
         Returns:
             站点信息字典
         """
+        # 处理 ToolResult 结构
         if isinstance(output, dict):
+            # 检查是否是 ToolResult 格式
+            if 'data' in output and isinstance(output.get('data'), dict):
+                data = output['data']
+                return {
+                    'stcd': data.get('stcd', ''),
+                    'name': data.get('stnm', ''),
+                    'type': '',
+                    'location': '',
+                    'stations': data.get('stations', [])
+                }
+            # 直接是数据格式
             return {
                 'stcd': output.get('stcd', ''),
-                'name': output.get('name', ''),
+                'name': output.get('stnm', output.get('name', '')),
                 'type': output.get('type', ''),
                 'location': output.get('location', '')
             }
@@ -396,6 +458,205 @@ class DataFileGenerator:
                 'stcd': output.get('stcd', '')
             }
         return None
+
+    def _extract_realtime_monitor_data(self, output: Any, data_type: str) -> Optional[Dict[str, Any]]:
+        """
+        从实时监测数据工具结果中提取结构化数据
+
+        支持的数据类型：
+        - river: 河道水情（z水位, q流量, tm时间, lgtd/lttd坐标, stnm站名, rvnm河流名）
+        - reservoir: 水库水情（z水位, w蓄水量, inq入库流量, outq出库流量）
+        - rain: 雨情（drp时段降水, dyp日降水, stnm站名）
+        - ai_water: AI水情监测
+        - ai_rain: AI雨情监测
+
+        Args:
+            output: 工具输出结果（ToolResult格式）
+            data_type: 数据类型
+
+        Returns:
+            包含 parsed_info_table, geo_info, key_metrics 的字典
+        """
+        # 处理 ToolResult 结构: {success: true, data: [...]}
+        data = output
+        if isinstance(output, dict):
+            if 'data' in output:
+                data = output.get('data')
+
+        # 如果是列表，取第一条记录（单站点查询）
+        if isinstance(data, list):
+            if len(data) == 0:
+                return None
+            data = data[0]
+
+        if not isinstance(data, dict):
+            return None
+
+        result = {
+            'parsed_info_table': [],
+            'geo_info': {},
+            'key_metrics': {}
+        }
+
+        # 根据数据类型定义字段映射
+        if data_type == 'river':
+            # 河道水情字段映射
+            field_mappings = {
+                'stnm': '站点名称',
+                'stcd': '站点编码',
+                'rvnm': '河流名称',
+                'z': '水位',
+                'q': '流量',
+                'tm': '数据时间',
+                'wptn': '水势',
+                'wrz': '警戒水位',
+                'grz': '保证水位',
+                'obhtz': '超警水位',
+                'lgtd': '经度',
+                'lttd': '纬度'
+            }
+            # 关键指标映射（用于StatCard）
+            metric_mappings = {
+                'z': 'water_level',
+                'q': 'flow',
+                'tm': 'data_time',
+                'wptn': 'water_trend',
+                'wrz': 'warning_level',
+                'grz': 'guarantee_level'
+            }
+
+        elif data_type == 'reservoir':
+            # 水库水情字段映射
+            field_mappings = {
+                'stnm': '水库名称',
+                'stcd': '站点编码',
+                'z': '库水位',
+                'w': '蓄水量',
+                'inq': '入库流量',
+                'outq': '出库流量',
+                'tm': '数据时间',
+                'fsltdz': '汛限水位',
+                'normz': '正常蓄水位',
+                'ddz': '死水位',
+                'lgtd': '经度',
+                'lttd': '纬度'
+            }
+            metric_mappings = {
+                'z': 'water_level',
+                'w': 'storage',
+                'inq': 'inflow',
+                'outq': 'outflow',
+                'tm': 'data_time',
+                'fsltdz': 'flood_limit_level'
+            }
+
+        elif data_type == 'rain':
+            # 雨情字段映射
+            field_mappings = {
+                'stnm': '站点名称',
+                'stcd': '站点编码',
+                'drp': '时段降水量',
+                'intv': '时段长度',
+                'dyp': '日降水量',
+                'tm': '数据时间',
+                'lgtd': '经度',
+                'lttd': '纬度'
+            }
+            metric_mappings = {
+                'drp': 'period_rainfall',
+                'dyp': 'daily_rainfall',
+                'tm': 'data_time'
+            }
+
+        elif data_type in ['ai_water', 'ai_rain']:
+            # AI监测数据字段映射
+            field_mappings = {
+                'stnm': '站点名称',
+                'stcd': '站点编码',
+                'z': '水位',
+                'drp': '时段降水量',
+                'tm': '数据时间',
+                'lgtd': '经度',
+                'lttd': '纬度'
+            }
+            metric_mappings = {
+                'z': 'water_level',
+                'drp': 'period_rainfall',
+                'tm': 'data_time'
+            }
+        else:
+            return None
+
+        # 1. 提取表格数据（parsed_info_table）
+        for field_key, field_label in field_mappings.items():
+            value = data.get(field_key)
+            if value is not None and value != '':
+                # 格式化显示值
+                display_value = str(value)
+                if field_key == 'tm' and isinstance(value, str):
+                    # 时间格式化
+                    display_value = value
+                elif field_key in ['z', 'q', 'w', 'inq', 'outq', 'drp', 'dyp']:
+                    # 数值格式化
+                    try:
+                        display_value = f"{float(value):.2f}"
+                    except (ValueError, TypeError):
+                        display_value = str(value)
+
+                result['parsed_info_table'].append({
+                    'label': field_label,
+                    'value': display_value
+                })
+
+        # 2. 提取地理坐标（geo_info）
+        lgtd = data.get('lgtd')
+        lttd = data.get('lttd')
+        if lgtd is not None and lttd is not None:
+            try:
+                lng = float(lgtd)
+                lat = float(lttd)
+                # 验证是否在中国范围内
+                if 73 <= lng <= 136 and 18 <= lat <= 54:
+                    result['geo_info'] = {
+                        'latitude': lat,
+                        'longitude': lng,
+                        'center': [lng, lat],
+                        'name': data.get('stnm', '')
+                    }
+            except (ValueError, TypeError):
+                pass
+
+        # 3. 提取关键指标（key_metrics）
+        for field_key, metric_key in metric_mappings.items():
+            value = data.get(field_key)
+            if value is not None and value != '':
+                result['key_metrics'][metric_key] = value
+
+        return result
+
+    def _merge_realtime_data(self, extracted: Dict[str, Any], realtime_data: Dict[str, Any]) -> None:
+        """
+        将实时监测数据合并到已提取的数据中
+
+        采用合并策略而非替换，确保与知识库检索数据兼容
+
+        Args:
+            extracted: 已提取的数据字典（会被修改）
+            realtime_data: 实时监测数据
+        """
+        # 合并 parsed_info_table（追加到现有列表）
+        if 'parsed_info_table' not in extracted:
+            extracted['parsed_info_table'] = []
+        extracted['parsed_info_table'].extend(realtime_data.get('parsed_info_table', []))
+
+        # 合并 geo_info（如果现有为空则使用新数据）
+        if not extracted.get('geo_info') and realtime_data.get('geo_info'):
+            extracted['geo_info'] = realtime_data['geo_info']
+
+        # 合并 key_metrics（合并字典，新数据优先）
+        if 'key_metrics' not in extracted:
+            extracted['key_metrics'] = {}
+        extracted['key_metrics'].update(realtime_data.get('key_metrics', {}))
 
     def _extract_geo_info(self, documents: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """
