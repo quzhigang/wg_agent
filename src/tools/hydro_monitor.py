@@ -1038,27 +1038,33 @@ class QueryCameraPreviewTool(BaseTool):
     """
     12. 视频监控预览接口
     根据摄像头编码获取实时视频预览地址
+
+    注意：摄像头编码(code)不是站点编码(stcd)！
+    - 站点编码(stcd)格式如：41000020003-A4
+    - 摄像头编码(code)格式如：41062240201327003002
+
+    正确流程：先调用 get_camera_list 获取摄像头列表，从返回结果中获取摄像头的 code 字段
     """
-    
+
     @property
     def name(self) -> str:
         return "query_camera_preview"
-    
+
     @property
     def description(self) -> str:
-        return "根据摄像头编码获取实时视频预览流地址"
-    
+        return "根据摄像头编码(code)获取实时视频预览流地址。注意：code是摄像头编码(如41062240201327003002)，不是站点编码(stcd)！需要先调用get_camera_list获取摄像头列表，从返回的code字段获取摄像头编码"
+
     @property
     def category(self) -> ToolCategory:
         return ToolCategory.HYDRO_MONITOR
-    
+
     @property
     def parameters(self) -> List[ToolParameter]:
         return [
             ToolParameter(
                 name="code",
                 type="string",
-                description="摄像头编码",
+                description="摄像头编码（从get_camera_list返回结果的code字段获取，格式如41062240201327003002，不是站点编码stcd）",
                 required=True
             )
         ]
@@ -1066,25 +1072,42 @@ class QueryCameraPreviewTool(BaseTool):
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行视频监控预览查询
-        
+
         Args:
             code: 摄像头编码
-            
+
         Returns:
             ToolResult: 包含视频预览流地址的查询结果
         """
         code = kwargs.get('code')
-        
+
         try:
             base_url = settings.wg_data_server_url
             url = f"{base_url}/api/basin/camera/preview"
             params = {'code': code}
-            
+
             # 获取认证头
             auth_headers = await LoginTool.get_auth_headers()
-            
+
+            # 调试日志：检查认证头是否获取成功
+            if not auth_headers:
+                logger.warning(f"视频监控预览查询: 认证头为空，可能导致请求失败")
+            else:
+                logger.debug(f"视频监控预览查询: 认证头已获取，token长度={len(auth_headers.get('token', ''))}")
+
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url, params=params, headers=auth_headers)
+
+                # 详细记录响应状态
+                if response.status_code != 200:
+                    logger.error(f"视频监控预览查询失败: HTTP {response.status_code}, URL: {url}, code: {code}")
+                    # 尝试获取响应内容以便调试
+                    try:
+                        error_content = response.text
+                        logger.error(f"响应内容: {error_content[:500]}")
+                    except:
+                        pass
+
                 response.raise_for_status()
                 data = response.json()
             

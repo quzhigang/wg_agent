@@ -487,8 +487,9 @@ class Executor:
                 current_val = current_val.get('data')
 
         # 常见字段别名映射（LLM可能使用不同的名称）
+        # 注意：不要将 code 映射到 stcd，因为在视频监控场景中 code 是摄像头编码，与 stcd（站点编码）不同
         alias_map = {
-            'result_code': 'stcd', 'code': 'stcd', 'station_code': 'stcd',
+            'result_code': 'stcd', 'station_code': 'stcd',
             'result_name': 'stnm', 'name': 'stnm', 'station_name': 'stnm',
         }
         # 检查路径中是否有别名需要替换

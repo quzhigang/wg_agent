@@ -117,10 +117,9 @@ class DataFileGenerator:
         """
         预处理上下文数据，提取结构化信息供组件使用
 
-        从检索到的文档中提取：
-        - 所有图片URL列表
-        - 解析后的表格数据
-        - 关键属性信息
+        从多个数据源提取：
+        1. 检索文档（retrieval.documents）：图片URL、表格数据、关键属性
+        2. 工具调用结果（execution.tool_calls）：视频监控、闸站参数等业务数据
 
         Args:
             context: 原始上下文数据
@@ -130,10 +129,23 @@ class DataFileGenerator:
         """
         import re
 
+        # 如果已经预处理过（存在预处理标记），直接返回
+        if context.get('_preprocessed'):
+            return context
+
         # 复制原始数据
         processed = context.copy()
+        processed['_preprocessed'] = True  # 添加预处理标记
 
-        # 提取检索文档中的结构化数据
+        # ========== 1. 从工具调用结果中提取业务数据 ==========
+        execution = context.get('execution', {})
+        tool_calls = execution.get('tool_calls', [])
+
+        if tool_calls:
+            tool_data = self._extract_tool_call_data(tool_calls)
+            processed.update(tool_data)
+
+        # ========== 2. 提取检索文档中的结构化数据 ==========
         retrieval = context.get('retrieval', {})
         documents = retrieval.get('documents', [])
 
@@ -184,6 +196,206 @@ class DataFileGenerator:
                 processed['key_metrics'] = key_metrics
 
         return processed
+
+    def _extract_tool_call_data(self, tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        从工具调用结果中提取业务数据
+
+        根据工具名称提取特定类型的数据，供页面组件使用。
+        支持的工具类型：
+        - get_camera_list: 视频监控摄像头列表
+        - lookup_station_code: 站点编码查询结果
+        - 其他工具: 通用数据提取
+
+        Args:
+            tool_calls: 工具调用记录列表
+
+        Returns:
+            提取的业务数据字典
+        """
+        extracted = {}
+
+        for tool_call in tool_calls:
+            tool_name = tool_call.get('tool_name', '')
+            success = tool_call.get('success', False)
+            output = tool_call.get('output_result')
+
+            if not success or not output:
+                continue
+
+            # 根据工具名称提取特定数据
+            if tool_name == 'get_camera_list':
+                # 视频监控摄像头列表
+                camera_list = self._extract_camera_list(output)
+                if camera_list:
+                    extracted['camera_list'] = camera_list
+                    # 提取第一个摄像头的名称
+                    if camera_list and len(camera_list) > 0:
+                        first_camera = camera_list[0]
+                        extracted['default_camera_name'] = first_camera.get('name', '')
+
+            elif tool_name == 'query_camera_preview':
+                # 视频监控预览流地址
+                video_url = self._extract_video_url(output)
+                if video_url:
+                    extracted['default_video_url'] = video_url
+
+            elif tool_name == 'lookup_station_code':
+                # 站点编码查询结果
+                station_info = self._extract_station_info(output)
+                if station_info:
+                    extracted['station_info'] = station_info
+
+            elif tool_name in ['get_gate_station_params', 'get_reservoir_params', 'get_pump_station_params']:
+                # 闸站/水库/泵站参数查询结果
+                params_data = self._extract_params_data(tool_name, output)
+                if params_data:
+                    extracted['params_data'] = params_data
+                    # 同时提取为表格格式（兼容现有模板）
+                    if 'parsed_info_table' not in extracted:
+                        extracted['parsed_info_table'] = []
+                    extracted['parsed_info_table'].extend(params_data.get('table_data', []))
+
+            elif tool_name == 'get_realtime_water_level':
+                # 实时水位数据
+                water_level_data = self._extract_water_level_data(output)
+                if water_level_data:
+                    extracted['water_level_data'] = water_level_data
+
+            # 通用处理：将所有成功的工具调用结果按工具名存储
+            # 这样页面可以通过 data_source: { type: "context", path: "tool_results.{tool_name}" } 访问
+            if 'tool_results' not in extracted:
+                extracted['tool_results'] = {}
+            extracted['tool_results'][tool_name] = output
+
+        return extracted
+
+    def _extract_camera_list(self, output: Any) -> List[Dict[str, Any]]:
+        """
+        提取视频监控摄像头列表
+
+        Args:
+            output: 工具输出结果（get_camera_list 返回的数据）
+
+        Returns:
+            摄像头列表，每个元素包含 code, name, stcd 等字段
+        """
+        # 处理 ToolResult 结构
+        if isinstance(output, dict) and 'data' in output:
+            data = output.get('data')
+            if isinstance(data, list):
+                return self._extract_camera_list(data)
+            return []
+
+        if isinstance(output, list):
+            # 直接是列表格式
+            return [
+                {
+                    'code': item.get('code', ''),
+                    # API 返回的名称字段可能是 stnm, title, name
+                    'name': item.get('stnm') or item.get('title') or item.get('name', ''),
+                    'stcd': item.get('stcd', ''),
+                    'type': item.get('type', ''),
+                    'status': 'online' if item.get('aiEnable') == '1' else 'normal'
+                }
+                for item in output
+            ]
+        return []
+
+    def _extract_video_url(self, output: Any) -> str:
+        """
+        从 query_camera_preview 结果中提取视频流 URL
+
+        Args:
+            output: 工具输出结果
+
+        Returns:
+            视频流 URL
+        """
+        # 处理 ToolResult 结构: {success: true, data: {msg, code, data: {url}}}
+        if isinstance(output, dict):
+            # 先检查是否是 ToolResult 结构
+            if 'data' in output and isinstance(output.get('data'), dict):
+                inner_data = output['data']
+                # 检查内层 data 结构: {msg, code, data: {url}}
+                if 'data' in inner_data and isinstance(inner_data.get('data'), dict):
+                    return inner_data['data'].get('url', '')
+                # 或者直接有 url 字段
+                if 'url' in inner_data:
+                    return inner_data.get('url', '')
+            # 直接有 url 字段
+            if 'url' in output:
+                return output.get('url', '')
+        return ''
+
+    def _extract_station_info(self, output: Any) -> Optional[Dict[str, Any]]:
+        """
+        提取站点信息
+
+        Args:
+            output: 工具输出结果
+
+        Returns:
+            站点信息字典
+        """
+        if isinstance(output, dict):
+            return {
+                'stcd': output.get('stcd', ''),
+                'name': output.get('name', ''),
+                'type': output.get('type', ''),
+                'location': output.get('location', '')
+            }
+        elif isinstance(output, list) and len(output) > 0:
+            return self._extract_station_info(output[0])
+        return None
+
+    def _extract_params_data(self, tool_name: str, output: Any) -> Optional[Dict[str, Any]]:
+        """
+        提取参数数据（闸站、水库、泵站等）
+
+        Args:
+            tool_name: 工具名称
+            output: 工具输出结果
+
+        Returns:
+            参数数据字典，包含原始数据和表格格式数据
+        """
+        if not isinstance(output, dict):
+            return None
+
+        # 将字典转换为表格格式
+        table_data = []
+        for key, value in output.items():
+            # 跳过一些不需要展示的字段
+            skip_keys = ['id', 'update_time', 'create_time', 'stcd']
+            if key.lower() not in skip_keys and value is not None:
+                table_data.append({
+                    'label': key,
+                    'value': str(value)
+                })
+
+        return {
+            'raw': output,
+            'table_data': table_data
+        }
+
+    def _extract_water_level_data(self, output: Any) -> Optional[Dict[str, Any]]:
+        """
+        提取实时水位数据
+
+        Args:
+            output: 工具输出结果
+
+        Returns:
+            水位数据字典
+        """
+        if isinstance(output, dict):
+            return {
+                'current_level': output.get('z', output.get('level', '')),
+                'time': output.get('tm', output.get('time', '')),
+                'stcd': output.get('stcd', '')
+            }
+        return None
 
     def _extract_geo_info(self, documents: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """

@@ -353,9 +353,12 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 **步骤间参数传递（重要）：**
 - 当后续步骤需要使用前面步骤的结果时，在tool_args中使用占位符格式：$$step_N.字段名$$
 - 例如：步骤1返回 {{"data": {{"stcd": "31005650"}}}}，步骤2要使用stcd，应写：$$step_1.stcd$$
-- 常用字段：stcd（站点编码）、stnm（站点名称）、data（数据对象）
+- **数组返回值处理**：如果步骤返回的是数组（如列表查询），需要使用索引访问：$$step_N[0].字段名$$
+  - 例如：步骤1返回 {{"data": [{{"code": "xxx", "name": "yyy"}}]}}，步骤2要使用code，应写：$$step_1[0].code$$
+- 常用字段：stcd（站点编码）、stnm（站点名称）、code（设备编码）、data（数据对象）
 - 错误示例：$$STEP_1.result_code$$（result_code不存在）
 - 正确示例：$$step_1.stcd$$（直接使用返回数据中的字段名）
+- 正确示例：$$step_1[0].code$$（数组返回值需要索引访问）
 
 **result_display字段（结果展示模式）：**
 根据用户问题判断每个步骤的结果对最终回答用户问题的重要程度：
@@ -373,8 +376,24 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 6. 只使用可用工具列表中存在的工具名称，不要使用不存在的工具如"generate_response"
 
 **站点编码查询规则（重要）：**
+- **如果 entities 中已经包含 stcd 字段，直接使用该 stcd，不需要调用 lookup_station_code 工具**
 - 使用 lookup_station_code 工具时，exact_match 参数必须设为 false（模糊匹配）
+- 如果需要查询特定类型的站点（如视频监测），必须传递 station_type 参数进行过滤
 - 因为用户输入的站点名称（如"新村水文站"）可能与数据库中的名称（如"新村"）不完全一致
+
+**视频监控查询规则（重要）：**
+- 查询视频监控需要两步：
+  1. 先调用 get_camera_list(stcd=站点编码) 获取该站点下的摄像头列表
+  2. 再调用 query_camera_preview(code=摄像头编码) 获取视频流地址
+- **摄像头编码(code)和站点编码(stcd)是不同的！**
+  - 站点编码(stcd)格式如：41000020003-A4
+  - 摄像头编码(code)格式如：41062240201327003002（从get_camera_list返回结果的code字段获取）
+- query_camera_preview 的 code 参数必须引用 get_camera_list 返回结果中的 code 字段，如：$step_1[0].code$
+
+**数组结果访问规则（重要）：**
+- 如果某个步骤返回的是数组（如摄像头列表、站点列表），后续步骤引用时必须使用索引
+- 正确：$step_1[0].code$ （获取数组第一个元素的code字段）
+- 错误：$step_1.code$ （数组没有code属性，会返回None）
 
 **知识库检索规划（重要）：**
 - 如果用户问题需要知识库中的信息（如历史洪水数据、水库特征参数、防洪标准等），必须在计划中添加"search_knowledge"工具调用步骤
@@ -1676,7 +1695,8 @@ class Planner:
             "object": "对象",
             "object_type": "对象类型",
             "time": "时间",
-            "action": "操作"
+            "action": "操作",
+            "stcd": "对象编码"  # stcd -> {{对象编码}}
         }
 
         for eng_key, cn_key in entity_mapping.items():
@@ -1687,6 +1707,14 @@ class Planner:
                 replacements[f"{{{cn_key}}}"] = str(value)       # {对象}
                 replacements[f"{{{{{eng_key}}}}}"] = str(value)  # {{object}}
                 replacements[f"{{{eng_key}}}"] = str(value)      # {object}
+
+        # 直接映射的实体字段（如stcd、code等，不需要中英文转换）
+        direct_mapping_keys = ["stcd", "code", "stnm", "name"]
+        for key in direct_mapping_keys:
+            value = entities.get(key)
+            if value and value != 'null' and value is not None:
+                replacements[f"{{{{{key}}}}}"] = str(value)  # {{stcd}}
+                replacements[f"{{{key}}}"] = str(value)      # {stcd}
 
         # 用户消息作为默认query
         replacements["{{query}}"] = user_message
@@ -1967,5 +1995,8 @@ async def workflow_match_node(state: AgentState) -> Dict[str, Any]:
 
     # 未匹配到工作流，进行动态规划
     logger.info(f"未匹配工作流，子意图: {business_sub_intent}，进行动态规划")
+    # 使用 workflow_result 中的 enhanced_entities 更新 state
+    if workflow_result.get('entities'):
+        state = {**state, 'entities': workflow_result['entities']}
     plan_result = await planner.generate_plan(state)
     return {**workflow_result, **plan_result}

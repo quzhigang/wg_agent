@@ -385,7 +385,16 @@ class DynamicPageEngine {
 
     renderHtmlContent(container, data, config) {
         const content = data || config.content || '';
-        container.innerHTML = `<div class="html-content">${content}</div>`;
+
+        // 检测是否为Markdown格式（包含##、**、- 等标记）
+        const isMarkdown = /^#{1,6}\s|^\*\*|^-\s|^>\s|\n#{1,6}\s|\n-\s|\*\*[^*]+\*\*/.test(content);
+
+        if (isMarkdown && typeof marked !== 'undefined') {
+            // 使用marked.js渲染Markdown
+            container.innerHTML = `<div class="html-content markdown-body">${marked.parse(content)}</div>`;
+        } else {
+            container.innerHTML = `<div class="html-content">${content}</div>`;
+        }
     }
 
     renderSimpleTable(container, data, config) {
@@ -494,7 +503,22 @@ class DynamicPageEngine {
         // 支持两种配置格式：
         // 1. config.option (新格式，直接是 ECharts option)
         // 2. config.options (旧格式)
+        // 3. config 顶层直接包含 xAxis/yAxis/series (LLM 常见生成格式)
         let option = config.option || config.options || {};
+
+        // 如果 option 为空，但 config 顶层有 xAxis/yAxis/series，则从顶层提取
+        if (Object.keys(option).length === 0) {
+            if (config.xAxis || config.yAxis || config.series) {
+                option = {
+                    xAxis: config.xAxis,
+                    yAxis: config.yAxis,
+                    series: config.series,
+                    legend: config.legend,
+                    tooltip: config.tooltip,
+                    grid: config.grid
+                };
+            }
+        }
 
         // 获取图表类型
         const chartType = config.chartType || config.chart_type || 'line';
@@ -676,6 +700,8 @@ class DynamicPageEngine {
     }
 
     renderGISMap(container, data, config) {
+        console.log('[GISMap] Rendering map, data:', data, 'config:', config);
+
         // 1. 设置容器ID（ArcGIS要求容器必须有ID）
         const mapDivId = 'viewDiv_' + Math.random().toString(36).substr(2, 9);
         const mapDiv = document.createElement('div');
@@ -694,6 +720,7 @@ class DynamicPageEngine {
             "esri/layers/GraphicsLayer",
             "esri/Graphic"
         ], (WebMap, MapView, esriConfig, GraphicsLayer, Graphic) => {
+            console.log('[GISMap] ArcGIS modules loaded successfully');
 
             // ========== 使用固定的 Portal WebMap (河南省水利厅地图服务) ==========
             // 配置Portal地址
@@ -748,8 +775,8 @@ class DynamicPageEngine {
                 }
 
                 // 2. 从全局 pageData.context 获取
-                if (!labelText && window.pageData && window.pageData.context) {
-                    const ctx = window.pageData.context;
+                if (!labelText && window.PAGE_DATA && window.PAGE_DATA.context) {
+                    const ctx = window.PAGE_DATA.context;
                     // 从 intent.entities 中获取对象名称
                     if (ctx.intent && ctx.intent.entities) {
                         labelText = ctx.intent.entities['关键词'] || ctx.intent.entities['object'] || ctx.intent.entities['name'] || '';
@@ -757,13 +784,13 @@ class DynamicPageEngine {
                 }
 
                 // 3. 从 geo_info 中获取（如果有 name 字段）
-                if (!labelText && window.pageData && window.pageData.context && window.pageData.context.geo_info) {
-                    labelText = window.pageData.context.geo_info.name || '';
+                if (!labelText && window.PAGE_DATA && window.PAGE_DATA.context && window.PAGE_DATA.context.geo_info) {
+                    labelText = window.PAGE_DATA.context.geo_info.name || '';
                 }
 
                 // 4. 从 parsed_info_table 中查找名称字段
-                if (!labelText && window.pageData && window.pageData.context && window.pageData.context.parsed_info_table) {
-                    const infoTable = window.pageData.context.parsed_info_table;
+                if (!labelText && window.PAGE_DATA && window.PAGE_DATA.context && window.PAGE_DATA.context.parsed_info_table) {
+                    const infoTable = window.PAGE_DATA.context.parsed_info_table;
                     for (const item of infoTable) {
                         if (item.label && (item.label.includes('名称') || item.label.includes('name') || item.label === 'name')) {
                             labelText = item.value;
@@ -928,22 +955,262 @@ class DynamicPageEngine {
     /**
      * 渲染视频组件
      * config: { src: "视频URL", poster: "封面图", autoplay: false, controls: true }
+     * 支持两种视频流格式：
+     * 1. HTTP/HTTPS 视频流 - 使用标准 HTML5 <video> 标签
+     * 2. WebSocket 视频流 (ws://, wss://) - 使用海康H5播放器
      */
     renderVideo(container, data, config) {
-        const src = config.src || data?.src || data?.url || '';
+        // 支持多种数据格式获取视频URL
+        let src = '';
+        if (typeof data === 'string') {
+            src = data;
+        } else if (data && typeof data === 'object') {
+            src = data.src || data.url || '';
+        }
+        src = src || config.src || '';
+
         const poster = config.poster || '';
-        const autoplay = config.autoplay ? 'autoplay muted' : '';
-        const controls = config.controls !== false ? 'controls' : '';
+        const autoplay = config.autoplay !== false; // 默认自动播放
+        const controls = config.controls !== false;
+
+        // 检测是否是 WebSocket 视频流
+        const isWebSocketStream = src.startsWith('ws://') || src.startsWith('wss://');
+
+        if (isWebSocketStream) {
+            // WebSocket 视频流 - 使用海康H5播放器
+            this._renderHikvisionVideo(container, src, config);
+        } else if (src) {
+            // 标准 HTTP 视频流 - 使用 HTML5 video 标签
+            container.innerHTML = `
+                <div class="video-component" style="width: 100%; height: 100%; min-height: 200px;">
+                    <video ${controls ? 'controls' : ''} ${autoplay ? 'autoplay muted' : ''} ${poster ? `poster="${poster}"` : ''}
+                           style="width: 100%; height: 100%; border-radius: 8px; background: #0a1628;">
+                        <source src="${src}" type="video/mp4">
+                        您的浏览器不支持视频播放
+                    </video>
+                </div>
+            `;
+        } else {
+            // 没有视频源
+            container.innerHTML = `
+                <div class="video-component" style="width: 100%; height: 100%; min-height: 200px; display: flex; align-items: center; justify-content: center; background: #0a1628; border-radius: 8px;">
+                    <div style="text-align: center; color: #a0aec0;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📹</div>
+                        <div>暂无视频源</div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * 渲染海康威视H5播放器视频流
+     * 使用海康JSPlugin播放WebSocket视频流
+     */
+    _renderHikvisionVideo(container, wsUrl, config) {
+        // 转换视频流URL格式
+        // API返回格式: ws://10.20.2.98:559/openUrl/vsigXXXXXX
+        // 实际需要格式: ws://171.8.64.181:559/openUrl/vsigXXXXXX (替换内网IP为外网IP)
+        const convertedUrl = this._convertVideoStreamUrl(wsUrl);
+        console.log('[Video] Original URL:', wsUrl);
+        console.log('[Video] Converted URL:', convertedUrl);
+
+        const playerId = 'video_player_' + Math.random().toString(36).substr(2, 9);
 
         container.innerHTML = `
-            <div class="video-component">
-                <video ${controls} ${autoplay} ${poster ? `poster="${poster}"` : ''}
-                       style="width: 100%; height: 100%; border-radius: 8px; background: #0a1628;">
-                    <source src="${src}" type="video/mp4">
-                    您的浏览器不支持视频播放
-                </video>
+            <div class="video-component hk-video" style="width: 100%; height: 100%; min-height: 300px; position: relative; background: #0a1628; border-radius: 8px; overflow: hidden;">
+                <div id="${playerId}" class="hk-player" style="width: 100%; height: 100%;"></div>
+                <div class="video-loading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00d4ff; text-align: center; z-index: 10;">
+                    <div class="loading-spinner" style="width: 40px; height: 40px; border: 3px solid rgba(0, 212, 255, 0.3); border-top-color: #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px;"></div>
+                    <div>正在连接视频流...</div>
+                </div>
+                <div class="video-error" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ef4444; text-align: center; z-index: 10;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+                    <div class="error-msg">视频流连接失败</div>
+                    <button class="retry-btn" style="margin-top: 12px; padding: 8px 16px; background: #00d4ff; border: none; border-radius: 4px; color: white; cursor: pointer;">重试</button>
+                </div>
             </div>
+            <style>
+                @keyframes spin { to { transform: rotate(360deg); } }
+            </style>
         `;
+
+        const loadingEl = container.querySelector('.video-loading');
+        const errorEl = container.querySelector('.video-error');
+        const retryBtn = container.querySelector('.retry-btn');
+
+        // 加载海康播放器并初始化（使用 requestAnimationFrame 确保 DOM 渲染完成）
+        this._loadHikvisionPlayer().then(() => {
+            // 等待下一帧确保 DOM 已渲染
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    this._initHikvisionPlayer(playerId, convertedUrl, loadingEl, errorEl, config);
+                }, 100);
+            });
+        }).catch(err => {
+            console.error('[Video] Failed to load Hikvision player:', err);
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'block';
+            errorEl.querySelector('.error-msg').textContent = '播放器加载失败';
+        });
+
+        // 重试按钮事件
+        retryBtn.onclick = () => {
+            loadingEl.style.display = 'block';
+            errorEl.style.display = 'none';
+            this._initHikvisionPlayer(playerId, convertedUrl, loadingEl, errorEl, config);
+        };
+    }
+
+    /**
+     * 动态加载海康H5播放器SDK
+     * 注意：需要临时禁用 AMD 检测，因为 ArcGIS API 使用 Dojo loader
+     */
+    _loadHikvisionPlayer() {
+        return new Promise((resolve, reject) => {
+            // 检查是否已加载
+            if (typeof window.JSPlugin !== 'undefined') {
+                resolve();
+                return;
+            }
+
+            // 临时禁用 AMD 检测：只删除 define.amd 属性，不删除 define 函数
+            // h5player 检测的是 "function"==typeof define && define.amd
+            // 这样既不影响 ArcGIS 的模块加载，又能让 h5player 使用全局变量模式
+            const originalAmd = window.define && window.define.amd;
+            if (window.define) {
+                window.define.amd = undefined;
+            }
+
+            // 加载海康播放器SDK
+            const script = document.createElement('script');
+            script.src = './libs/hk/h5player.min.js';
+            script.onload = () => {
+                console.log('[Video] Hikvision H5 Player script loaded');
+                // 恢复 AMD 标识
+                if (window.define && originalAmd) {
+                    window.define.amd = originalAmd;
+                }
+
+                // 检查 JSPlugin 是否成功挂载到 window
+                if (typeof window.JSPlugin !== 'undefined') {
+                    console.log('[Video] JSPlugin is available');
+                    resolve();
+                } else {
+                    console.error('[Video] JSPlugin not found after loading');
+                    reject(new Error('JSPlugin not found after loading'));
+                }
+            };
+            script.onerror = () => {
+                // 恢复 AMD 标识
+                if (window.define && originalAmd) {
+                    window.define.amd = originalAmd;
+                }
+                console.error('[Video] Failed to load Hikvision H5 Player');
+                reject(new Error('Failed to load Hikvision H5 Player'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    /**
+     * 初始化海康播放器并播放视频
+     */
+    _initHikvisionPlayer(playerId, wsUrl, loadingEl, errorEl, config) {
+        console.log('[Video] Initializing Hikvision player:', playerId, wsUrl);
+
+        // 检查 JSPlugin 是否可用
+        if (typeof window.JSPlugin === 'undefined') {
+            console.error('[Video] JSPlugin is not defined');
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'block';
+            errorEl.querySelector('.error-msg').textContent = '播放器SDK未加载';
+            return;
+        }
+
+        // 检查 DOM 元素是否存在
+        const playerEl = document.getElementById(playerId);
+        if (!playerEl) {
+            console.error('[Video] Player container not found:', playerId);
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'block';
+            errorEl.querySelector('.error-msg').textContent = '播放器容器未找到';
+            return;
+        }
+
+        // 确保容器有明确的宽高
+        const rect = playerEl.getBoundingClientRect();
+        console.log('[Video] Player container size:', rect.width, 'x', rect.height);
+        if (rect.width === 0 || rect.height === 0) {
+            // 设置默认尺寸
+            playerEl.style.width = '100%';
+            playerEl.style.height = '400px';
+            console.log('[Video] Set default container size');
+        }
+
+        try {
+            console.log('[Video] Creating JSPlugin instance...');
+            // 创建播放器实例
+            const player = new window.JSPlugin({
+                szId: playerId,
+                iMaxSplit: 1,
+                iCurrentSplit: 1,
+                openDebug: true,
+                szBasePath: './libs/hk/',
+                oStyle: { borderSelect: '#00d4ff' }
+            });
+            console.log('[Video] JSPlugin instance created successfully');
+
+            // 存储播放器实例以便后续控制
+            window._hkPlayers = window._hkPlayers || {};
+            window._hkPlayers[playerId] = player;
+
+            // 绑定首帧显示事件
+            window.firstFrameDisplay = () => {
+                console.log('[Video] First frame displayed');
+                loadingEl.style.display = 'none';
+                errorEl.style.display = 'none';
+            };
+
+            // 播放视频
+            console.log('[Video] Calling JS_Play with URL:', wsUrl);
+            player.JS_Play(wsUrl, { playURL: wsUrl, mode: 0 }, 0).then(() => {
+                console.log('[Video] Play started successfully');
+            }).catch((e) => {
+                console.error('[Video] Play failed:', e);
+                loadingEl.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.querySelector('.error-msg').textContent = '视频播放失败: ' + (e.message || '未知错误');
+            });
+
+            // 设置超时检测
+            setTimeout(() => {
+                if (loadingEl.style.display !== 'none') {
+                    console.warn('[Video] Connection timeout');
+                    loadingEl.style.display = 'none';
+                    errorEl.style.display = 'block';
+                    errorEl.querySelector('.error-msg').textContent = '连接超时，请重试';
+                }
+            }, 15000);
+
+        } catch (err) {
+            console.error('[Video] Hikvision player initialization error:', err);
+            console.error('[Video] Error stack:', err.stack);
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'block';
+            errorEl.querySelector('.error-msg').textContent = '播放器初始化失败: ' + (err.message || '未知错误');
+        }
+    }
+
+    /**
+     * 转换视频流URL格式
+     * 将API返回的内网URL转换为实际可用的外网URL格式
+     */
+    _convertVideoStreamUrl(url) {
+        // 替换内网IP为外网IP
+        // ws://10.20.2.98:559/openUrl/xxx -> ws://171.8.64.181:559/openUrl/xxx
+        let convertedUrl = url.replace('//10.20.2.98:559/', '//171.8.64.181:559/');
+        return convertedUrl;
     }
 
     /**
@@ -1263,8 +1530,16 @@ class DynamicPageEngine {
     }
 
     /** 渲染标签页切换 */
-    renderTabs(container, data, config) {
+    async renderTabs(container, data, config) {
         const tabs = config.tabs || [];
+
+        // 为每个tab生成key（如果没有的话）
+        tabs.forEach((tab, index) => {
+            if (!tab.key) {
+                tab.key = `tab_${index}`;
+            }
+        });
+
         const defaultTab = config.defaultTab || (tabs[0] && tabs[0].key);
 
         // 设置容器为flex布局，确保内容区域能撑满
@@ -1281,7 +1556,7 @@ class DynamicPageEngine {
             tabItem.className = 'tab-item';
             tabItem.dataset.tab = tab.key;
             tabItem.style.cssText = `padding: 10px 20px; cursor: pointer; color: ${isActive ? '#00d4ff' : '#a0aec0'}; border-bottom: 2px solid ${isActive ? '#00d4ff' : 'transparent'}; transition: all 0.3s;`;
-            tabItem.textContent = tab.label;
+            tabItem.textContent = tab.label || tab.title || tab.key;
             headerEl.appendChild(tabItem);
         });
 
@@ -1297,7 +1572,7 @@ class DynamicPageEngine {
         const echartsInstances = [];
 
         // 渲染每个标签页的内容
-        tabs.forEach(tab => {
+        for (const tab of tabs) {
             const panelEl = document.createElement('div');
             panelEl.className = 'tab-panel';
             panelEl.dataset.tab = tab.key;
@@ -1319,18 +1594,61 @@ class DynamicPageEngine {
                         bodyEl.style.cssText = 'height: 100%;';
                     }
                     panelEl.appendChild(bodyEl);
+
+                    // 解析嵌套组件的 data_source（支持 data_source 和 dataSource 两种命名）
+                    let nestedData = null;
+                    const dataSourceConfig = content.data_source || content.dataSource;
+                    if (dataSourceConfig) {
+                        try {
+                            nestedData = await this.resolveDataSource(dataSourceConfig);
+                        } catch (e) {
+                            console.error(`Failed to resolve data_source for nested component:`, e);
+                        }
+                    }
+
                     // 调用对应组件的渲染函数
-                    renderer(bodyEl, content.dataSource || null, content);
+                    await renderer(bodyEl, nestedData, content);
                 } else {
                     panelEl.innerHTML = `<div class="error">Unknown component type: ${content.type}</div>`;
                 }
             } else if (typeof content === 'string') {
-                // 字符串内容直接显示
-                panelEl.innerHTML = content;
+                // 检查是否是组件引用（引用 PAGE_CONFIG.components 中的其他组件）
+                const referencedComponent = window.PAGE_CONFIG?.components?.[content];
+                if (referencedComponent && referencedComponent.type) {
+                    // 渲染引用的组件
+                    const refRenderer = this.componentRenderers[referencedComponent.type];
+                    if (refRenderer) {
+                        const bodyEl = document.createElement('div');
+                        bodyEl.className = 'tab-body';
+                        if (referencedComponent.type === 'Echarts') {
+                            bodyEl.style.cssText = 'width: 100%; height: 100%; min-height: 250px;';
+                        } else {
+                            bodyEl.style.cssText = 'height: 100%;';
+                        }
+                        panelEl.appendChild(bodyEl);
+
+                        // 解析引用组件的 data_source
+                        let refData = null;
+                        const refDataSourceConfig = referencedComponent.data_source || referencedComponent.dataSource;
+                        if (refDataSourceConfig) {
+                            try {
+                                refData = await this.resolveDataSource(refDataSourceConfig);
+                            } catch (e) {
+                                console.error(`Failed to resolve data_source for referenced component ${content}:`, e);
+                            }
+                        }
+                        await refRenderer(bodyEl, refData, referencedComponent);
+                    } else {
+                        panelEl.innerHTML = `<div class="error">Unknown component type: ${referencedComponent.type}</div>`;
+                    }
+                } else {
+                    // 普通字符串内容直接显示
+                    panelEl.innerHTML = content;
+                }
             } else {
                 panelEl.innerHTML = '';
             }
-        });
+        }
 
         // 标签切换事件 - 切换时触发 echarts resize
         headerEl.querySelectorAll('.tab-item').forEach(el => {

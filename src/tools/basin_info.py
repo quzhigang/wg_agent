@@ -800,15 +800,17 @@ class GetCameraListTool(BaseTool):
     async def execute(self, **kwargs) -> ToolResult:
         """执行视频监控列表查询"""
         stcd = kwargs.get('stcd')
-        
+
         try:
             url = f"{API_BASE_URL}/api/basin/camera/list"
             params = {}
             if stcd:
                 params['stcd'] = stcd
-            
+
+            headers = await LoginTool.get_auth_headers()
+
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(url, params=params)
+                response = await client.get(url, params=params, headers=headers)
                 response.raise_for_status()
                 result = response.json()
             
