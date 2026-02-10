@@ -257,6 +257,37 @@ class Settings(BaseSettings):
     web_search_api_key: str = "sk-eb6f4246548a43fdb4410b7b5e3507de"
     web_search_api_url: str = "https://api.bochaai.com/v1/web-search"
 
+    # ===========================================
+    # 微信机器人配置 (WeChatFerry)
+    # ===========================================
+    wechat_bot_enabled: bool = False
+    # 允许与机器人对话的微信号列表（逗号分隔，留空则允许所有人）
+    wechat_allowed_users: str = ""
+    # 智能体API地址（微信机器人调用的后端地址）
+    wechat_agent_api_url: str = "http://localhost:8000"
+    # 微信消息中的用户ID前缀（区分微信用户和Web用户）
+    wechat_user_id_prefix: str = "wx_"
+    # wcferry RPC端口
+    wechat_wcf_port: int = 10086
+    # 消息发送最小间隔（秒），防止频率过高被封
+    wechat_msg_interval: float = 1.0
+    # 微信机器人日志文件
+    wechat_log_file: str = "./logs/wecom/wechat_bot.log"
+
+    # ===========================================
+    # 页面截图配置 (Playwright)
+    # ===========================================
+    screenshot_enabled: bool = True
+    # 页面基础URL（用于拼接生成页面的完整URL）
+    screenshot_base_url: str = "http://localhost:8000"
+    # 截图等待页面加载的超时时间（秒）
+    screenshot_timeout: int = 15
+    # 截图保存目录
+    screenshot_save_dir: str = "./web/screenshots"
+    # 截图视口宽度（仅截取左侧iframe内容区域）
+    screenshot_viewport_width: int = 1200
+    screenshot_viewport_height: int = 900
+
 
 @lru_cache()
 def get_settings() -> Settings:

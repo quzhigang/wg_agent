@@ -69,7 +69,23 @@ async def lifespan(app: FastAPI):
     
     logger.info(f"API服务地址: http://{settings.api_host}:{settings.api_port}")
     logger.info("智能体启动完成，等待请求...")
-    
+
+    # 启动微信机器人（如果启用）
+    wechat_thread = None
+    if settings.wechat_bot_enabled:
+        try:
+            from .wecom.wechat_bot import start_wechat_bot
+            from threading import Thread
+
+            Path(settings.wechat_log_file).parent.mkdir(parents=True, exist_ok=True)
+            Path(settings.screenshot_save_dir).mkdir(parents=True, exist_ok=True)
+
+            wechat_thread = Thread(target=start_wechat_bot, daemon=True, name="wechat-bot")
+            wechat_thread.start()
+            logger.info("微信机器人线程已启动")
+        except Exception as e:
+            logger.warning(f"微信机器人启动失败: {e}")
+
     yield
     
     # 关闭时执行
