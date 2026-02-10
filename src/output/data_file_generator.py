@@ -232,9 +232,11 @@ class DataFileGenerator:
         extracted = {}
 
         for tool_call in tool_calls:
-            tool_name = tool_call.get('tool_name', '')
+            raw_tool_name = tool_call.get('tool_name')
+            tool_name = raw_tool_name.strip() if isinstance(raw_tool_name, str) else ''
             success = tool_call.get('success', False)
             output = tool_call.get('output_result')
+            step_id = tool_call.get('step_id')
 
             if not success or not output:
                 continue
@@ -309,11 +311,31 @@ class DataFileGenerator:
                 if realtime_data:
                     self._merge_realtime_data(extracted, realtime_data)
 
-            # 通用处理：将所有成功的工具调用结果按工具名存储
-            # 这样页面可以通过 data_source: { type: "context", path: "tool_results.{tool_name}" } 访问
-            if 'tool_results' not in extracted:
-                extracted['tool_results'] = {}
-            extracted['tool_results'][tool_name] = output
+            # 通用处理：
+            # - 有工具名：写入 tool_results，供 data_source: context/tool_results.{tool_name} 使用
+            # - 无工具名：视为LLM步骤，写入 llm_steps.step_{id}
+            if tool_name:
+                if 'tool_results' not in extracted:
+                    extracted['tool_results'] = {}
+                extracted['tool_results'][tool_name] = output
+            else:
+                if 'llm_steps' not in extracted:
+                    extracted['llm_steps'] = {}
+
+                if step_id is None:
+                    step_key = f"step_{len(extracted['llm_steps']) + 1}"
+                else:
+                    step_key = f"step_{step_id}"
+
+                # 避免重复 step_key 导致覆盖
+                suffix = 1
+                original_step_key = step_key
+                while step_key in extracted['llm_steps']:
+                    suffix += 1
+                    step_key = f"{original_step_key}_{suffix}"
+
+                extracted['llm_steps'][step_key] = output
+                logger.warning(f"检测到无工具名成功步骤，已写入 llm_steps.{step_key}")
 
         return extracted
 

@@ -487,13 +487,32 @@ class ConversationContextCollector:
             step_id = result.get("step_id", 0)
             plan_step = plan_map.get(step_id, {})
 
-            # 兼容两种字段名：'output' (ExecutionResult格式) 和 'result' (工作流步骤格式)
-            output_result = result.get("output") or result.get("result")
+            # 兼容三种字段名：'output' (ExecutionResult格式)、'result'、'data' (部分工作流格式)
+            output_result = None
+            output_source = None
+            if result.get("output") is not None:
+                output_result = result.get("output")
+                output_source = "output"
+            elif result.get("result") is not None:
+                output_result = result.get("result")
+                output_source = "result"
+            elif result.get("data") is not None:
+                output_result = result.get("data")
+                output_source = "data"
+                logger.warning(
+                    f"步骤 {step_id} 仅提供 data 字段，已回退使用 data 作为输出"
+                )
 
             # 优先使用执行结果中的 tool_name，其次使用计划中的
-            tool_name = result.get("tool_name") or plan_step.get("tool_name", "unknown")
+            tool_name = result.get("tool_name")
+            if not isinstance(tool_name, str) or not tool_name.strip():
+                plan_tool_name = plan_step.get("tool_name")
+                tool_name = plan_tool_name if isinstance(plan_tool_name, str) else ""
             # 优先使用执行结果中的 step_name，其次使用计划中的 description
             step_description = result.get("step_name") or plan_step.get("description", "")
+
+            if output_source is None:
+                logger.warning(f"步骤 {step_id} 未找到 output/result/data 有效输出字段")
 
             self.record_tool_call(
                 tool_name=tool_name,

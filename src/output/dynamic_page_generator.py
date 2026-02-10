@@ -217,7 +217,7 @@ class DynamicPageGenerator:
                     return "[] (空数组)"
                 first = val[0]
                 if isinstance(first, dict):
-                    keys = list(first.keys())[:5]
+                    keys = [str(k) for k in list(first.keys())[:5]]
                     return f"[数组, {len(val)}项, 字段: {', '.join(keys)}]"
                 # 检测二维数组（如discharge_curve [[x,y],...]）
                 if isinstance(first, list) and len(first) == 2:
@@ -229,7 +229,7 @@ class DynamicPageGenerator:
                         pass
                 return f"[数组, {len(val)}项]"
             if isinstance(val, dict):
-                keys = list(val.keys())[:5]
+                keys = [str(k) for k in list(val.keys())[:5]]
                 return f"{{对象, 字段: {', '.join(keys)}}}"
             return str(type(val).__name__)
 
@@ -238,7 +238,7 @@ class DynamicPageGenerator:
             'camera_list', 'default_video_url', 'default_camera_name',
             'all_images', 'parsed_info_table', 'geo_info', 'key_metrics',
             'discharge_curve', 'station_info', 'params_data', 'water_level_data',
-            'tool_results', 'retrieval', 'workflow_result'
+            'tool_results', 'llm_steps', 'retrieval', 'workflow_result'
         }
 
         for key in include_keys:
