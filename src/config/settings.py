@@ -258,21 +258,25 @@ class Settings(BaseSettings):
     web_search_api_url: str = "https://api.bochaai.com/v1/web-search"
 
     # ===========================================
-    # 微信机器人配置 (WeChatFerry)
+    # 企业微信自建应用配置
     # ===========================================
-    wechat_bot_enabled: bool = False
-    # 允许与机器人对话的微信号列表（逗号分隔，留空则允许所有人）
-    wechat_allowed_users: str = ""
-    # 智能体API地址（微信机器人调用的后端地址）
-    wechat_agent_api_url: str = "http://localhost:8000"
-    # 微信消息中的用户ID前缀（区分微信用户和Web用户）
-    wechat_user_id_prefix: str = "wx_"
-    # wcferry RPC端口
-    wechat_wcf_port: int = 10086
-    # 消息发送最小间隔（秒），防止频率过高被封
-    wechat_msg_interval: float = 1.0
-    # 微信机器人日志文件
-    wechat_log_file: str = "./logs/wecom/wechat_bot.log"
+    wecom_enabled: bool = False
+    # 企业ID
+    wecom_corp_id: str = ""
+    # 自建应用 AgentId
+    wecom_agent_id: int = 0
+    # 自建应用 Secret
+    wecom_secret: str = ""
+    # 回调 Token（用于消息签名验证）
+    wecom_token: str = ""
+    # 回调 EncodingAESKey（用于消息加解密）
+    wecom_encoding_aes_key: str = ""
+    # 允许与机器人对话的企业微信 userid 列表（逗号分隔，留空则允许所有人）
+    wecom_allowed_users: str = ""
+    # 智能体API地址（回调处理器调用的后端地址）
+    wecom_agent_api_url: str = "http://localhost:8000"
+    # 企业微信消息中的用户ID前缀（区分企业微信用户和Web用户）
+    wecom_user_id_prefix: str = "qw_"
 
     # ===========================================
     # 页面截图配置 (Playwright)

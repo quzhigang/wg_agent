@@ -13,6 +13,7 @@ from .config.settings import settings
 from .config.logging_config import setup_logging, get_logger
 from .models.database import init_database
 from .api import chat_router, health_router, pages_router, knowledge_router, saved_workflows_router, system_info_router, web_templates_router, proxy_router
+from .wecom import wecom_router
 from .tools.registry import init_default_tools
 from .workflows.registry import init_default_workflows
 
@@ -70,21 +71,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"API服务地址: http://{settings.api_host}:{settings.api_port}")
     logger.info("智能体启动完成，等待请求...")
 
-    # 启动微信机器人（如果启用）
-    wechat_thread = None
-    if settings.wechat_bot_enabled:
-        try:
-            from .wecom.wechat_bot import start_wechat_bot
-            from threading import Thread
-
-            Path(settings.wechat_log_file).parent.mkdir(parents=True, exist_ok=True)
-            Path(settings.screenshot_save_dir).mkdir(parents=True, exist_ok=True)
-
-            wechat_thread = Thread(target=start_wechat_bot, daemon=True, name="wechat-bot")
-            wechat_thread.start()
-            logger.info("微信机器人线程已启动")
-        except Exception as e:
-            logger.warning(f"微信机器人启动失败: {e}")
+    if settings.wecom_enabled:
+        logger.info(f"企业微信回调已启用，路由: /wecom/callback")
 
     yield
     
@@ -146,6 +134,7 @@ def create_app() -> FastAPI:
     app.include_router(system_info_router)
     app.include_router(web_templates_router)
     app.include_router(proxy_router)
+    app.include_router(wecom_router)
     
     # 静态文件挂载 (注意顺序：更具体的路径应先挂载)
 

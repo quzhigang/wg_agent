@@ -17,7 +17,7 @@ class MessageHandler:
     """调用智能体 /chat/stream 接口，逐事件返回"""
 
     def __init__(self):
-        self.api_url = settings.wechat_agent_api_url
+        self.api_url = settings.wecom_agent_api_url
 
     async def chat_stream(
         self,
