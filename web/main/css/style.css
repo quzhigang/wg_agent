@@ -169,12 +169,17 @@ iframe {
     position: relative;
 }
 
-.avatar-image {
-    max-height: 90%;
-    width: auto;
-    object-fit: contain;
+.avatar-image,
+.avatar-video {
+    width: 100%;
+    height: 100%;
     display: block;
-    filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.3));
+}
+
+.avatar-video {
+    background: transparent;
+    object-fit: cover;
+    object-position: center top;
 }
 
 .process-box {

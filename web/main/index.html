@@ -18,7 +18,15 @@
             <div class="main-display-area panel-style">
                 <div class="avatar-box">
                     <div class="avatar-content">
-                        <img src="img/szr_no_bg.png" alt="AI数字人" class="avatar-image">
+                        <video
+                            id="avatarVideo"
+                            class="avatar-video"
+                            autoplay
+                            muted
+                            playsinline
+                            preload="auto"
+                            aria-label="数字人视频">
+                        </video>
                     </div>
                 </div>
                 <div class="process-box">
@@ -85,6 +93,46 @@
             const mainContentFrame = document.getElementById('mainContentFrame');
             const historyModal = document.getElementById('historyModal');
             const historyListContainer = document.getElementById('historyListContainer');
+            const avatarVideo = document.getElementById('avatarVideo');
+
+            const avatarVideoSources = [
+                'img/lens/lens1.mp4',
+                'img/lens/lens2.mp4',
+                'img/lens/lens3.mp4'
+            ];
+            let currentVideoIndex = -1;
+
+            function getNextVideoIndex() {
+                if (avatarVideoSources.length <= 1) return 0;
+                let nextIndex = currentVideoIndex;
+                while (nextIndex === currentVideoIndex) {
+                    nextIndex = Math.floor(Math.random() * avatarVideoSources.length);
+                }
+                return nextIndex;
+            }
+
+            function playNextAvatarVideo() {
+                if (!avatarVideo || avatarVideoSources.length === 0) return;
+                const nextIndex = getNextVideoIndex();
+                currentVideoIndex = nextIndex;
+                avatarVideo.src = avatarVideoSources[nextIndex];
+                avatarVideo.load();
+                avatarVideo.play().catch(() => {});
+            }
+
+            function initAvatarVideoPlayer() {
+                if (!avatarVideo || avatarVideoSources.length === 0) return;
+                avatarVideo.addEventListener('ended', playNextAvatarVideo);
+                avatarVideo.addEventListener('error', playNextAvatarVideo);
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden && avatarVideo.paused) {
+                        avatarVideo.play().catch(() => {});
+                    }
+                });
+                playNextAvatarVideo();
+            }
+
+            initAvatarVideoPlayer();
 
             window.toggleProcess = function(header) {
                 const container = header.closest('.execution-process');

@@ -86,6 +86,7 @@ def ChatGPT_API_with_finish_reason(model, prompt, api_key=None, api_base=None, c
                 model=model,
                 messages=messages,
                 temperature=0,
+                extra_body={"enable_thinking": False},
             )
             if response.choices[0].finish_reason == "length":
                 return response.choices[0].message.content, "max_output_reached"
@@ -132,8 +133,9 @@ def ChatGPT_API(model, prompt, api_key=None, api_base=None, chat_history=None):
                 model=model,
                 messages=messages,
                 temperature=0,
+                extra_body={"enable_thinking": False},
             )
-   
+
             return response.choices[0].message.content
         except Exception as e:
             print('************* 正在重试 *************')
@@ -169,6 +171,7 @@ async def ChatGPT_API_async(model, prompt, api_key=None, api_base=None):
                     model=model,
                     messages=messages,
                     temperature=0,
+                    extra_body={"enable_thinking": False},
                 )
                 return response.choices[0].message.content
         except Exception as e:

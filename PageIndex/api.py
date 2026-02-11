@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from pageindex.utils import ConfigLoader, ChatGPT_API, ChatGPT_API_async, get_text_of_pages, remove_fields
 from pageindex.vector_index import get_vector_index, search_documents, get_multi_kb_vector_index
 from pageindex.kb_manager import get_kb_manager, KnowledgeBaseInfo
+from pageindex.llm_retriever import get_llm_retriever
 import uvicorn
 
 app = FastAPI(title="PageIndex Multi-KB Retrieval API")
@@ -26,8 +27,9 @@ app = FastAPI(title="PageIndex Multi-KB Retrieval API")
 class QueryRequest(BaseModel):
     """查询请求"""
     q: str                                    # 查询文本
-    top_k: int = 10                           # 向量检索返回的最大结果数
+    top_k: int = 10                           # 检索返回的最大结果数
     kb_ids: Optional[List[str]] = None        # 指定知识库ID列表，为空则搜索所有知识库
+    mode: str = "vector"                      # 检索方式: vector / llm / compare
 
 
 class KBCreateRequest(BaseModel):
@@ -580,6 +582,248 @@ async def query_documents_raw(request: QueryRequest):
         "searched_kb": valid_kb_ids,
         "total_results": len(enriched_results),
         "results": enriched_results
+    }
+
+
+# ============================================================================
+# LLM 层进式检索接口
+# ============================================================================
+
+def _enrich_llm_result(result, kb_manager):
+    """为 LLM 检索结果补充完整内容（与向量检索结果格式对齐）"""
+    kb_id = result.get("kb_id", "")
+    doc_name = result.get("doc_name", "")
+    node_id = result.get("node_id", "")
+    title = result.get("title", "")
+    score = result.get("score", 0)
+    summary = result.get("summary", "")
+    text = result.get("text", "")
+
+    kb_info = kb_manager.get(kb_id)
+    kb_name = kb_info.name if kb_info else kb_id
+    upload_dir = kb_manager.get_uploads_dir(kb_id)
+
+    # 如果没有 text，尝试从 PDF 提取
+    if not text:
+        results_dir = kb_manager.get_results_dir(kb_id)
+        doc_data = load_document_structure(doc_name, results_dir)
+        if doc_data:
+            node_map = get_node_mapping(doc_data.get("structure", []))
+            node = node_map.get(node_id)
+            if node:
+                if node.get("text"):
+                    text = node["text"]
+                else:
+                    doc_file_path = get_document_file_path(doc_name, kb_manager.get_uploads_dir(kb_id))
+                    if doc_file_path and doc_file_path.lower().endswith(".pdf"):
+                        try:
+                            start_page = node.get("start_index")
+                            end_page = node.get("end_index")
+                            if start_page and end_page:
+                                text = get_text_of_pages(doc_file_path, start_page, end_page, tag=False)
+                        except Exception:
+                            pass
+
+    # 提取图片信息
+    summary_image_info = extract_image_info(summary)
+    text_image_info = extract_image_info(text) if text else []
+    seen_codes = set()
+    all_image_info = []
+    for info in summary_image_info + text_image_info:
+        if info["code"] not in seen_codes:
+            seen_codes.add(info["code"])
+            all_image_info.append(info)
+
+    clean_summary = remove_image_references(summary)
+    clean_text = remove_image_references(text) if text else None
+
+    return {
+        "kb_id": kb_id,
+        "kb_name": kb_name,
+        "doc_name": doc_name,
+        "node_id": node_id,
+        "title": title,
+        "score": score,
+        "summary": clean_summary,
+        "text": clean_text,
+        "images": get_image_info_list(all_image_info, upload_dir)
+    }
+
+
+@app.post("/query/llm")
+async def query_documents_llm(request: QueryRequest):
+    """
+    LLM 层进式目录结构检索（仅返回原始检索结果）
+
+    使用 LLM 推理在文档树结构中定位相关节点，而非向量相似度匹配。
+    """
+    q = request.q
+    top_k = request.top_k
+    kb_ids = request.kb_ids
+
+    kb_manager = get_kb_manager()
+
+    # 确定要搜索的知识库
+    if kb_ids:
+        valid_kb_ids = [kb_id for kb_id in kb_ids if kb_manager.exists(kb_id)]
+        if not valid_kb_ids:
+            return {"status": "error", "message": "指定的知识库不存在", "results": []}
+    else:
+        valid_kb_ids = kb_manager.list_ids()
+
+    if not valid_kb_ids:
+        return {"status": "error", "message": "没有可用的知识库", "results": []}
+
+    # 构建知识库配置（LLM 检索需要 results_dir 和 uploads_dir）
+    kb_configs = [
+        {
+            "kb_id": kb_id,
+            "results_dir": kb_manager.get_results_dir(kb_id),
+            "uploads_dir": kb_manager.get_uploads_dir(kb_id),
+        }
+        for kb_id in valid_kb_ids
+    ]
+
+    # 执行 LLM 检索
+    try:
+        llm_retriever = get_llm_retriever()
+        search_results, thinking = await llm_retriever.search(kb_configs=kb_configs, query=q, top_k=top_k)
+    except Exception as e:
+        return {"status": "error", "message": f"LLM 检索失败: {str(e)}", "results": []}
+
+    if not search_results:
+        return {
+            "status": "ok",
+            "query": q,
+            "searched_kb": valid_kb_ids,
+            "total_results": 0,
+            "thinking": thinking,
+            "results": []
+        }
+
+    # 补充完整内容
+    enriched_results = [_enrich_llm_result(r, kb_manager) for r in search_results]
+
+    return {
+        "status": "ok",
+        "query": q,
+        "searched_kb": valid_kb_ids,
+        "total_results": len(enriched_results),
+        "thinking": thinking,
+        "results": enriched_results
+    }
+
+
+@app.post("/query/compare")
+async def query_documents_compare(request: QueryRequest):
+    """
+    对比检索：同时执行向量检索和 LLM 检索，返回两组结果
+    """
+    q = request.q
+    top_k = request.top_k
+    kb_ids = request.kb_ids
+
+    kb_manager = get_kb_manager()
+    multi_kb_index = get_multi_kb_vector_index()
+
+    # 确定要搜索的知识库
+    if kb_ids:
+        valid_kb_ids = [kb_id for kb_id in kb_ids if kb_manager.exists(kb_id)]
+        if not valid_kb_ids:
+            return {"status": "error", "message": "指定的知识库不存在"}
+    else:
+        valid_kb_ids = kb_manager.list_ids()
+
+    if not valid_kb_ids:
+        return {"status": "error", "message": "没有可用的知识库"}
+
+    # 并行执行两种检索
+    async def do_vector_search():
+        kb_configs = [
+            {"kb_id": kb_id, "chroma_dir": kb_manager.get_chroma_dir(kb_id)}
+            for kb_id in valid_kb_ids
+        ]
+        try:
+            results = multi_kb_index.search_multi_kb(kb_configs, q, top_k)
+            # 复用 /query/raw 的内容提取逻辑
+            enriched = []
+            for result in results:
+                kb_id = result.get("kb_id", "")
+                doc_name = result.get("doc_name", "")
+                node_id = result.get("node_id", "")
+                title = result.get("title", "")
+                score = result.get("score", 0)
+                summary = result.get("summary", "")
+
+                kb_info = kb_manager.get(kb_id)
+                kb_name = kb_info.name if kb_info else kb_id
+                results_dir = kb_manager.get_results_dir(kb_id)
+                upload_dir = kb_manager.get_uploads_dir(kb_id)
+
+                text = None
+                doc_data = load_document_structure(doc_name, results_dir)
+                if doc_data:
+                    node_map = get_node_mapping(doc_data.get("structure", []))
+                    node = node_map.get(node_id)
+                    if node:
+                        if node.get("text"):
+                            text = node["text"]
+                        else:
+                            doc_file_path = get_document_file_path(doc_name, upload_dir)
+                            if doc_file_path and doc_file_path.lower().endswith(".pdf"):
+                                try:
+                                    start_page = node.get("start_index")
+                                    end_page = node.get("end_index")
+                                    if start_page and end_page:
+                                        text = get_text_of_pages(doc_file_path, start_page, end_page, tag=False)
+                                except Exception:
+                                    pass
+
+                summary_image_info = extract_image_info(summary)
+                text_image_info = extract_image_info(text) if text else []
+                seen_codes = set()
+                all_image_info = []
+                for info in summary_image_info + text_image_info:
+                    if info["code"] not in seen_codes:
+                        seen_codes.add(info["code"])
+                        all_image_info.append(info)
+
+                enriched.append({
+                    "kb_id": kb_id, "kb_name": kb_name, "doc_name": doc_name,
+                    "node_id": node_id, "title": title, "score": score,
+                    "summary": remove_image_references(summary),
+                    "text": remove_image_references(text) if text else None,
+                    "images": get_image_info_list(all_image_info, upload_dir)
+                })
+            return {"total_results": len(enriched), "results": enriched}
+        except Exception as e:
+            return {"total_results": 0, "results": [], "error": str(e)}
+
+    async def do_llm_search():
+        kb_configs = [
+            {
+                "kb_id": kb_id,
+                "results_dir": kb_manager.get_results_dir(kb_id),
+                "uploads_dir": kb_manager.get_uploads_dir(kb_id),
+            }
+            for kb_id in valid_kb_ids
+        ]
+        try:
+            llm_retriever = get_llm_retriever()
+            results, thinking = await llm_retriever.search(kb_configs=kb_configs, query=q, top_k=top_k)
+            enriched = [_enrich_llm_result(r, kb_manager) for r in results]
+            return {"total_results": len(enriched), "thinking": thinking, "results": enriched}
+        except Exception as e:
+            return {"total_results": 0, "results": [], "thinking": "", "error": str(e)}
+
+    vector_result, llm_result = await asyncio.gather(do_vector_search(), do_llm_search())
+
+    return {
+        "status": "ok",
+        "query": q,
+        "searched_kb": valid_kb_ids,
+        "vector_results": vector_result,
+        "llm_results": llm_result
     }
 
 

@@ -1,11 +1,11 @@
 """
 RAG检索器
-对接PageIndex知识库检索系统
+对接PageIndex知识库检索系统，支持向量检索和LLM层进式检索
 """
 
 import os
 import sys
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 
 # 添加PageIndex到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'PageIndex'))
@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'PageInde
 from ..config.logging_config import get_logger
 from pageindex.kb_manager import get_kb_manager
 from pageindex.vector_index import get_multi_kb_vector_index
+from pageindex.llm_retriever import get_llm_retriever
 
 logger = get_logger(__name__)
 
@@ -40,11 +41,12 @@ class RAGRetriever:
         self._multi_kb_index = None
         self._kb_manager = None
         self._kb_base_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'PageIndex', 'knowledge_bases')
+        self._default_retrieval_mode = os.getenv("DEFAULT_RETRIEVAL_MODE", "vector").lower()
 
         self._init_vector_index()
         self._initialized = True
 
-        logger.info("RAG检索器初始化完成（对接PageIndex）")
+        logger.info(f"RAG检索器初始化完成（默认检索方式: {self._default_retrieval_mode}）")
 
     def _init_vector_index(self):
         """初始化多知识库向量索引"""
@@ -221,6 +223,139 @@ class RAGRetriever:
         except Exception as e:
             logger.error(f"向量检索失败: {e}")
             return []
+
+    async def retrieve_llm(
+        self,
+        query: str,
+        top_k: Optional[int] = None,
+        target_kbs: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        使用LLM层进式检索
+
+        Args:
+            query: 查询文本
+            top_k: 返回结果数量
+            target_kbs: 目标知识库ID列表
+
+        Returns:
+            相关文档列表（格式与retrieve一致）
+        """
+        logger.info(f"LLM检索: {query[:30]}... -> 知识库: {target_kbs or '全部'}")
+
+        if self._kb_manager is None:
+            logger.warning("知识库管理器未初始化")
+            return []
+
+        k = top_k or self._default_top_k
+
+        try:
+            all_kb_ids = self._kb_manager.list_ids()
+            search_kb_ids = target_kbs if target_kbs else all_kb_ids
+
+            kb_configs = []
+            for kb_id in search_kb_ids:
+                if kb_id in all_kb_ids:
+                    kb_configs.append({
+                        "kb_id": kb_id,
+                        "results_dir": self._kb_manager.get_results_dir(kb_id),
+                        "uploads_dir": self._kb_manager.get_uploads_dir(kb_id),
+                    })
+
+            if not kb_configs:
+                logger.warning(f"未找到有效的知识库: {search_kb_ids}")
+                return []
+
+            llm_retriever = get_llm_retriever()
+            search_results, thinking = await llm_retriever.search(
+                query=query, kb_configs=kb_configs, top_k=k
+            )
+
+            if thinking:
+                logger.debug(f"LLM推理过程: {thinking[:200]}...")
+
+            # 转换为统一格式
+            results = []
+            for result in search_results:
+                kb_id = result.get("kb_id", "")
+                doc_name = result.get("doc_name", "")
+                node_id = result.get("node_id", "")
+                title = result.get("title", "")
+                summary = result.get("summary", "")
+                score = result.get("score", 0)
+
+                content = summary
+                text = result.get("text", "")
+                if text:
+                    content = text
+                elif not content:
+                    doc_data = self._load_document_structure(kb_id, doc_name)
+                    if doc_data:
+                        node_map = self._get_node_mapping(doc_data.get("structure", []))
+                        node = node_map.get(node_id)
+                        if node and node.get("text"):
+                            content = node["text"]
+
+                images = self._extract_images_from_content(content, kb_id, doc_name)
+
+                results.append({
+                    'content': content,
+                    'metadata': {
+                        'doc_name': doc_name,
+                        'node_id': node_id,
+                        'title': title,
+                        'category': kb_id or doc_name,
+                        'source': 'pageindex_llm',
+                        'has_images': len(images) > 0,
+                        'images': images
+                    },
+                    'id': f"{doc_name}_{node_id}",
+                    'score': score
+                })
+
+            if results:
+                logger.info(f"LLM检索到 {len(results)} 条文档")
+            return results
+
+        except Exception as e:
+            logger.error(f"LLM检索失败: {e}")
+            return []
+
+    async def retrieve_compare(
+        self,
+        query: str,
+        top_k: Optional[int] = None,
+        target_kbs: Optional[List[str]] = None
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        对比检索：同时执行向量和LLM检索
+
+        Args:
+            query: 查询文本
+            top_k: 返回结果数量
+            target_kbs: 目标知识库ID列表
+
+        Returns:
+            {"vector": [...], "llm": [...]}
+        """
+        import asyncio
+        logger.info(f"对比检索: {query[:30]}...")
+
+        vector_task = self.retrieve(query, top_k, target_kbs=target_kbs)
+        llm_task = self.retrieve_llm(query, top_k, target_kbs=target_kbs)
+
+        vector_results, llm_results = await asyncio.gather(
+            vector_task, llm_task, return_exceptions=True
+        )
+
+        if isinstance(vector_results, Exception):
+            logger.error(f"对比检索-向量检索失败: {vector_results}")
+            vector_results = []
+        if isinstance(llm_results, Exception):
+            logger.error(f"对比检索-LLM检索失败: {llm_results}")
+            llm_results = []
+
+        return {"vector": vector_results, "llm": llm_results}
     
     async def retrieve_and_format(
         self,
@@ -264,7 +399,8 @@ class RAGRetriever:
         user_message: str,
         intent: Optional[str] = None,
         max_length: int = 8000,
-        target_kbs: Optional[List[str]] = None
+        target_kbs: Optional[List[str]] = None,
+        retrieval_mode: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         获取与用户消息相关的上下文
@@ -273,7 +409,8 @@ class RAGRetriever:
             user_message: 用户消息
             intent: 用户意图（可用于优化检索）
             max_length: 上下文最大长度
-            target_kbs: 目标知识库ID列表，如 ["water_project", "monitor_site"]
+            target_kbs: 目标知识库ID列表
+            retrieval_mode: 检索方式 (vector/llm)，为None时使用.env中的DEFAULT_RETRIEVAL_MODE
 
         Returns:
             包含上下文和元信息的字典
@@ -283,12 +420,18 @@ class RAGRetriever:
         if intent in ['knowledge_qa', 'flood_forecast']:
             top_k = 8
 
-        # 检索文档
-        results = await self.retrieve(
-            query=user_message,
-            top_k=top_k,
-            target_kbs=target_kbs
-        )
+        # 确定检索方式
+        mode = (retrieval_mode or self._default_retrieval_mode).lower()
+
+        # 根据模式执行检索
+        if mode == "llm":
+            results = await self.retrieve_llm(
+                query=user_message, top_k=top_k, target_kbs=target_kbs
+            )
+        else:
+            results = await self.retrieve(
+                query=user_message, top_k=top_k, target_kbs=target_kbs
+            )
         
         # 格式化上下文
         context_text = ""

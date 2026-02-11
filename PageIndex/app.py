@@ -153,14 +153,21 @@ if os.path.exists(_env_path):
 else:
     st.sidebar.info("💡 可创建 .env 文件自动加载配置")
 
-# 统一使用本项目的配置（兼容两种环境变量名）
-api_key = st.sidebar.text_input("API 密钥", value=os.getenv("OPENAI_API_KEY") or os.getenv("CHATGPT_API_KEY", ""), type="password")
-api_base = st.sidebar.text_input("API 基础地址", value=os.getenv("OPENAI_API_BASE") or os.getenv("CHATGPT_API_BASE", "https://api.openai.com/v1"))
-
 config_loader = ConfigLoader()
 default_config = config_loader.load()
-# 统一使用本项目的配置（兼容两种环境变量名）
-model_name = st.sidebar.text_input("模型名称", value=os.getenv("OPENAI_MODEL_NAME") or os.getenv("CHATGPT_MODEL", "gpt-4o"))
+
+# 结果合成 LLM 配置（用于智能对话中的答案生成、文档处理等）
+with st.sidebar.expander("结果合成 LLM 配置"):
+    api_key = st.text_input("API 密钥", value=os.getenv("OPENAI_API_KEY") or os.getenv("CHATGPT_API_KEY", ""), type="password", key="synth_api_key")
+    api_base = st.text_input("API 基础地址", value=os.getenv("OPENAI_API_BASE") or os.getenv("CHATGPT_API_BASE", "https://api.openai.com/v1"), key="synth_api_base")
+    model_name = st.text_input("模型名称", value=os.getenv("OPENAI_MODEL_NAME") or os.getenv("CHATGPT_MODEL", "gpt-4o"), key="synth_model")
+
+# 检索 LLM 配置（用于 LLM 层进式目录结构检索）
+with st.sidebar.expander("检索 LLM 配置"):
+    retrieval_api_key = st.text_input("API 密钥", value=os.getenv("LLM_RETRIEVAL_API_KEY", ""), type="password", key="retr_api_key")
+    retrieval_api_base = st.text_input("API 基础地址", value=os.getenv("LLM_RETRIEVAL_API_BASE", ""), key="retr_api_base")
+    retrieval_model_name = st.text_input("模型名称", value=os.getenv("LLM_RETRIEVAL_MODEL_NAME", "qwen3-4b"), key="retr_model")
+
 api_max_concurrent = st.sidebar.number_input("API调用并发数", min_value=1, max_value=20, value=10, help="控制大模型API的最大并发调用数，避免触发限流")
 
 st.sidebar.header("PageIndex 配置")
@@ -171,6 +178,10 @@ max_tokens_per_node = st.sidebar.number_input("每节点最大令牌数", value=
 st.sidebar.header("向量检索配置")
 vector_top_k = st.sidebar.slider("检索结果数量 (Top-K)", min_value=1, max_value=50, value=5)
 enable_rerank = st.sidebar.toggle("启用重排序", value=False, help="启用后使用交叉编码器对结果重排序，效果更好但速度较慢")
+
+# 将侧边栏的检索 LLM 配置同步到 llm_retriever 模块
+from pageindex.llm_retriever import update_retrieval_config
+update_retrieval_config(api_key=retrieval_api_key, api_base=retrieval_api_base, model_name=retrieval_model_name)
 
 # 默认设置
 if_add_doc_description = "no"
@@ -288,7 +299,7 @@ if st.session_state.get("show_principle", False):
             st.rerun()
     show_principle_dialog()
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["💬 智能对话", "📄 文档处理", "📚 知识库管理", "📊 向量索引", "🔍 向量检索"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["💬 智能对话", "📄 文档处理", "📚 知识库管理", "📊 向量索引", "🔍 知识检索"])
 
 # 目录配置（相对于当前工作目录）
 # 当从PageIndex目录运行时使用相对路径 ./uploads 和 ./results
@@ -614,6 +625,17 @@ with tab1:
             else:
                 st.success(f"✅ 已选择 {len(selected_kb_ids)} 个知识库：{total_docs} 个文档，{total_nodes} 个节点")
 
+        # 检索方式选择
+        st.markdown("---")
+        retrieval_mode = st.radio(
+            "检索方式",
+            options=["向量检索", "LLM检索", "检索对比"],
+            index=0,
+            horizontal=True,
+            key="tab1_retrieval_mode",
+            help="向量检索：速度快，基于语义相似度；LLM检索：精度高，基于大模型推理；检索对比：同时执行两种检索"
+        )
+
     # 初始化聊天历史
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -628,7 +650,17 @@ with tab1:
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                if message.get("compare"):
+                    # 对比模式：双栏回显
+                    col_v, col_l = st.columns(2)
+                    with col_v:
+                        st.subheader("📊 向量检索")
+                        st.markdown(message.get("vector_answer", ""))
+                    with col_l:
+                        st.subheader("🧠 LLM检索")
+                        st.markdown(message.get("llm_answer", ""))
+                else:
+                    st.markdown(message["content"])
                 if "thinking" in message and message["thinking"]:
                     with st.expander("推理检索过程"):
                         st.markdown(message["thinking"])
@@ -651,111 +683,257 @@ with tab1:
             with st.chat_message("user"):
                 st.markdown(query)
 
-            with st.chat_message("assistant"):
-                with st.status("正在进行向量检索...", expanded=True) as status:
-                    thinking_parts = []
-                    all_reference_nodes = []
-                    all_relevant_text = ""
+            # ---- 辅助函数：执行向量检索并生成答案 ----
+            def _do_vector_chat(container, query_text, kb_ids_list, kb_manager_ref, multi_kb_idx):
+                """执行向量检索 + 内容提取 + 答案生成"""
+                import time as _time
+                thinking_parts = []
+                all_reference_nodes = []
+                all_relevant_text = ""
 
-                    # 1. 多知识库向量检索（毫秒级）
-                    st.write("1. 向量相似度检索...")
-                    try:
-                        # 构建知识库配置列表
-                        kb_configs = [
-                            {"kb_id": kb_id, "chroma_dir": kb_manager_tab2.get_chroma_dir(kb_id)}
-                            for kb_id in selected_kb_ids
-                        ]
-                        search_results = multi_kb_index.search_multi_kb(kb_configs, query, top_k=vector_top_k, use_rerank=enable_rerank)
-                        thinking_parts.append(f"向量检索返回 {len(search_results)} 个相关节点")
-                    except Exception as e:
-                        st.error(f"向量检索失败: {e}")
-                        search_results = []
+                with container:
+                    with st.status("正在进行向量检索...", expanded=True) as status:
+                        _t0 = _time.time()
+                        st.write("1. 向量相似度检索...")
+                        try:
+                            kb_configs = [
+                                {"kb_id": kb_id, "chroma_dir": kb_manager_ref.get_chroma_dir(kb_id)}
+                                for kb_id in kb_ids_list
+                            ]
+                            search_results = multi_kb_idx.search_multi_kb(kb_configs, query_text, top_k=vector_top_k, use_rerank=enable_rerank)
+                            thinking_parts.append(f"向量检索返回 {len(search_results)} 个相关节点")
+                        except Exception as e:
+                            st.error(f"向量检索失败: {e}")
+                            search_results = []
 
-                    if search_results:
-                        # 按知识库和文档分组
-                        kb_doc_results = {}
-                        for result in search_results:
-                            kb_id = result.get("kb_id", "unknown")
-                            doc_name = result["doc_name"]
-                            key = (kb_id, doc_name)
-                            if key not in kb_doc_results:
-                                kb_doc_results[key] = []
-                            kb_doc_results[key].append(result)
+                        if search_results:
+                            kb_doc_results = {}
+                            for result in search_results:
+                                kb_id = result.get("kb_id", "unknown")
+                                doc_name = result["doc_name"]
+                                key = (kb_id, doc_name)
+                                if key not in kb_doc_results:
+                                    kb_doc_results[key] = []
+                                kb_doc_results[key].append(result)
 
-                        unique_kbs = set(r.get("kb_id") for r in search_results)
-                        st.write(f"找到 {len(search_results)} 个相关节点，来自 {len(unique_kbs)} 个知识库")
+                            unique_kbs = set(r.get("kb_id") for r in search_results)
+                            st.write(f"找到 {len(search_results)} 个相关节点，来自 {len(unique_kbs)} 个知识库")
 
-                        # 2. 内容提取
-                        st.write("2. 提取相关内容...")
-                        for (kb_id, doc_name), results in kb_doc_results.items():
-                            # 从对应知识库的 results 目录加载结构文件
-                            kb_results_dir = kb_manager_tab2.get_results_dir(kb_id)
-                            doc_data = load_document_structure(doc_name, kb_results_dir)
-                            if not doc_data:
-                                thinking_parts.append(f"[{kb_id}/{doc_name}] 未找到结构文件")
-                                continue
+                            st.write("2. 提取相关内容...")
+                            for (kb_id, doc_name), results in kb_doc_results.items():
+                                kb_results_dir = kb_manager_ref.get_results_dir(kb_id)
+                                doc_data = load_document_structure(doc_name, kb_results_dir)
+                                if not doc_data:
+                                    thinking_parts.append(f"[{kb_id}/{doc_name}] 未找到结构文件")
+                                    continue
+                                node_map = get_node_mapping(doc_data.get("structure", []))
+                                kb_info = kb_manager_ref.get(kb_id)
+                                kb_display_name = kb_info.name if kb_info else kb_id
+                                for result in results:
+                                    node_id = result["node_id"]
+                                    title = result["title"]
+                                    score = result.get("score", 0)
+                                    all_reference_nodes.append(f"[{kb_display_name}] {doc_name} / {title} (相似度: {score:.3f})")
+                                    node = node_map.get(node_id)
+                                    if node and node.get("text"):
+                                        clean_text = remove_image_references(node['text'])
+                                        all_relevant_text += f"\n--- 知识库: {kb_display_name}, 文档: {doc_name}, 章节: {title} ---\n{clean_text}\n"
+                                    elif result.get("summary"):
+                                        clean_summary = remove_image_references(result['summary'])
+                                        all_relevant_text += f"\n--- 知识库: {kb_display_name}, 文档: {doc_name}, 章节: {title} (摘要) ---\n{clean_summary}\n"
 
-                            node_map = get_node_mapping(doc_data.get("structure", []))
+                            st.write("3. 生成回答...")
+                            _elapsed = _time.time() - _t0
+                            status.update(label=f"向量检索完成（耗时 {_elapsed:.1f}s）", state="complete", expanded=False)
+                        else:
+                            _elapsed = _time.time() - _t0
+                            status.update(label=f"未找到相关内容（耗时 {_elapsed:.1f}s）", state="error", expanded=False)
 
-                            # 获取知识库显示名称
-                            kb_info = kb_manager_tab2.get(kb_id)
-                            kb_display_name = kb_info.name if kb_info else kb_id
-
-                            for result in results:
-                                node_id = result["node_id"]
-                                title = result["title"]
-                                score = result.get("score", 0)
-
-                                all_reference_nodes.append(f"[{kb_display_name}] {doc_name} / {title} (相似度: {score:.3f})")
-
-                                node = node_map.get(node_id)
-                                if node and node.get("text"):
-                                    # 删除图片引用后再添加到上下文
-                                    clean_text = remove_image_references(node['text'])
-                                    all_relevant_text += f"\n--- 知识库: {kb_display_name}, 文档: {doc_name}, 章节: {title} ---\n{clean_text}\n"
-                                elif result.get("summary"):
-                                    # 删除图片引用后再添加到上下文
-                                    clean_summary = remove_image_references(result['summary'])
-                                    all_relevant_text += f"\n--- 知识库: {kb_display_name}, 文档: {doc_name}, 章节: {title} (摘要) ---\n{clean_summary}\n"
-                        
-                        st.write("3. 生成回答...")
-                        status.update(label="向量检索完成", state="complete", expanded=False)
+                    # 生成答案
+                    if not all_relevant_text.strip():
+                        full_answer = "抱歉，未能从所选知识库中找到与您问题相关的内容。"
                     else:
-                        status.update(label="未找到相关内容", state="error", expanded=False)
-
-                # 3. 生成答案
-                if not all_relevant_text.strip():
-                    full_answer = "抱歉，未能从所选知识库中找到与您问题相关的内容。请尝试换一种方式提问，或选择其他知识库。"
-                else:
-                    answer_prompt = f"""你是一个专业的研究助手。你有来自多个知识库的文档片段。
+                        answer_prompt = f"""你是一个专业的研究助手。你有来自多个知识库的文档片段。
 根据提供的上下文回答用户的问题。
 如果来源有冲突的信息，请提及。
 在回答中始终引用知识库名称和文档名称。
 
-问题: {query}
+问题: {query_text}
 
 上下文:
 {all_relevant_text[:15000]}
 
 助手:"""
-                    try:
-                        full_answer = ChatGPT_API(model=model_name, prompt=answer_prompt)
-                    except Exception as e:
-                        full_answer = f"答案生成失败: {str(e)}"
-                
-                st.markdown(full_answer)
-                if all_reference_nodes:
-                    with st.expander("参考来源"):
-                        for node_info in all_reference_nodes:
-                            st.write(node_info)
-                
-                # 保存历史记录
-                st.session_state.messages.append({
-                    "role": "assistant", 
-                    "content": full_answer,
-                    "thinking": "\n".join(thinking_parts),
-                    "nodes": all_reference_nodes
-                })
+                        try:
+                            full_answer = ChatGPT_API(model=model_name, prompt=answer_prompt)
+                        except Exception as e:
+                            full_answer = f"答案生成失败: {str(e)}"
+
+                    st.markdown(full_answer)
+                    if all_reference_nodes:
+                        with st.expander("参考来源"):
+                            for node_info in all_reference_nodes:
+                                st.write(node_info)
+
+                return full_answer, thinking_parts, all_reference_nodes
+
+            # ---- 辅助函数：执行 LLM 检索并生成答案 ----
+            def _do_llm_chat(container, query_text, kb_ids_list, kb_manager_ref):
+                """执行 LLM 层进式检索 + 内容提取 + 答案生成"""
+                import time as _time
+                thinking_parts = []
+                all_reference_nodes = []
+                all_relevant_text = ""
+
+                with container:
+                    with st.status("正在进行 LLM 检索...", expanded=True) as status:
+                        _t0 = _time.time()
+                        st.write("1. LLM 推理定位相关节点...")
+                        try:
+                            from pageindex.llm_retriever import get_llm_retriever
+                            llm_retriever = get_llm_retriever()
+                            kb_configs = [
+                                {
+                                    "kb_id": kb_id,
+                                    "results_dir": kb_manager_ref.get_results_dir(kb_id),
+                                    "uploads_dir": kb_manager_ref.get_uploads_dir(kb_id),
+                                }
+                                for kb_id in kb_ids_list
+                            ]
+                            search_results, llm_thinking = asyncio.run(
+                                llm_retriever.search(query=query_text, kb_configs=kb_configs, top_k=vector_top_k)
+                            )
+                            if llm_thinking:
+                                thinking_parts.append(llm_thinking)
+                            thinking_parts.append(f"LLM 检索返回 {len(search_results)} 个相关节点")
+                        except Exception as e:
+                            st.error(f"LLM 检索失败: {e}")
+                            search_results = []
+
+                        if search_results:
+                            unique_kbs = set(r.get("kb_id") for r in search_results)
+                            st.write(f"找到 {len(search_results)} 个相关节点，来自 {len(unique_kbs)} 个知识库")
+
+                            st.write("2. 提取相关内容...")
+                            for result in search_results:
+                                kb_id = result.get("kb_id", "")
+                                doc_name = result.get("doc_name", "")
+                                node_id = result.get("node_id", "")
+                                title = result.get("title", "")
+                                score = result.get("score", 0)
+
+                                kb_info = kb_manager_ref.get(kb_id)
+                                kb_display_name = kb_info.name if kb_info else kb_id
+                                all_reference_nodes.append(f"[{kb_display_name}] {doc_name} / {title} (排名分: {score:.2f})")
+
+                                text = result.get("text", "")
+                                if not text:
+                                    # 尝试从结构文件或 PDF 提取
+                                    kb_results_dir = kb_manager_ref.get_results_dir(kb_id)
+                                    doc_data = load_document_structure(doc_name, kb_results_dir)
+                                    if doc_data:
+                                        node_map = get_node_mapping(doc_data.get("structure", []))
+                                        node = node_map.get(node_id)
+                                        if node and node.get("text"):
+                                            text = node["text"]
+
+                                if text:
+                                    clean_text = remove_image_references(text)
+                                    all_relevant_text += f"\n--- 知识库: {kb_display_name}, 文档: {doc_name}, 章节: {title} ---\n{clean_text}\n"
+                                elif result.get("summary"):
+                                    clean_summary = remove_image_references(result['summary'])
+                                    all_relevant_text += f"\n--- 知识库: {kb_display_name}, 文档: {doc_name}, 章节: {title} (摘要) ---\n{clean_summary}\n"
+
+                            st.write("3. 生成回答...")
+                            _elapsed = _time.time() - _t0
+                            status.update(label=f"LLM 检索完成（耗时 {_elapsed:.1f}s）", state="complete", expanded=False)
+                        else:
+                            _elapsed = _time.time() - _t0
+                            status.update(label=f"未找到相关内容（耗时 {_elapsed:.1f}s）", state="error", expanded=False)
+
+                    # 生成答案
+                    if not all_relevant_text.strip():
+                        full_answer = "抱歉，未能从所选知识库中找到与您问题相关的内容。"
+                    else:
+                        answer_prompt = f"""你是一个专业的研究助手。你有来自多个知识库的文档片段。
+根据提供的上下文回答用户的问题。
+如果来源有冲突的信息，请提及。
+在回答中始终引用知识库名称和文档名称。
+
+问题: {query_text}
+
+上下文:
+{all_relevant_text[:15000]}
+
+助手:"""
+                        try:
+                            full_answer = ChatGPT_API(model=model_name, prompt=answer_prompt)
+                        except Exception as e:
+                            full_answer = f"答案生成失败: {str(e)}"
+
+                    st.markdown(full_answer)
+                    if all_reference_nodes:
+                        with st.expander("参考来源"):
+                            for node_info in all_reference_nodes:
+                                st.write(node_info)
+                    if thinking_parts:
+                        with st.expander("LLM 推理过程"):
+                            st.markdown("\n\n".join(thinking_parts))
+
+                return full_answer, thinking_parts, all_reference_nodes
+
+            # ---- 根据检索方式执行 ----
+            if retrieval_mode == "检索对比":
+                # 对比模式：左右分栏，顺序执行（Streamlit 不支持子线程操作 UI）
+                with st.chat_message("assistant"):
+                    col_vector, col_llm = st.columns(2)
+
+                    with col_vector:
+                        st.subheader("📊 向量检索")
+                        v_answer, v_thinking, v_nodes = _do_vector_chat(
+                            st.container(), query, selected_kb_ids, kb_manager_tab2, multi_kb_index
+                        )
+
+                    with col_llm:
+                        st.subheader("🧠 LLM检索")
+                        l_answer, l_thinking, l_nodes = _do_llm_chat(
+                            st.container(), query, selected_kb_ids, kb_manager_tab2
+                        )
+
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "compare": True,
+                        "vector_answer": v_answer,
+                        "llm_answer": l_answer,
+                        "content": f"**向量检索结果：**\n{v_answer}\n\n---\n\n**LLM检索结果：**\n{l_answer}",
+                        "thinking": "\n".join(v_thinking + l_thinking),
+                        "nodes": v_nodes + l_nodes
+                    })
+
+            elif retrieval_mode == "LLM检索":
+                with st.chat_message("assistant"):
+                    l_answer, l_thinking, l_nodes = _do_llm_chat(
+                        st.container(), query, selected_kb_ids, kb_manager_tab2
+                    )
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": l_answer,
+                        "thinking": "\n".join(l_thinking),
+                        "nodes": l_nodes
+                    })
+
+            else:
+                # 默认向量检索
+                with st.chat_message("assistant"):
+                    v_answer, v_thinking, v_nodes = _do_vector_chat(
+                        st.container(), query, selected_kb_ids, kb_manager_tab2, multi_kb_index
+                    )
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": v_answer,
+                        "thinking": "\n".join(v_thinking),
+                        "nodes": v_nodes
+                    })
 
 # 选项卡 4: 向量索引管理
 with tab4:
@@ -1015,7 +1193,7 @@ with tab3:
     else:
         st.info("暂无知识库，请创建新的知识库。")
 
-# 选项卡 5: 向量检索
+# 选项卡 5: 知识检索
 with tab5:
     # 知识库多选
     kb_manager_tab5 = get_kb_manager()
@@ -1078,14 +1256,18 @@ with tab5:
         else:
             st.success(f"✅ 已选择 {len(api_selected_kb_ids)} 个知识库")
 
+        # 检索方式选择
         st.markdown("---")
-
-        # API 配置
-        api_url = st.text_input(
-            "API 地址",
-            value="http://localhost:8502/query/raw",
-            key="api_test_url"
+        tab5_retrieval_mode = st.radio(
+            "检索方式",
+            options=["向量检索", "LLM检索", "检索对比"],
+            index=0,
+            horizontal=True,
+            key="tab5_retrieval_mode",
+            help="向量检索：速度快，基于语义相似度；LLM检索：精度高，基于大模型推理；检索对比：同时执行两种检索"
         )
+
+        st.markdown("---")
 
         # 查询输入
         api_query = st.text_input(
@@ -1095,13 +1277,14 @@ with tab5:
         )
 
         # 发送请求按钮
-        if st.button("🚀 发送请求", type="primary", key="api_test_send"):
+        if st.button("🚀 开始检索", type="primary", key="api_test_send"):
             if not api_query:
                 st.error("请输入查询内容")
             else:
-                import requests
+                import requests as http_requests
 
-                # 构建请求体（如果没有选择知识库，则不传 kb_ids，API 会搜索所有知识库）
+                # 根据检索方式选择 API 端点
+                base_url = "http://localhost:8502"
                 request_body = {
                     "q": api_query,
                     "top_k": vector_top_k
@@ -1109,85 +1292,170 @@ with tab5:
                 if api_selected_kb_ids:
                     request_body["kb_ids"] = api_selected_kb_ids
 
-                # 显示请求信息
-                with st.expander("📤 请求详情", expanded=False):
-                    st.code(f"POST {api_url}", language="text")
-                    st.json(request_body)
+                def _display_results(results_data, container, label=""):
+                    """在指定容器中显示检索结果"""
+                    with container:
+                        results = results_data.get("results", [])
+                        thinking = results_data.get("thinking", "")
+                        total = results_data.get("total_results", len(results))
 
-                # 发送请求
-                with st.spinner("正在请求 API..."):
-                    try:
-                        response = requests.post(
-                            api_url,
-                            json=request_body,
-                            timeout=60
-                        )
+                        if thinking:
+                            with st.expander("🧠 LLM 推理过程", expanded=False):
+                                st.markdown(thinking)
 
-                        # 显示响应状态
-                        if response.status_code == 200:
-                            st.success(f"✅ 请求成功 (HTTP {response.status_code})")
+                        if results:
+                            st.info(f"📊 {label}检索到 {total} 个结果")
+                            for i, result in enumerate(results):
+                                score = result.get("score", 0)
+                                title = result.get("title", "")
+                                kb_name = result.get("kb_name", "")
+                                doc_name = result.get("doc_name", "")
+                                summary = result.get("summary", "")
+                                text = result.get("text", "")
+
+                                with st.expander(
+                                    f"#{i+1} [{kb_name}] {doc_name} - {title} ({score:.4f})",
+                                    expanded=(i < 3)
+                                ):
+                                    st.write(f"**知识库:** {kb_name}")
+                                    st.write(f"**文档:** {doc_name}")
+                                    st.write(f"**节点ID:** {result.get('node_id', '')}")
+                                    if summary:
+                                        st.write("**摘要:**")
+                                        st.markdown(f"> {summary}")
+                                    if text:
+                                        st.write("**原文内容:**")
+                                        st.text_area(
+                                            "内容", value=text[:2000] + ("..." if len(text) > 2000 else ""),
+                                            height=200, key=f"{label}result_text_{i}", label_visibility="collapsed"
+                                        )
                         else:
-                            st.error(f"❌ 请求失败 (HTTP {response.status_code})")
+                            st.warning("未找到相关内容")
 
-                        # 解析响应
+                if tab5_retrieval_mode == "检索对比":
+                    # 对比模式：分别调用两个接口，先向量后LLM，左右分栏显示
+                    import time as _time
+                    col_v, col_l = st.columns(2)
+
+                    # 先执行向量检索
+                    with col_v:
+                        st.subheader("📊 向量检索")
+                        with st.spinner("正在进行向量检索..."):
+                            _t0 = _time.time()
+                            try:
+                                v_resp = http_requests.post(f"{base_url}/query/raw", json=request_body, timeout=60)
+                                _v_elapsed = _time.time() - _t0
+                                if v_resp.status_code == 200:
+                                    st.caption(f"耗时 {_v_elapsed:.1f}s")
+                                    _display_results(v_resp.json(), st.container(), "向量")
+                                else:
+                                    st.error(f"请求失败 (HTTP {v_resp.status_code})")
+                            except http_requests.exceptions.ConnectionError:
+                                st.error("❌ 连接失败，请确保 API 服务已启动")
+                            except Exception as e:
+                                st.error(f"❌ 请求失败: {e}")
+
+                    # 再执行 LLM 检索
+                    with col_l:
+                        st.subheader("🧠 LLM检索")
+                        with st.spinner("正在进行 LLM 检索..."):
+                            _t0 = _time.time()
+                            try:
+                                l_resp = http_requests.post(f"{base_url}/query/llm", json=request_body, timeout=120)
+                                _l_elapsed = _time.time() - _t0
+                                if l_resp.status_code == 200:
+                                    st.caption(f"耗时 {_l_elapsed:.1f}s")
+                                    _display_results(l_resp.json(), st.container(), "LLM")
+                                else:
+                                    st.error(f"请求失败 (HTTP {l_resp.status_code})")
+                            except http_requests.exceptions.ConnectionError:
+                                st.error("❌ 连接失败，请确保 API 服务已启动")
+                            except Exception as e:
+                                st.error(f"❌ 请求失败: {e}")
+
+                elif tab5_retrieval_mode == "LLM检索":
+                    with st.spinner("正在进行 LLM 检索..."):
                         try:
-                            response_data = response.json()
-
-                            # 显示统计信息
-                            if response_data.get("status") == "ok":
-                                total_results = response_data.get("total_results", 0)
-                                searched_kb = response_data.get("searched_kb", [])
-                                st.info(f"📊 检索到 {total_results} 个结果，来自 {len(searched_kb)} 个知识库")
-
-                            # 显示结果列表
-                            results = response_data.get("results", [])
-                            if results:
-                                st.subheader("检索结果")
-                                for i, result in enumerate(results):
-                                    score = result.get("score", 0)
-                                    title = result.get("title", "")
-                                    kb_name = result.get("kb_name", "")
-                                    doc_name = result.get("doc_name", "")
-                                    summary = result.get("summary", "")
-                                    text = result.get("text", "")
-
-                                    with st.expander(
-                                        f"#{i+1} [{kb_name}] {doc_name} - {title} (相似度: {score:.4f})",
-                                        expanded=(i < 3)  # 前3个默认展开
-                                    ):
-                                        st.write(f"**知识库:** {kb_name} ({result.get('kb_id', '')})")
-                                        st.write(f"**文档:** {doc_name}")
-                                        st.write(f"**节点ID:** {result.get('node_id', '')}")
-                                        st.write(f"**相似度:** {score:.4f}")
-
-                                        if summary:
-                                            st.write("**摘要:**")
-                                            st.markdown(f"> {summary}")
-
-                                        if text:
-                                            st.write("**原文内容:**")
-                                            st.text_area(
-                                                "内容",
-                                                value=text[:2000] + ("..." if len(text) > 2000 else ""),
-                                                height=200,
-                                                key=f"api_result_text_{i}",
-                                                label_visibility="collapsed"
-                                            )
-
-                            # 显示完整响应 JSON
-                            with st.expander("📥 完整响应 JSON", expanded=False):
-                                st.json(response_data)
-
+                            response = http_requests.post(f"{base_url}/query/llm", json=request_body, timeout=120)
+                            if response.status_code == 200:
+                                st.success(f"✅ 请求成功")
+                                _display_results(response.json(), st.container(), "LLM")
+                                with st.expander("📥 完整响应 JSON", expanded=False):
+                                    st.json(response.json())
+                            else:
+                                st.error(f"请求失败 (HTTP {response.status_code})")
+                        except http_requests.exceptions.ConnectionError:
+                            st.error("❌ 连接失败，请确保 API 服务已启动 (python PageIndex/api.py)")
                         except Exception as e:
-                            st.error(f"解析响应失败: {e}")
-                            st.text(response.text)
+                            st.error(f"❌ 请求失败: {e}")
 
-                    except requests.exceptions.ConnectionError:
-                        st.error("❌ 连接失败，请确保 API 服务已启动 (python api.py)")
-                    except requests.exceptions.Timeout:
-                        st.error("❌ 请求超时")
-                    except Exception as e:
-                        st.error(f"❌ 请求失败: {e}")
+                else:
+                    # 向量检索（原有逻辑）
+                    api_url = f"{base_url}/query/raw"
+                    with st.expander("📤 请求详情", expanded=False):
+                        st.code(f"POST {api_url}", language="text")
+                        st.json(request_body)
+
+                    with st.spinner("正在请求 API..."):
+                        try:
+                            response = http_requests.post(api_url, json=request_body, timeout=60)
+                            if response.status_code == 200:
+                                st.success(f"✅ 请求成功 (HTTP {response.status_code})")
+                            else:
+                                st.error(f"❌ 请求失败 (HTTP {response.status_code})")
+
+                            try:
+                                response_data = response.json()
+                                if response_data.get("status") == "ok":
+                                    total_results = response_data.get("total_results", 0)
+                                    searched_kb = response_data.get("searched_kb", [])
+                                    st.info(f"📊 检索到 {total_results} 个结果，来自 {len(searched_kb)} 个知识库")
+
+                                results = response_data.get("results", [])
+                                if results:
+                                    st.subheader("检索结果")
+                                    for i, result in enumerate(results):
+                                        score = result.get("score", 0)
+                                        title = result.get("title", "")
+                                        kb_name = result.get("kb_name", "")
+                                        doc_name = result.get("doc_name", "")
+                                        summary = result.get("summary", "")
+                                        text = result.get("text", "")
+
+                                        with st.expander(
+                                            f"#{i+1} [{kb_name}] {doc_name} - {title} (相似度: {score:.4f})",
+                                            expanded=(i < 3)
+                                        ):
+                                            st.write(f"**知识库:** {kb_name} ({result.get('kb_id', '')})")
+                                            st.write(f"**文档:** {doc_name}")
+                                            st.write(f"**节点ID:** {result.get('node_id', '')}")
+                                            st.write(f"**相似度:** {score:.4f}")
+                                            if summary:
+                                                st.write("**摘要:**")
+                                                st.markdown(f"> {summary}")
+                                            if text:
+                                                st.write("**原文内容:**")
+                                                st.text_area(
+                                                    "内容",
+                                                    value=text[:2000] + ("..." if len(text) > 2000 else ""),
+                                                    height=200,
+                                                    key=f"api_result_text_{i}",
+                                                    label_visibility="collapsed"
+                                                )
+
+                                with st.expander("📥 完整响应 JSON", expanded=False):
+                                    st.json(response_data)
+
+                            except Exception as e:
+                                st.error(f"解析响应失败: {e}")
+                                st.text(response.text)
+
+                        except http_requests.exceptions.ConnectionError:
+                            st.error("❌ 连接失败，请确保 API 服务已启动 (python PageIndex/api.py)")
+                        except http_requests.exceptions.Timeout:
+                            st.error("❌ 请求超时")
+                        except Exception as e:
+                            st.error(f"❌ 请求失败: {e}")
 
 st.markdown("---")
 st.caption("由 PageIndex 框架驱动 - 混合向量检索 RAG")
