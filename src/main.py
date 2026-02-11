@@ -12,7 +12,7 @@ from pathlib import Path
 from .config.settings import settings
 from .config.logging_config import setup_logging, get_logger
 from .models.database import init_database
-from .api import chat_router, health_router, pages_router, knowledge_router, saved_workflows_router, system_info_router, web_templates_router, proxy_router
+from .api import chat_router, health_router, pages_router, knowledge_router, saved_workflows_router, system_info_router, web_templates_router, proxy_router, avatar_media_router
 from .wecom import wecom_router
 from .tools.registry import init_default_tools
 from .workflows.registry import init_default_workflows
@@ -134,6 +134,7 @@ def create_app() -> FastAPI:
     app.include_router(system_info_router)
     app.include_router(web_templates_router)
     app.include_router(proxy_router)
+    app.include_router(avatar_media_router)
     app.include_router(wecom_router)
     
     # 静态文件挂载 (注意顺序：更具体的路径应先挂载)

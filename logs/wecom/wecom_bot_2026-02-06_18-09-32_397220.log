@@ -1,0 +1,13 @@
+2026-02-06 18:09:32.399 | INFO     | src.integrations.wecom.client:__init__:42 - 企业微信客户端初始化完成, corp_id=ww1d7cc8fb8678a1f0, agent_id=1000002
+2026-02-06 18:09:32.498 | INFO     | src.integrations.wecom.handler:__init__:41 - 企业微信消息处理器初始化完成
+2026-02-06 18:09:32.521 | INFO     | __main__:__init__:68 - 企业微信机器人初始化完成
+2026-02-06 18:09:32.521 | INFO     | __main__:run:223 - 启动企业微信机器人服务: http://0.0.0.0:8001
+2026-02-06 18:09:32.521 | INFO     | __main__:run:224 - 回调URL: http://YOUR_DOMAIN:8001/wecom/callback
+2026-02-06 18:09:59.972 | INFO     | __main__:log_wecom_requests:76 - [中间件] 收到请求: GET http://localhost:8001/wecom/callback?msg_signature=test&timestamp=1&nonce=2&echostr=abc%2B123%3D%3D
+2026-02-06 18:09:59.972 | INFO     | __main__:log_wecom_requests:77 - [中间件] Query String: msg_signature=test&timestamp=1&nonce=2&echostr=abc%2B123%3D%3D
+2026-02-06 18:09:59.972 | INFO     | __main__:log_wecom_requests:78 - [中间件] Headers: {'host': 'localhost:8001', 'user-agent': 'curl/8.12.1', 'accept': '*/*'}
+2026-02-06 18:09:59.972 | INFO     | __main__:log_wecom_requests:79 - [中间件] Client: 127.0.0.1:55147
+2026-02-06 18:09:59.975 | INFO     | __main__:verify_url:104 - 收到URL验证请求: msg_signature=test, timestamp=1, nonce=2, echostr=abc+123==...
+2026-02-06 18:09:59.975 | ERROR    | src.integrations.wecom.crypto:verify_url:59 - 签名验证失败: expected=e177c58146f4325702cbec90c3d3cdaf46c7b315, got=test
+2026-02-06 18:09:59.975 | ERROR    | __main__:verify_url:122 - URL验证失败: ret=-40001
+2026-02-06 18:09:59.976 | INFO     | __main__:log_wecom_requests:82 - [中间件] 响应状态码: 200

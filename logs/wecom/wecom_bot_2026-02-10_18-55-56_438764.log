@@ -1,0 +1,56 @@
+2026-02-10 18:55:56.435 | INFO     | __main__:log_wecom_requests:76 - [中间件] 收到请求: GET http://localhost:8001/wecom/callback?msg_signature=test&timestamp=123&nonce=abc&echostr=test
+2026-02-10 18:55:56.441 | INFO     | __main__:log_wecom_requests:77 - [中间件] Query String: msg_signature=test&timestamp=123&nonce=abc&echostr=test
+2026-02-10 18:55:56.441 | INFO     | __main__:log_wecom_requests:78 - [中间件] Headers: {'host': 'localhost:8001', 'user-agent': 'curl/8.12.1', 'accept': '*/*'}
+2026-02-10 18:55:56.442 | INFO     | __main__:log_wecom_requests:79 - [中间件] Client: 127.0.0.1:59278
+2026-02-10 18:55:56.442 | INFO     | __main__:verify_url:104 - 收到URL验证请求: msg_signature=test, timestamp=123, nonce=abc, echostr=test...
+2026-02-10 18:55:56.443 | ERROR    | src.integrations.wecom.crypto:verify_url:59 - 签名验证失败: expected=d207cf098ecba2b635fe3ac5bcafb47a3db34451, got=test
+2026-02-10 18:55:56.443 | ERROR    | __main__:verify_url:122 - URL验证失败: ret=-40001
+2026-02-10 18:55:56.443 | INFO     | __main__:log_wecom_requests:82 - [中间件] 响应状态码: 200
+2026-02-10 18:56:11.351 | INFO     | __main__:log_wecom_requests:76 - [中间件] 收到请求: GET http://172.16.16.254:8001/wecom/callback?msg_signature=test&timestamp=123&nonce=abc&echostr=test
+2026-02-10 18:56:11.351 | INFO     | __main__:log_wecom_requests:77 - [中间件] Query String: msg_signature=test&timestamp=123&nonce=abc&echostr=test
+2026-02-10 18:56:11.351 | INFO     | __main__:log_wecom_requests:78 - [中间件] Headers: {'connection': 'Keep-Alive', 'accept': '*/*', 'host': '172.16.16.254:8001', 'max-forwards': '10', 'user-agent': 'curl/8.12.1', 'x-real-ip': '10.20.1.29', 'x-forwarded-for': '10.20.1.29, 10.20.1.30:34406', 'x-original-url': '/wecom/callback?msg_signature=test&timestamp=123&nonce=abc&echostr=test', 'x-arr-log-id': '399767b7-d50a-470d-9a45-7fa41acc607f'}
+2026-02-10 18:56:11.351 | INFO     | __main__:log_wecom_requests:79 - [中间件] Client: 172.16.16.253:63167
+2026-02-10 18:56:11.351 | INFO     | __main__:verify_url:104 - 收到URL验证请求: msg_signature=test, timestamp=123, nonce=abc, echostr=test...
+2026-02-10 18:56:11.351 | ERROR    | src.integrations.wecom.crypto:verify_url:59 - 签名验证失败: expected=d207cf098ecba2b635fe3ac5bcafb47a3db34451, got=test
+2026-02-10 18:56:11.352 | ERROR    | __main__:verify_url:122 - URL验证失败: ret=-40001
+2026-02-10 18:56:11.352 | INFO     | __main__:log_wecom_requests:82 - [中间件] 响应状态码: 200
+2026-02-10 18:58:58.587 | INFO     | __main__:log_wecom_requests:76 - [中间件] 收到请求: GET http://172.16.16.254:8001/wecom/callback?msg_signature=10de610162bd245034ee3704ab82f03d2c929d66&timestamp=1770721128&nonce=testnonce&echostr=8PDRftYoks29pzulCFdXeCt9PLAjWtElH1xVC04VJiqGLdQyLJ8YXi7J6tFZVPnxwf9a8tENyhY74t93X27ywg%3D%3D
+2026-02-10 18:58:58.587 | INFO     | __main__:log_wecom_requests:77 - [中间件] Query String: msg_signature=10de610162bd245034ee3704ab82f03d2c929d66&timestamp=1770721128&nonce=testnonce&echostr=8PDRftYoks29pzulCFdXeCt9PLAjWtElH1xVC04VJiqGLdQyLJ8YXi7J6tFZVPnxwf9a8tENyhY74t93X27ywg%3D%3D
+2026-02-10 18:58:58.587 | INFO     | __main__:log_wecom_requests:78 - [中间件] Headers: {'connection': 'Keep-Alive', 'accept': '*/*', 'host': '172.16.16.254:8001', 'max-forwards': '10', 'user-agent': 'curl/8.12.1', 'x-real-ip': '10.20.1.29', 'x-forwarded-for': '10.20.1.29, 10.20.1.30:36064', 'x-original-url': '/wecom/callback?msg_signature=10de610162bd245034ee3704ab82f03d2c929d66&timestamp=1770721128&nonce=testnonce&echostr=8PDRftYoks29pzulCFdXeCt9PLAjWtElH1xVC04VJiqGLdQyLJ8YXi7J6tFZVPnxwf9a8tENyhY74t93X27ywg%3D%3D', 'x-arr-log-id': 'daf96184-c005-415f-9c56-7c9eeb28b2aa'}
+2026-02-10 18:58:58.588 | INFO     | __main__:log_wecom_requests:79 - [中间件] Client: 172.16.16.253:63183
+2026-02-10 18:58:58.588 | INFO     | __main__:verify_url:104 - 收到URL验证请求: msg_signature=10de610162bd245034ee3704ab82f03d2c929d66, timestamp=1770721128, nonce=testnonce, echostr=8PDRftYoks29pzulCFdXeCt9PLAjWtElH1xVC04VJiqGLdQyLJ8YXi7J6tFZVPnxwf9a8tENyhY74t93...
+2026-02-10 18:58:58.596 | ERROR    | src.integrations.wecom.crypto:_decrypt:236 - 解密失败: 'utf-8' codec can't decode byte 0xf4 in position 0: invalid continuation byte
+2026-02-10 18:58:58.596 | ERROR    | __main__:verify_url:122 - URL验证失败: ret=-40001
+2026-02-10 18:58:58.596 | INFO     | __main__:log_wecom_requests:82 - [中间件] 响应状态码: 200
+2026-02-10 18:59:08.909 | INFO     | __main__:log_wecom_requests:76 - [中间件] 收到请求: GET http://localhost:8001/wecom/callback?msg_signature=10de610162bd245034ee3704ab82f03d2c929d66&timestamp=1770721128&nonce=testnonce&echostr=8PDRftYoks29pzulCFdXeCt9PLAjWtElH1xVC04VJiqGLdQyLJ8YXi7J6tFZVPnxwf9a8tENyhY74t93X27ywg%3D%3D
+2026-02-10 18:59:08.910 | INFO     | __main__:log_wecom_requests:77 - [中间件] Query String: msg_signature=10de610162bd245034ee3704ab82f03d2c929d66&timestamp=1770721128&nonce=testnonce&echostr=8PDRftYoks29pzulCFdXeCt9PLAjWtElH1xVC04VJiqGLdQyLJ8YXi7J6tFZVPnxwf9a8tENyhY74t93X27ywg%3D%3D
+2026-02-10 18:59:08.910 | INFO     | __main__:log_wecom_requests:78 - [中间件] Headers: {'host': 'localhost:8001', 'user-agent': 'curl/8.12.1', 'accept': '*/*'}
+2026-02-10 18:59:08.910 | INFO     | __main__:log_wecom_requests:79 - [中间件] Client: 127.0.0.1:59596
+2026-02-10 18:59:08.910 | INFO     | __main__:verify_url:104 - 收到URL验证请求: msg_signature=10de610162bd245034ee3704ab82f03d2c929d66, timestamp=1770721128, nonce=testnonce, echostr=8PDRftYoks29pzulCFdXeCt9PLAjWtElH1xVC04VJiqGLdQyLJ8YXi7J6tFZVPnxwf9a8tENyhY74t93...
+2026-02-10 18:59:08.910 | ERROR    | src.integrations.wecom.crypto:_decrypt:236 - 解密失败: 'utf-8' codec can't decode byte 0xf4 in position 0: invalid continuation byte
+2026-02-10 18:59:08.910 | ERROR    | __main__:verify_url:122 - URL验证失败: ret=-40001
+2026-02-10 18:59:08.910 | INFO     | __main__:log_wecom_requests:82 - [中间件] 响应状态码: 200
+2026-02-10 18:59:40.485 | INFO     | __main__:log_wecom_requests:76 - [中间件] 收到请求: GET http://localhost:8001/wecom/callback?msg_signature=79c8b15258b95e765c9d34e923e332b5754c8c24&timestamp=1770721180&nonce=testnonce&echostr=2Sei9TFPqYLB0%2F88ce0iyciOFitDuVVH0%2BhHWJgAHm4mCjjHH5HisZhgQvlXXemD%2BFqIbagqxVKIYbZYLDzLhQ%3D%3D
+2026-02-10 18:59:40.485 | INFO     | __main__:log_wecom_requests:77 - [中间件] Query String: msg_signature=79c8b15258b95e765c9d34e923e332b5754c8c24&timestamp=1770721180&nonce=testnonce&echostr=2Sei9TFPqYLB0%2F88ce0iyciOFitDuVVH0%2BhHWJgAHm4mCjjHH5HisZhgQvlXXemD%2BFqIbagqxVKIYbZYLDzLhQ%3D%3D
+2026-02-10 18:59:40.485 | INFO     | __main__:log_wecom_requests:78 - [中间件] Headers: {'host': 'localhost:8001', 'user-agent': 'python-httpx/0.28.1', 'accept': '*/*', 'accept-encoding': 'gzip, deflate, br, zstd'}
+2026-02-10 18:59:40.485 | INFO     | __main__:log_wecom_requests:79 - [中间件] Client: 127.0.0.1:59652
+2026-02-10 18:59:40.485 | INFO     | __main__:verify_url:104 - 收到URL验证请求: msg_signature=79c8b15258b95e765c9d34e923e332b5754c8c24, timestamp=1770721180, nonce=testnonce, echostr=2Sei9TFPqYLB0/88ce0iyciOFitDuVVH0+hHWJgAHm4mCjjHH5HisZhgQvlXXemD+FqIbagqxVKIYbZY...
+2026-02-10 18:59:40.485 | ERROR    | src.integrations.wecom.crypto:_decrypt:236 - 解密失败: unpack requires a buffer of 4 bytes
+2026-02-10 18:59:40.485 | ERROR    | __main__:verify_url:122 - URL验证失败: ret=-40001
+2026-02-10 18:59:40.486 | INFO     | __main__:log_wecom_requests:82 - [中间件] 响应状态码: 200
+2026-02-10 19:00:14.194 | INFO     | __main__:log_wecom_requests:76 - [中间件] 收到请求: GET http://localhost:8001/wecom/callback?msg_signature=abc&timestamp=123&nonce=def&echostr=ghi
+2026-02-10 19:00:14.194 | INFO     | __main__:log_wecom_requests:77 - [中间件] Query String: msg_signature=abc&timestamp=123&nonce=def&echostr=ghi
+2026-02-10 19:00:14.194 | INFO     | __main__:log_wecom_requests:78 - [中间件] Headers: {'host': 'localhost:8001', 'user-agent': 'curl/8.12.1', 'accept': '*/*'}
+2026-02-10 19:00:14.194 | INFO     | __main__:log_wecom_requests:79 - [中间件] Client: 127.0.0.1:59720
+2026-02-10 19:00:14.195 | INFO     | __main__:verify_url:104 - 收到URL验证请求: msg_signature=abc, timestamp=123, nonce=def, echostr=ghi...
+2026-02-10 19:00:14.195 | ERROR    | src.integrations.wecom.crypto:verify_url:59 - 签名验证失败: expected=d5655fcd0983caed132bd7d631bbcfa326e602ed, got=abc
+2026-02-10 19:00:14.195 | ERROR    | __main__:verify_url:122 - URL验证失败: ret=-40001
+2026-02-10 19:00:14.195 | INFO     | __main__:log_wecom_requests:82 - [中间件] 响应状态码: 200
+2026-02-10 19:00:43.891 | INFO     | __main__:log_wecom_requests:76 - [中间件] 收到请求: GET http://localhost:8001/wecom/callback?msg_signature=abc&timestamp=123&nonce=def&echostr=ghi
+2026-02-10 19:00:43.891 | INFO     | __main__:log_wecom_requests:77 - [中间件] Query String: msg_signature=abc&timestamp=123&nonce=def&echostr=ghi
+2026-02-10 19:00:43.891 | INFO     | __main__:log_wecom_requests:78 - [中间件] Headers: {'host': 'localhost:8001', 'user-agent': 'curl/8.12.1', 'accept': '*/*'}
+2026-02-10 19:00:43.891 | INFO     | __main__:log_wecom_requests:79 - [中间件] Client: 127.0.0.1:59763
+2026-02-10 19:00:43.892 | INFO     | __main__:verify_url:104 - 收到URL验证请求: msg_signature=abc, timestamp=123, nonce=def, echostr=ghi...
+2026-02-10 19:00:43.892 | ERROR    | src.integrations.wecom.crypto:verify_url:59 - 签名验证失败: expected=d5655fcd0983caed132bd7d631bbcfa326e602ed, got=abc
+2026-02-10 19:00:43.892 | ERROR    | __main__:verify_url:122 - URL验证失败: ret=-40001
+2026-02-10 19:00:43.892 | INFO     | __main__:log_wecom_requests:82 - [中间件] 响应状态码: 200

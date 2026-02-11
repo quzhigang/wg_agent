@@ -94,13 +94,29 @@
             const historyModal = document.getElementById('historyModal');
             const historyListContainer = document.getElementById('historyListContainer');
             const avatarVideo = document.getElementById('avatarVideo');
-
-            const avatarVideoSources = [
+            const defaultAvatarVideoSources = [
                 'img/lens/lens1.mp4',
                 'img/lens/lens2.mp4',
                 'img/lens/lens3.mp4'
             ];
+            let avatarVideoSources = [];
             let currentVideoIndex = -1;
+
+            async function loadAvatarVideoSources() {
+                try {
+                    const response = await fetch('/chat/avatar-videos');
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    const result = await response.json();
+                    const list = (result && result.success && Array.isArray(result.data)) ? result.data : [];
+                    avatarVideoSources = list.filter((item) => typeof item === 'string' && item.trim().length > 0);
+                } catch (e) {
+                    avatarVideoSources = [];
+                }
+
+                if (avatarVideoSources.length === 0) {
+                    avatarVideoSources = defaultAvatarVideoSources.slice();
+                }
+            }
 
             function getNextVideoIndex() {
                 if (avatarVideoSources.length <= 1) return 0;
@@ -120,8 +136,10 @@
                 avatarVideo.play().catch(() => {});
             }
 
-            function initAvatarVideoPlayer() {
-                if (!avatarVideo || avatarVideoSources.length === 0) return;
+            async function initAvatarVideoPlayer() {
+                if (!avatarVideo) return;
+                await loadAvatarVideoSources();
+                if (avatarVideoSources.length === 0) return;
                 avatarVideo.addEventListener('ended', playNextAvatarVideo);
                 avatarVideo.addEventListener('error', playNextAvatarVideo);
                 document.addEventListener('visibilitychange', () => {
