@@ -1,7 +1,7 @@
-2026-02-13 09:49:51.829 | INFO     | src.agents.graph:run_agent_stream:866 | 流式运行智能体 - 会话: 0c7d1cc0-2512-4298-9d26-c65df3edee14
-2026-02-13 09:49:51.830 | INFO     | src.agents.graph:create_agent_graph:624 | 创建智能体状态图...
-2026-02-13 09:49:51.835 | INFO     | src.agents.graph:create_agent_graph:726 | 智能体状态图创建完成
-2026-02-13 09:49:51.847 | INFO     | src.agents.graph:get_agent_graph:753 | 智能体图编译完成
-2026-02-13 09:49:52.215 | INFO     | src.agents.controller:__init__:122 | Controller初始化完成
-2026-02-13 09:49:52.260 | INFO     | src.agents.planner:__init__:616 | Planner初始化完成
-2026-02-13 09:49:52.261 | INFO     | src.agents.planner:analyze_intent:628 | 开始分析用户意图: 给我统计一下当前监测的各个大中型水库的库容总和？...
+2026-02-13 20:39:38.736 | INFO     | src.agents.graph:run_agent_stream:877 | 流式运行智能体 - 会话: c3c102c0-1a83-470a-96e7-4c4ab93d227f
+2026-02-13 20:39:38.737 | INFO     | src.agents.graph:create_agent_graph:635 | 创建智能体状态图...
+2026-02-13 20:39:38.742 | INFO     | src.agents.graph:create_agent_graph:737 | 智能体状态图创建完成
+2026-02-13 20:39:38.754 | INFO     | src.agents.graph:get_agent_graph:764 | 智能体图编译完成
+2026-02-13 20:39:39.099 | INFO     | src.agents.controller:__init__:122 | Controller初始化完成
+2026-02-13 20:39:39.117 | INFO     | src.agents.planner:__init__:627 | Planner初始化完成
+2026-02-13 20:39:39.118 | INFO     | src.agents.planner:analyze_intent:639 | 开始分析用户意图: 当前新村站水位超过警戒水位了吗？...

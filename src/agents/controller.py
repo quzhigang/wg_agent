@@ -1505,6 +1505,12 @@ class Controller:
             return [{k: v for k, v in item.items() if k in field_set}
                     if isinstance(item, dict) else item for item in data]
         elif isinstance(data, dict):
+            # 兼容工具常见返回结构：{"success": true, "data": ...}
+            # result_fields 通常用于 data 内层字段，不能直接过滤顶层键
+            if "data" in data:
+                filtered = dict(data)
+                filtered["data"] = Controller._filter_result_fields(data.get("data"), fields)
+                return filtered
             return {k: v for k, v in data.items() if k in field_set}
         return data
 
@@ -1836,8 +1842,8 @@ class Controller:
 
         # 检查是否有计划步骤
         plan = state.get('plan', [])
-        if len(plan) < 2:
-            return  # 步骤太少不保存
+        if len(plan) < 1:
+            return  # 没有步骤不保存（单步骤工作流也可以保存，以便复用）
 
         # 检查是否是动态规划（非工作流匹配）
         matched_workflow = state.get('matched_workflow')

@@ -782,7 +782,7 @@ class MonitorRsvrNowTool(BaseTool):
     
     @property
     def description(self) -> str:
-        return "获取水库河道实时水情（无需登录），返回水位、库容、入库流量、出库流量等实时数据"
+        return "获取水库河道实时水情（无需登录）。注意：此工具只返回测站编码(stcd)、名称(stnm)、数据时间(tm)、水位(z)、流量(q)，不包含库容、蓄水量、入库/出库流量等数据。如需水库的库容、蓄水量等详细信息，请使用 query_reservoir_last 工具或 monitor_rsvr_storage 工具"
     
     @property
     def category(self) -> ToolCategory:
@@ -798,12 +798,8 @@ class MonitorRsvrNowTool(BaseTool):
             OutputField(name="stcd", description="测站编码"),
             OutputField(name="stnm", description="测站名称"),
             OutputField(name="tm", description="数据时间"),
-            OutputField(name="rz", description="库水位(m)"),
-            OutputField(name="w", description="蓄水量"),
-            OutputField(name="inq", description="入库流量(m³/s)"),
-            OutputField(name="otq", description="出库流量(m³/s)"),
-            OutputField(name="blrz", description="汛限水位(m)"),
-            OutputField(name="fsltdz", description="防洪限制水位(m)"),
+            OutputField(name="z", description="水位(m)"),
+            OutputField(name="q", description="流量(m³/s)"),
         ]
 
     async def execute(self, **kwargs) -> ToolResult:

@@ -167,34 +167,32 @@ BUSINESS_SUB_INTENT_PROMPT = """你是河南省卫共流域数字孪生系统的
 
 ### data_query（监测数据查询）
 - 针对单个明确站点/对象的监测数据查询（当前/实时/历史某时刻）
-- 不涉及对比、分析、判断、统计、汇总等后续处理
+- 直接查询水情数据，无需获取特征参数进行对比、判断
 
 ### flood_forecast（洪水预报）
 - 启动洪水预报计算
 - 查询预报结果
 - 预警信息查询
-- 示例："未来洪水预报"、"启动自动预报"、"最新预报结果"
 
 ### flood_simulation（洪水预演）
 - 启动洪水预演/模拟
 - 查询预演结果
 - 淹没分析
-- 示例："启动洪水预演"、"模拟洪水淹没范围"
 
 ### emergency_plan（预案生成）
 - 生成防洪预案
 - 调度方案制定
-- 示例："生成防洪预案"、"制定调度方案"
 
 ### damage_assessment（灾损评估）
 - 灾害损失评估
 - 避险转移分析
 - 受灾人口统计
-- 示例："评估洪水损失"、"避险转移方案"
 
 ### other（其他业务操作）
-- 不属于以上类别的业务操作
-- 查询对象为群体/不明确，或需要多步处理（对比、统计、汇总、排序等）
+- 查询对象为群体/不明确
+- 需要多步处理（对比、统计、汇总、排序等）
+- 需要获取特征参数（如防洪高水位、设计水位等）与实时数据进行对比判断
+- 需要知识库检索辅助回答
 
 ## 输出要求
 返回JSON格式：
@@ -205,13 +203,14 @@ BUSINESS_SUB_INTENT_PROMPT = """你是河南省卫共流域数字孪生系统的
 }}
 
 ## 分类规则
-1. 针对单个明确对象的监测数据查询，无后续处理 → data_query
-2. 涉及"预报"、"预测"、"未来洪水" → flood_forecast
-3. 涉及"预演"、"模拟" → flood_simulation
-4. 涉及"预案"、"调度方案" → emergency_plan
-5. 涉及"损失"、"灾损"、"转移" → damage_assessment
-6. 查询对象为群体/不明确，或需要多步处理（对比、统计、汇总等） → other
-7. 无法明确归类 → other
+1. 涉及"预报"、"预测"、"未来洪水" → flood_forecast
+2. 涉及"预演"、"模拟" → flood_simulation
+3. 涉及"预案"、"调度方案" → emergency_plan
+4. 涉及"损失"、"灾损"、"转移" → damage_assessment
+5. 涉及对比、判断、统计、汇总等后续处理，或需要获取特征参数（如防洪高水位、设计水位、汛限水位等）与实时数据对比 → other
+6. 查询对象为群体/不明确 → other
+7. 针对单个明确对象直接查询水情数据，无需对比判断 → data_query
+8. 无法明确归类 → other
 """
 
 # 3、预定义工作流按子意图分类（用于工作流匹配阶段）
@@ -526,27 +525,22 @@ TOOL_SELECTION_PROMPT = """你是河南省卫共流域数字孪生系统的工�
     "reason": "选择理由（简短说明为什么选择这些工具）"
 }}
 
-## 选择原则（严格按顺序执行）
-1. **【强制规则】流域基本信息工具(basin_info)选用原则**：
-   - 当提取的实体包含水库、水闸、蓄滞洪区、测站、河道等流域对象时，必须从流域基本信息(basin_info)中选择对应工具
-   - 水库相关 → get_reservoir_info(水库基础信息), get_reservoir_flood_detail(水库防洪详情), get_reservoir_flood_list(水库防洪列表)
-   - 水闸相关 → get_sluice_info(水闸信息)
-   - 蓄滞洪区相关 → get_flood_storage_area(蓄滞洪区信息), get_flood_dam_info(分洪闸堰信息)
-   - 河道相关 → get_river_flood_list(河道防洪列表)
-   - 测站相关 → get_station_list(测站列表), get_camera_list(摄像头列表)
-   - 地图数据 → get_map_data(地图数据源), get_list_data(列表数据源)
-2. **【强制规则】水雨情等监测工具(hydro_monitor)选用原则**：
-   - 当用户问题意图为获取监测数据时，必须根据监测数据类型从水雨情监测数据(hydro_monitor)中选择工具
-   - 当用户消息包含当前、实时、最新、现在、目前等时间关键词时，也必须根据监测数据类型从水雨情监测数据(hydro_monitor)中选择工具
-   - 水库水情 → query_reservoir_last(最新水情), query_reservoir_process(历史过程)
-   - 河道水情 → query_river_last(最新水情), query_river_process(历史过程)
-   - 雨量数据 → query_rain_process(历史过程), query_rain_statistics(统计), query_rain_sum(累计雨量)
-   - AI监测 → query_ai_water_last(AI水情), query_ai_rain_last(AI雨情)
-3. **工具组合原则**：
-   - 需要基础信息+实时数据时，同时选择 basin_info 和 hydro_monitor 工具
-   - 需要站点编码时包含 lookup_station_code
-   - 需要知识库检索时包含 search_knowledge
-4. 如果不确定需要哪个工具，可以多选几个相关的
+## 选择原则
+1. **【强制规则】basin_info**：提取的实体包含水库、水闸、蓄滞洪区、测站、河道等流域对象时，必须从 basin_info 选择对应工具
+   - 河道水文站 → get_river_flood_list(警戒水位等特征值)
+   - 水库 → get_reservoir_flood_detail(防洪特征值)
+   - 水闸 → get_sluice_info
+   - 蓄滞洪区 → get_flood_storage_area, get_flood_dam_info
+
+2. **【强制规则】hydro_monitor**：问题意图为获取监测数据，或包含当前/实时/最新等时间关键词时，必须从 hydro_monitor 选择
+   - 河道水情 → query_river_last
+   - 水库水情 → query_reservoir_last
+   - 雨量 → query_rain_statistics, query_rain_sum
+   - AI监测 → query_ai_water_last, query_ai_rain_last
+
+3. **【强制规则】组合使用**：两条强制规则彼此独立，需同时判断。问题需要与警戒水位、保证水位、设计水位、汛限水位等特征水位进行数值对比时，必须同时选择 basin_info 的特征值工具和 hydro_monitor 的实时数据工具
+
+4. 其他：需要站点编码时包含 lookup_station_code，需要知识库检索时包含 search_knowledge
 """
 
 class Planner:
@@ -1682,7 +1676,7 @@ class Planner:
 
                     logger.info(f"加载已保存工作流: {display_name} ({workflow_name})")
                     return {
-                        "matched_workflow": None,
+                        "matched_workflow": display_name,  # 设置为工作流显示名称，便于后续判断是否已匹配
                         "workflow_from_template": False,
                         "saved_workflow_id": workflow_id,
                         "saved_workflow_name": display_name,
@@ -1835,8 +1829,8 @@ class Planner:
             logger.info("工作流执行过程中有错误，跳过保存工作流模板")
             return
 
-        if len(steps) < 2:
-            return  # 步骤太少不保存
+        if len(steps) < 1:
+            return  # 没有步骤不保存（单步骤工作流也可以保存，以便复用）
 
         try:
             sub_intent = state.get('business_sub_intent', 'other')

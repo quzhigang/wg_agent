@@ -98,6 +98,8 @@ class AgentState(TypedDict):
 
     # 工作流匹配
     matched_workflow: Optional[str]
+    saved_workflow_id: Optional[str]  # 已保存的动态工作流ID
+    saved_workflow_name: Optional[str]  # 已保存的动态工作流名称
     workflow_params: Optional[Dict[str, Any]]
     workflow_from_template: Optional[bool]  # 是否来自模板匹配
 
@@ -203,6 +205,8 @@ def create_initial_state(
 
         # 工作流匹配
         matched_workflow=None,
+        saved_workflow_id=None,
+        saved_workflow_name=None,
         workflow_params=None,
         workflow_from_template=None,
 

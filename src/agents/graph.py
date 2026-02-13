@@ -208,19 +208,30 @@ async def workflow_executor_node(state: AgentState) -> Dict[str, Any]:
     logger.info("检查工作流执行...")
 
     matched_workflow = state.get('matched_workflow')
+    saved_workflow_id = state.get('saved_workflow_id')
 
-    if not matched_workflow:
+    logger.info(f"DEBUG: matched_workflow={matched_workflow}, saved_workflow_id={saved_workflow_id}")
+
+    if not matched_workflow and not saved_workflow_id:
         # 没有匹配的工作流，跳过
         return {}
 
     logger.info(f"执行工作流: {matched_workflow}")
 
-    # 从工作流注册表获取工作流实例
+    # 检查是否是已保存的动态工作流（非预定义工作流）
+    if saved_workflow_id:
+        # 已保存的动态工作流：直接使用 plan 执行，通过 executor_node
+        logger.info(f"检测到已保存的动态工作流 (saved_workflow_id={saved_workflow_id})，返回计划由 executor 执行")
+        return {
+            "next_action": "execute"  # 让路由走 execute 节点
+        }
+
+    # 预定义工作流：从工作流注册表获取工作流实例
     workflow_registry = get_workflow_registry()
     workflow = workflow_registry.get_workflow(matched_workflow)
 
     if not workflow:
-        logger.error(f"未找到工作流: {matched_workflow}")
+        logger.error(f"未找到预定义工作流: {matched_workflow}")
         return {
             "error": f"未找到工作流: {matched_workflow}",
             "next_action": "respond"

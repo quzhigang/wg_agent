@@ -156,7 +156,7 @@ class Executor:
             result = await tool_func(**tool_args)
         else:
             result = tool_func(**tool_args)
-        
+
         return result
 
     def _convert_arg_types(self, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -363,6 +363,12 @@ class Executor:
             return [{k: v for k, v in item.items() if k in field_set}
                     if isinstance(item, dict) else item for item in data]
         elif isinstance(data, dict):
+            # 兼容工具常见返回结构：{"success": true, "data": ...}
+            # result_fields 通常用于 data 内层字段，不能直接过滤顶层键
+            if "data" in data:
+                filtered = dict(data)
+                filtered["data"] = Executor._filter_result_fields(data.get("data"), fields)
+                return filtered
             return {k: v for k, v in data.items() if k in field_set}
         return data
 
