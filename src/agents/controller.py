@@ -265,9 +265,9 @@ class Controller:
             if matched_template:
                 logger.info(f"匹配到模板: {matched_template.get('display_name')}")
 
-                # 检查是否为动态模板（复用动态模板目录，更新 data.js）
+                # 检查是否为动态web模板（复用动态web模板目录，更新 data.js）
                 if matched_template.get('is_dynamic') and matched_template.get('template_path', '').startswith('dynamic://'):
-                    logger.info(f"复用动态模板: {matched_template.get('display_name')}")
+                    logger.info(f"复用动态web模板: {matched_template.get('display_name')}")
 
                     # 创建上下文收集器，获取当前对话的上下文数据
                     collector = create_collector_from_state(state)
@@ -281,7 +281,7 @@ class Controller:
                         )
 
                         template_match_service.increment_use_count(matched_template.get('id'), success=True)
-                        logger.info(f"动态模板复用成功: {page_url}")
+                        logger.info(f"动态web模板复用成功: {page_url}")
 
                         # 在页面生成成功后，检查是否需要保存工作流模板
                         await self._save_workflow_template_if_needed(state)
@@ -293,7 +293,7 @@ class Controller:
                             "success": True
                         }
                     except FileNotFoundError as e:
-                        logger.warning(f"动态模板目录不存在，回退到动态生成: {e}")
+                        logger.warning(f"动态web模板目录不存在，回退到动态生成: {e}")
                         # 回退到动态生成逻辑（下面的代码会处理）
 
                 # 预定义模板：使用模板生成页面
@@ -332,12 +332,12 @@ class Controller:
             page_url = await generator.generate(
                 conversation_context=collector.to_frontend_format()
             )
-            # 保存为动态模板（供后续复用）- 异步执行，不阻塞主流程
+            # 保存为动态web模板（供后续复用）- 异步执行，不阻塞主流程
             try:
                 # 只有在工作流无错且页面生成无错时才保存 Web 模板
                 workflow_has_error = state.get('workflow_has_error', False)
                 if workflow_has_error:
-                    logger.info("工作流执行过程中有错误，跳过保存 Web 模板")
+                    logger.info("工作流执行过程中有错误，跳过保存动态web模板")
                 else:
                     # 提取页面目录名
                     # page_url 格式如: /static/pages/dynamic_20260127_abcdefgh/index.html
@@ -361,9 +361,9 @@ class Controller:
                             intent_category=state.get('intent_category', '')
                         )
                     )
-                    logger.info(f"动态模板保存任务已启动（异步）, 对象类型: {object_type}")
+                    logger.info(f"动态web模板保存任务已启动（异步）, 对象类型: {object_type}")
             except Exception as save_err:
-                logger.warning(f"启动动态模板保存任务失败（不影响页面展示）: {save_err}")
+                logger.warning(f"启动动态web模板保存任务失败（不影响页面展示）: {save_err}")
 
             # 在页面生成成功后，检查是否需要保存工作流模板
             await self._save_workflow_template_if_needed(state)

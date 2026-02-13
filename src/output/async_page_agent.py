@@ -71,10 +71,10 @@ class AsyncPageGeneratorAgent:
             data: 报告数据
             title: 页面标题
             execution_summary: 执行结果摘要
-            user_message: 用户原始问题（用于动态模板）
-            sub_intent: 业务子意图（用于动态模板）
-            object_type: 对象类型（如"水库"、"河道水文站"等，用于动态模板匹配）
-            save_as_dynamic_template: 是否保存为动态模板
+            user_message: 用户原始问题（用于动态web模板）
+            sub_intent: 业务子意图（用于动态web模板）
+            object_type: 对象类型（如"水库"、"河道水文站"等，用于动态web模板匹配）
+            save_as_dynamic_template: 是否保存为动态web模板
 
         Returns:
             任务ID
@@ -143,7 +143,7 @@ class AsyncPageGeneratorAgent:
 
             logger.info(f"页面生成完成: {task_id} -> {page_url}")
 
-            # 如果需要保存为动态模板
+            # 如果需要保存为动态web模板
             if task_info.get("save_as_dynamic_template"):
                 await self._save_as_dynamic_template(task_info, page_url)
 
@@ -159,7 +159,7 @@ class AsyncPageGeneratorAgent:
 
     async def _save_as_dynamic_template(self, task_info: Dict[str, Any], page_url: str):
         """
-        将生成的页面保存为动态模板
+        将生成的页面保存为动态web模板
 
         Args:
             task_info: 任务信息
@@ -174,13 +174,13 @@ class AsyncPageGeneratorAgent:
             page_path = generator.get_page_path(page_url)
 
             if not page_path.exists():
-                logger.warning(f"页面文件不存在，无法保存为动态模板: {page_url}")
+                logger.warning(f"页面文件不存在，无法保存为动态web模板: {page_url}")
                 return
 
             with open(page_path, 'r', encoding='utf-8') as f:
                 html_content = f.read()
 
-            # 保存为动态模板
+            # 保存为动态web模板
             dynamic_service = get_dynamic_template_service()
             template_id = dynamic_service.save_dynamic_template(
                 html_content=html_content,
@@ -193,12 +193,12 @@ class AsyncPageGeneratorAgent:
             )
 
             if template_id:
-                logger.info(f"页面已保存为动态模板: {template_id}")
+                logger.info(f"页面已保存为动态web模板: {template_id}")
             else:
-                logger.warning(f"保存动态模板失败: {page_url}")
+                logger.warning(f"保存动态web模板失败: {page_url}")
 
         except Exception as e:
-            logger.error(f"保存动态模板异常: {e}")
+            logger.error(f"保存动态web模板异常: {e}")
 
     def get_task_status(self, task_id: str) -> Optional[Dict[str, Any]]:
         """

@@ -520,19 +520,26 @@ TOOL_SELECTION_PROMPT = """你是河南省卫共流域数字孪生系统的工�
 }}
 
 ## 选择原则（严格按顺序执行）
-1. **【强制规则】流域基本信息工具选用原则**：
-   - 当用于问题意图为获取监测数据时，必须从 hydro_monitor.py 中选择工具
-   - 当用户消息包含当前、实时、最新、现在、目前等时间关键词时，也必须从 hydro_monitor.py 中选择工具
-2. **【强制规则】水雨情等监测工具选用原则**：
-   - 当用于问题意图为获取监测数据时，必须从 hydro_monitor.py 中选择工具
-   - 当用户消息包含当前、实时、最新、现在、目前等时间关键词时，也必须从 hydro_monitor.py 中选择工具   
-3. **辅助工具**：需要站点编码时包含lookup_station_code，需要知识库检索时包含search_knowledge
+1. **【强制规则】流域基本信息工具(basin_info)选用原则**：
+   - 当提取的实体包含水库、水闸、蓄滞洪区、测站、河道等流域对象时，必须从流域基本信息(basin_info)中选择对应工具
+   - 水库相关 → get_reservoir_info(水库基础信息), get_reservoir_flood_detail(水库防洪详情), get_reservoir_flood_list(水库防洪列表)
+   - 水闸相关 → get_sluice_info(水闸信息)
+   - 蓄滞洪区相关 → get_flood_storage_area(蓄滞洪区信息), get_flood_dam_info(分洪闸堰信息)
+   - 河道相关 → get_river_flood_list(河道防洪列表)
+   - 测站相关 → get_station_list(测站列表), get_camera_list(摄像头列表)
+   - 地图数据 → get_map_data(地图数据源), get_list_data(列表数据源)
+2. **【强制规则】水雨情等监测工具(hydro_monitor)选用原则**：
+   - 当用户问题意图为获取监测数据时，必须根据监测数据类型从水雨情监测数据(hydro_monitor)中选择工具
+   - 当用户消息包含当前、实时、最新、现在、目前等时间关键词时，也必须根据监测数据类型从水雨情监测数据(hydro_monitor)中选择工具
+   - 水库水情 → query_reservoir_last(最新水情), query_reservoir_process(历史过程)
+   - 河道水情 → query_river_last(最新水情), query_river_process(历史过程)
+   - 雨量数据 → query_rain_process(历史过程), query_rain_statistics(统计), query_rain_sum(累计雨量)
+   - AI监测 → query_ai_water_last(AI水情), query_ai_rain_last(AI雨情)
+3. **工具组合原则**：
+   - 需要基础信息+实时数据时，同时选择 basin_info 和 hydro_monitor 工具
+   - 需要站点编码时包含 lookup_station_code
+   - 需要知识库检索时包含 search_knowledge
 4. 如果不确定需要哪个工具，可以多选几个相关的
-5. 根据数据类型选择对应的查询工具：
-   - 水库水情 → query_reservoir_last, query_reservoir_process
-   - 河道水情 → query_river_last, query_river_process
-   - 雨量数据 → query_rain_process, query_rain_statistics, query_rain_sum
-   - AI监测 → query_ai_water_last, query_ai_rain_last 等
 """
 
 class Planner:
@@ -1230,8 +1237,20 @@ class Planner:
 
             # 检查是否需要解析对象类型
             object_type = entities.get('object_type')
+            object_name = entities.get('object')
+
+            # 判断是否为多对象查询（包含"各个"、"所有"、"全部"等关键词）
+            is_multi_object = False
+            if object_name:
+                multi_keywords = ['各个', '所有', '全部', '每个', '各', '多个']
+                is_multi_object = any(kw in object_name for kw in multi_keywords)
+
+            # 对于多对象查询，不需要获取单个stcd，直接使用已有实体
+            if is_multi_object:
+                logger.info(f"检测到多对象查询: {object_name}，跳过对象类型解析和stcd获取")
+                enhanced_entities = entities
             # 对于监测数据查询子意图，强制执行3步对象类型解析（因为意图识别缺乏知识，无法准确判断对象类型）
-            if business_sub_intent == 'data_query':
+            elif business_sub_intent == 'data_query':
                 logger.info("监测数据查询子意图，强制执行对象类型解析...")
                 enhanced_entities = await self._resolve_object_type(entities, target_kbs, user_message, force=True)
             elif not object_type or object_type == 'null' or (isinstance(object_type, str) and object_type.lower() == 'null'):
@@ -1408,12 +1427,9 @@ class Planner:
             logger.info(f"筛选出 {len(selected_tools)} 个相关工具: {selected_tools}")
 
             # 第二阶段：只加载选中工具的详细描述
-            logger.info("开始加载工具详细描述...")
             from ..tools.registry import get_tool_registry
             registry = get_tool_registry()
-            logger.info(f"获取注册表完成,开始调用 get_tools_description_by_names...")
             available_tools = registry.get_tools_description_by_names(selected_tools)
-            logger.info(f"工具描述加载完成,长度: {len(available_tools)} 字符")
 
             # 3. 准备上下文变量
             # 从意图识别阶段获取目标知识库列表，供计划生成时参考

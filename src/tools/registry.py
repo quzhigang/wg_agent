@@ -299,24 +299,19 @@ class ToolRegistry:
         Returns:
             格式化的工具详细描述
         """
-        logger.info(f"开始获取 {len(tool_names)} 个工具的详细描述: {tool_names}")
         descriptions = []
         for i, name in enumerate(tool_names, 1):
-            logger.info(f"正在处理工具 {i}/{len(tool_names)}: {name}")
             tool = self._tools.get(name)
             if tool:
                 desc = tool.get_prompt_description()
                 descriptions.append(f"{i}. {desc}")
-                logger.info(f"工具 {name} 描述获取完成")
             elif name in self._tool_functions:
                 # 函数工具使用简化描述
                 descriptions.append(f"{i}. 工具名称: {name}\n描述: 函数工具\n类别: function\n参数:\n  无详细参数信息")
-                logger.info(f"函数工具 {name} 描述获取完成")
             else:
                 logger.warning(f"工具 {name} 不存在")
 
         result = "\n".join(descriptions) if descriptions else "无可用工具"
-        logger.info(f"所有工具描述获取完成,总长度: {len(result)} 字符")
         return result
     
     def get_tool_names_and_descriptions(self) -> Dict[str, str]:

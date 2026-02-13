@@ -139,11 +139,11 @@ class DynamicTemplateService:
                 db.add(template)
                 db.commit()
 
-                logger.info(f"动态模板已保存（初始版本）: {display_name} (ID: {template_id})")
+                logger.info(f"动态web模板已保存（初始版本）: {display_name} (ID: {template_id})")
 
             except Exception as db_err:
                 db.rollback()
-                logger.error(f"保存动态模板到数据库失败: {db_err}")
+                logger.error(f"保存动态web模板到数据库失败: {db_err}")
                 raise
             finally:
                 db.close()
@@ -163,7 +163,7 @@ class DynamicTemplateService:
             }
 
             if not self.vector_index.index_template(template_id, template_data):
-                logger.error(f"向量化失败，删除数据库记录以保持一致性: {template_id}")
+                logger.error(f"动态web模板向量化失败，删除数据库记录以保持一致性: {template_id}")
                 db = SessionLocal()
                 try:
                     tpl = db.query(WebTemplate).filter(WebTemplate.id == template_id).first()
@@ -176,7 +176,7 @@ class DynamicTemplateService:
                     db.close()
                 return None
 
-            logger.info(f"动态模板已向量化（初始版本）: {template_id}")
+            logger.info(f"动态web模板已向量化（初始版本）: {template_id}")
 
             # 8. 异步启动 LLM 元数据生成任务（不阻塞主流程）
             asyncio.create_task(
@@ -195,7 +195,7 @@ class DynamicTemplateService:
             return template_id
 
         except Exception as e:
-            logger.error(f"保存动态模板失败: {e}")
+            logger.error(f"保存动态web模板失败: {e}")
             return None
 
     async def _update_template_metadata_async(
@@ -281,7 +281,7 @@ class DynamicTemplateService:
                     tpl.replacement_config = json.dumps(replacement_config, ensure_ascii=False)
 
                 db.commit()
-                logger.info(f"动态模板元数据已更新: {template_id}, display_name={new_display_name}")
+                logger.info(f"动态web模板元数据已更新: {template_id}, display_name={new_display_name}")
 
             except Exception as db_err:
                 db.rollback()
@@ -306,14 +306,14 @@ class DynamicTemplateService:
             }
 
             if self.vector_index.index_template(template_id, template_data):
-                logger.info(f"动态模板已重新向量化: {template_id}")
+                logger.info(f"动态web模板已重新向量化: {template_id}")
                 return True
             else:
-                logger.warning(f"重新向量化失败: {template_id}")
+                logger.warning(f"动态web模板重新向量化失败: {template_id}")
                 return False
 
         except Exception as e:
-            logger.error(f"异步更新模板元数据失败: {e}")
+            logger.error(f"异步更新动态web模板元数据失败: {e}")
             return False
 
     def _extract_title(self, html_content: str) -> str:
