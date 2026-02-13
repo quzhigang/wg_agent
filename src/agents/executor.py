@@ -239,7 +239,7 @@ class Executor:
         chain = prompt | self.llm
         
         # 格式化已有结果
-        results_str = self._format_execution_results(state.get('execution_results', []))
+        results_str = self._format_execution_results(state.get('execution_results', []), state.get('plan', []))
         docs_str = self._format_retrieved_documents(state.get('retrieved_documents', []))
         
         # 准备上下文变量
@@ -353,20 +353,48 @@ class Executor:
             "message": f"正在进行第{retry_count + 1}次重试"
         }
     
-    def _format_execution_results(self, results: List[Dict[str, Any]]) -> str:
-        """格式化执行结果"""
+    @staticmethod
+    def _filter_result_fields(data: Any, fields: List[str]) -> Any:
+        """按字段列表裁剪结果数据"""
+        if not fields:
+            return data
+        field_set = set(fields)
+        if isinstance(data, list):
+            return [{k: v for k, v in item.items() if k in field_set}
+                    if isinstance(item, dict) else item for item in data]
+        elif isinstance(data, dict):
+            return {k: v for k, v in data.items() if k in field_set}
+        return data
+
+    def _format_execution_results(self, results: List[Dict[str, Any]], plan_steps: List[Dict[str, Any]] = None) -> str:
+        """格式化执行结果，支持按 result_fields 裁剪"""
         if not results:
             return ""
-        
+
+        # 构建 step_id -> result_fields 映射
+        fields_map = {}
+        if plan_steps:
+            for step in plan_steps:
+                rf = step.get('result_fields')
+                if rf:
+                    fields_map[step.get('step_id')] = rf
+
         formatted = []
         for r in results:
             step_id = r.get('step_id', '?')
             success = "成功" if r.get('success') else "失败"
             output = r.get('output', '')
-            if isinstance(output, dict):
-                output = str(output)[:500]  # 截断长输出
+            if isinstance(output, (dict, list)):
+                # 按 result_fields 裁剪
+                rf = fields_map.get(step_id)
+                if rf:
+                    output = self._filter_result_fields(output, rf)
+                output_str = str(output)
+                if len(output_str) > 8000:
+                    output_str = output_str[:8000] + "...(已截断)"
+                output = output_str
             formatted.append(f"步骤{step_id} ({success}): {output}")
-        
+
         return "".join(formatted)
     
     def _format_retrieved_documents(self, documents: List[Dict[str, Any]]) -> str:

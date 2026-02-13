@@ -11,7 +11,7 @@ import httpx
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
-from .base import BaseTool, ToolCategory, ToolParameter, ToolResult
+from .base import BaseTool, ToolCategory, ToolParameter, ToolResult, OutputField
 from .registry import register_tool
 
 logger = get_logger(__name__)
@@ -791,7 +791,21 @@ class MonitorRsvrNowTool(BaseTool):
     @property
     def parameters(self) -> List[ToolParameter]:
         return []
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="stnm", description="测站名称"),
+            OutputField(name="tm", description="数据时间"),
+            OutputField(name="rz", description="库水位(m)"),
+            OutputField(name="w", description="蓄水量"),
+            OutputField(name="inq", description="入库流量(m³/s)"),
+            OutputField(name="otq", description="出库流量(m³/s)"),
+            OutputField(name="blrz", description="汛限水位(m)"),
+            OutputField(name="fsltdz", description="防洪限制水位(m)"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行获取水库河道实时水情"""
         try:
@@ -870,7 +884,15 @@ class MonitorRsvrTrackTool(BaseTool):
             ToolParameter(name="st", type="string", description="开始时间，格式: yyyy-MM-dd HH:mm:ss", required=True),
             ToolParameter(name="ed", type="string", description="结束时间，格式: yyyy-MM-dd HH:mm:ss", required=True)
         ]
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="stnm", description="测站名称"),
+            OutputField(name="process", description="水情过程数据(含tm/rz/inq/otq)"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行水雨情态势过程回溯"""
         try:
@@ -957,7 +979,17 @@ class MikeGateAllTool(BaseTool):
     @property
     def parameters(self) -> List[ToolParameter]:
         return []
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="code", description="闸门编码"),
+            OutputField(name="nowState", description="闸门状态(全开/半开/全关)"),
+            OutputField(name="tm", description="数据时间"),
+            OutputField(name="openH", description="平均开度"),
+            OutputField(name="openN", description="开启孔数"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行获取闸门工情"""
         try:
@@ -1042,7 +1074,18 @@ class MikeRsvrInfoTool(BaseTool):
         return [
             ToolParameter(name="model_instance", type="string", description="模型实例编码（可选）", required=False)
         ]
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="stcd", description="水库编码"),
+            OutputField(name="stnm", description="水库名称"),
+            OutputField(name="fsltdz", description="汛限水位(m)"),
+            OutputField(name="normz", description="正常蓄水位(m)"),
+            OutputField(name="ddz", description="死水位(m)"),
+            OutputField(name="totcp", description="总库容"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行获取水库基本信息"""
         try:

@@ -1448,7 +1448,8 @@ class Controller:
                 step_info_map[step_id] = {
                     'tool_name': step.get('tool_name', ''),
                     'result_display': step.get('result_display', 'full'),
-                    'name': step.get('name', '')
+                    'name': step.get('name', ''),
+                    'result_fields': step.get('result_fields')
                 }
 
         formatted = []
@@ -1475,6 +1476,11 @@ class Controller:
             error = r.get('error')
 
             if success:
+                # 按 result_fields 裁剪字段
+                result_fields = step_info.get('result_fields')
+                if result_fields and isinstance(output, (dict, list)):
+                    output = self._filter_result_fields(output, result_fields)
+
                 # 根据 result_display 模式处理输出
                 if result_display == 'summary':
                     # 摘要模式：只展示字段属性和时序数据的前后几条
@@ -1488,6 +1494,19 @@ class Controller:
                 formatted.append(f"步骤{step_id}: 执行失败 - {error}")
 
         return "\n\n".join(formatted)
+
+    @staticmethod
+    def _filter_result_fields(data: Any, fields: List[str]) -> Any:
+        """按字段列表裁剪结果数据"""
+        if not fields:
+            return data
+        field_set = set(fields)
+        if isinstance(data, list):
+            return [{k: v for k, v in item.items() if k in field_set}
+                    if isinstance(item, dict) else item for item in data]
+        elif isinstance(data, dict):
+            return {k: v for k, v in data.items() if k in field_set}
+        return data
 
     def _format_output_summary(self, output: Any, step_name: str = '') -> str:
         """

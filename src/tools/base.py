@@ -34,6 +34,12 @@ class ToolParameter(BaseModel):
     enum: Optional[List[str]] = Field(default=None, description="枚举值列表")
 
 
+class OutputField(BaseModel):
+    """输出字段定义（用于声明工具返回列表数据中每条记录的字段）"""
+    name: str = Field(..., description="字段名称")
+    description: str = Field(default="", description="字段中文描述")
+
+
 class ToolResult(BaseModel):
     """工具执行结果"""
     success: bool = Field(..., description="是否成功")
@@ -95,7 +101,12 @@ class BaseTool(ABC):
     def parameters(self) -> List[ToolParameter]:
         """工具参数列表"""
         return []
-    
+
+    @property
+    def output_fields(self) -> List['OutputField']:
+        """工具返回列表数据中每条记录的字段列表（用于结果裁剪）"""
+        return []
+
     @property
     def is_async(self) -> bool:
         """是否为异步工具"""
@@ -287,10 +298,16 @@ class BaseTool(ABC):
             params_desc.append(f"  - {param.name} [{param.type}] {required}: {param.description}")
         
         params_str = "\n".join(params_desc) if params_desc else "  无参数"
-        
+
+        # 返回字段描述
+        output_desc = ""
+        if self.output_fields:
+            fields = [f"  - {f.name}: {f.description}" for f in self.output_fields]
+            output_desc = "\n返回字段:\n" + "\n".join(fields)
+
         return f"""工具名称: {self.name}
 描述: {self.description}
 类别: {self.category.value}
 参数:
-{params_str}
+{params_str}{output_desc}
 """

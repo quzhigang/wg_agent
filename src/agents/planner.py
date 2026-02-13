@@ -325,7 +325,8 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
             "tool_args": {{"参数": "值"}},
             "dependencies": [依赖步骤id],
             "is_async": false,
-            "result_display": "skip/summary/full"
+            "result_display": "skip/summary/full",
+            "result_fields": ["字段1", "字段2"]
         }}
     ],
     "estimated_time_seconds": 30,
@@ -356,6 +357,12 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 - "summary": 摘要提交 - 此步骤结果有参考价值，但只需展示摘要
 - "full": 完整提交 - 此步骤结果是回答用户问题的核心数据
 注意：最后一个步骤必须是 "full"
+
+**result_fields字段（结果字段筛选）：**
+- 从工具"返回字段"中选择后续步骤实际需要的字段名列表
+- 对返回列表数据的工具（如查询所有水库、所有河道），务必只选所需字段，避免传递过多无关数据
+- 如果不需要筛选（如工具返回字段较少），可省略此字段或设为空数组
+- 示例：用户问"各水库的总库容"，调用get_reservoir_flood_list时只需 ["stcd", "stnm", "ttcp"]
 
 规划原则:
 1. 步骤应该清晰、可执行
@@ -1474,7 +1481,8 @@ class Planner:
                     tool_args=step_data.get('tool_args'),
                     dependencies=step_data.get('dependencies', []),
                     status=StepStatus.PENDING,
-                    is_async=step_data.get('is_async', False)
+                    is_async=step_data.get('is_async', False),
+                    result_fields=step_data.get('result_fields')
                 )
                 steps.append(step.model_dump())
             

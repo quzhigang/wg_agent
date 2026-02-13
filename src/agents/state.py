@@ -52,6 +52,7 @@ class PlanStep(BaseModel):
     status: StepStatus = Field(default=StepStatus.PENDING, description="执行状态")
     is_async: bool = Field(default=False, description="是否为异步任务")
     retry_count: int = Field(default=0, description="重试次数")
+    result_fields: Optional[List[str]] = Field(default=None, description="需要保留的结果字段列表")
 
 
 class ExecutionResult(BaseModel):

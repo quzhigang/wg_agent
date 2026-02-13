@@ -11,7 +11,7 @@ import httpx
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
-from .base import BaseTool, ToolCategory, ToolParameter, ToolResult
+from .base import BaseTool, ToolCategory, ToolParameter, ToolResult, OutputField
 from .registry import register_tool
 from .auth import LoginTool
 
@@ -236,11 +236,11 @@ class GetReservoirInfoTool(BaseTool):
     @property
     def description(self) -> str:
         return "查询水库的基础属性信息，包括位置、工程等级、流域面积、库容、校核洪水位等"
-    
+
     @property
     def category(self) -> ToolCategory:
         return ToolCategory.BASIN_INFO
-    
+
     @property
     def parameters(self) -> List[ToolParameter]:
         return [
@@ -250,6 +250,24 @@ class GetReservoirInfoTool(BaseTool):
                 description="测站编码，可选，不传则查询所有水库",
                 required=False
             )
+        ]
+
+    @property
+    def output_fields(self) -> List[OutputField]:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="res_name", description="水库名称"),
+            OutputField(name="county", description="所属县区"),
+            OutputField(name="longitude", description="经度"),
+            OutputField(name="tot_cap", description="总库容"),
+            OutputField(name="ben_res_cap", description="兴利库容"),
+            OutputField(name="dead_cap", description="死库容"),
+            OutputField(name="norm_pool_stag_cap", description="正常蓄水位库容"),
+            OutputField(name="che_flo_lev", description="校核洪水位"),
+            OutputField(name="che_flo_sta", description="校核洪水流量"),
+            OutputField(name="wat_shed_area", description="流域面积"),
+            OutputField(name="eng_grad", description="工程等级"),
+            OutputField(name="main_dam_top_len", description="主坝坝顶长度"),
         ]
     
     async def execute(self, **kwargs) -> ToolResult:
@@ -372,14 +390,32 @@ class GetReservoirFloodListTool(BaseTool):
     @property
     def description(self) -> str:
         return "获取所有水库的防洪特征值信息列表，包含各水库的校核洪水位、设计洪水位、正常蓄水位、库容等"
-    
+
     @property
     def category(self) -> ToolCategory:
         return ToolCategory.BASIN_INFO
-    
+
     @property
     def parameters(self) -> List[ToolParameter]:
         return []  # 无参数
+
+    @property
+    def output_fields(self) -> List[OutputField]:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="damel", description="坝顶高程(m)"),
+            OutputField(name="ckflz", description="校核洪水位(m)"),
+            OutputField(name="dsflz", description="设计洪水位(m)"),
+            OutputField(name="normz", description="正常蓄水位(m)"),
+            OutputField(name="ddz", description="死水位(m)"),
+            OutputField(name="actz", description="汛限水位(m)"),
+            OutputField(name="ttcp", description="总库容(亿m³)"),
+            OutputField(name="actcp", description="兴利库容(亿m³)"),
+            OutputField(name="ddcp", description="死库容(亿m³)"),
+            OutputField(name="hhrz", description="历史最高水位(m)"),
+            OutputField(name="rsvrtp", description="水库类型(1大型/2中型/3小型)"),
+            OutputField(name="fsrs", description="防汛限制水位信息数组"),
+        ]
     
     async def execute(self, **kwargs) -> ToolResult:
         """执行水库防洪特征值列表查询"""
@@ -445,6 +481,19 @@ class GetSluiceInfoTool(BaseTool):
                 description="测站编码，可选，不传则查询所有水闸",
                 required=False
             )
+        ]
+
+    @property
+    def output_fields(self) -> List[OutputField]:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="stnm", description="水闸名称"),
+            OutputField(name="lgtd", description="经度"),
+            OutputField(name="lttd", description="纬度"),
+            OutputField(name="rvnm", description="河流名称"),
+            OutputField(name="waga_func", description="水闸功能"),
+            OutputField(name="eng_scal", description="工程规模"),
+            OutputField(name="des_flo", description="设计流量"),
         ]
     
     async def execute(self, **kwargs) -> ToolResult:
@@ -517,7 +566,17 @@ class GetFloodDamInfoTool(BaseTool):
                 required=False
             )
         ]
-    
+
+    @property
+    def output_fields(self) -> List[OutputField]:
+        return [
+            OutputField(name="id", description="唯一标识"),
+            OutputField(name="name", description="分洪闸名称"),
+            OutputField(name="lgtd", description="经度"),
+            OutputField(name="lttd", description="纬度"),
+            OutputField(name="des_flo_flow", description="设计分洪流量"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行分洪闸堰信息查询"""
         name = kwargs.get('name')
@@ -592,7 +651,18 @@ class GetFloodStorageAreaTool(BaseTool):
                 required=False
             )
         ]
-    
+
+    @property
+    def output_fields(self) -> List[OutputField]:
+        return [
+            OutputField(name="name", description="蓄滞洪区名称"),
+            OutputField(name="stcd", description="编码"),
+            OutputField(name="area", description="面积(km²)"),
+            OutputField(name="in_flo_faci", description="进洪设施"),
+            OutputField(name="des_stor_capa", description="设计蓄洪库容"),
+            OutputField(name="des_stor_lev", description="设计蓄洪水位"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行蓄滞洪区信息查询"""
         name = kwargs.get('name')
@@ -652,14 +722,30 @@ class GetRiverFloodListTool(BaseTool):
     @property
     def description(self) -> str:
         return "获取所有河道测站的防洪特征值信息列表，包括警戒水位、保证水位、左右堤高程、实测最高水位等"
-    
+
     @property
     def category(self) -> ToolCategory:
         return ToolCategory.BASIN_INFO
-    
+
     @property
     def parameters(self) -> List[ToolParameter]:
         return []  # 无参数
+
+    @property
+    def output_fields(self) -> List[OutputField]:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="grz", description="保证水位(m)"),
+            OutputField(name="wrz", description="警戒水位(m)"),
+            OutputField(name="ldkel", description="左堤高程(m)"),
+            OutputField(name="rdkel", description="右堤高程(m)"),
+            OutputField(name="wrq", description="警戒流量(m³/s)"),
+            OutputField(name="grq", description="保证流量(m³/s)"),
+            OutputField(name="obhtz", description="实测最高水位(m)"),
+            OutputField(name="obhtztm", description="实测最高水位时间"),
+            OutputField(name="obmxq", description="实测最大流量(m³/s)"),
+            OutputField(name="obmxqtm", description="实测最大流量时间"),
+        ]
     
     async def execute(self, **kwargs) -> ToolResult:
         """执行河道防洪特征值列表查询"""
@@ -726,6 +812,20 @@ class GetStationListTool(BaseTool):
                 required=True,
                 enum=["ZQ", "ZZ", "PP", "RR", "DD", "ZB", "AI"]
             )
+        ]
+
+    @property
+    def output_fields(self) -> List[OutputField]:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="stnm", description="测站名称"),
+            OutputField(name="lgtd", description="经度"),
+            OutputField(name="lttd", description="纬度"),
+            OutputField(name="sttp", description="测站类型"),
+            OutputField(name="stlc", description="测站位置"),
+            OutputField(name="rvnm", description="河流名称"),
+            OutputField(name="hnnm", description="水系名称"),
+            OutputField(name="bsnm", description="流域名称"),
         ]
     
     async def execute(self, **kwargs) -> ToolResult:

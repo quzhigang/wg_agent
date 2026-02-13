@@ -29,7 +29,7 @@ import asyncio
 
 from ..config.settings import settings
 from ..config.logging_config import get_logger
-from .base import BaseTool, ToolCategory, ToolParameter, ToolResult
+from .base import BaseTool, ToolCategory, ToolParameter, ToolResult, OutputField
 from .registry import register_tool
 from .auth import LoginTool
 
@@ -255,7 +255,22 @@ class QueryRainSumTool(BaseTool):
                 required=True
             )
         ]
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="stnm", description="测站名称"),
+            OutputField(name="lgtd", description="经度"),
+            OutputField(name="lttd", description="纬度"),
+            OutputField(name="accp", description="累计降水量(mm)"),
+            OutputField(name="sttp", description="测站类型"),
+            OutputField(name="rvnm", description="河流名称"),
+            OutputField(name="hnnm", description="水系名称"),
+            OutputField(name="bsnm", description="流域名称"),
+            OutputField(name="stlc", description="测站位置"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行雨量累计查询
@@ -343,7 +358,25 @@ class QueryReservoirLastTool(BaseTool):
                 required=False
             )
         ]
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="stnm", description="测站名称"),
+            OutputField(name="lgtd", description="经度"),
+            OutputField(name="lttd", description="纬度"),
+            OutputField(name="rz", description="库水位(m)"),
+            OutputField(name="w", description="蓄水量(万m³)"),
+            OutputField(name="inq", description="入库流量(m³/s)"),
+            OutputField(name="otq", description="出库流量(m³/s)"),
+            OutputField(name="tm", description="数据时间"),
+            OutputField(name="rvnm", description="河流名称"),
+            OutputField(name="hnnm", description="水系名称"),
+            OutputField(name="bsnm", description="流域名称"),
+            OutputField(name="stlc", description="测站位置"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行水库最新水情查询
@@ -449,11 +482,22 @@ class QueryReservoirProcessTool(BaseTool):
                 required=True
             )
         ]
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="tm", description="数据时间"),
+            OutputField(name="rz", description="库水位(m)"),
+            OutputField(name="w", description="蓄水量(万m³)"),
+            OutputField(name="inq", description="入库流量(m³/s)"),
+            OutputField(name="otq", description="出库流量(m³/s)"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行水库水情过程查询
-        
+
         Args:
             stcd: 测站编码
             search_begin_time: 查询开始时间
@@ -541,7 +585,26 @@ class QueryRiverLastTool(BaseTool):
                 required=False
             )
         ]
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="stnm", description="测站名称"),
+            OutputField(name="lgtd", description="经度"),
+            OutputField(name="lttd", description="纬度"),
+            OutputField(name="z", description="水位(m)"),
+            OutputField(name="q", description="流量(m³/s)"),
+            OutputField(name="tm", description="数据时间"),
+            OutputField(name="sttp", description="测站类型"),
+            OutputField(name="rvnm", description="河流名称"),
+            OutputField(name="hnnm", description="水系名称"),
+            OutputField(name="bsnm", description="流域名称"),
+            OutputField(name="stlc", description="测站位置"),
+            OutputField(name="wptn", description="水势"),
+            OutputField(name="warn", description="告警级别"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行河道最新水情查询
@@ -634,7 +697,17 @@ class QueryRiverProcessTool(BaseTool):
                 required=True
             )
         ]
-    
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="stcd", description="测站编码"),
+            OutputField(name="tm", description="数据时间"),
+            OutputField(name="z", description="水位(m)"),
+            OutputField(name="q", description="流量(m³/s)"),
+            OutputField(name="wptn", description="水势"),
+        ]
+
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行河道水情过程查询
