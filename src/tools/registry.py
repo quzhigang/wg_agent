@@ -238,7 +238,7 @@ class ToolRegistry:
         """
         获取工具摘要列表（用于第一阶段筛选）
 
-        摘要格式保留完整描述，便于LLM准确判断工具相关性
+        摘要格式按分类组织，便于LLM准确判断工具相关性
 
         Args:
             category: 可选的类别过滤
@@ -250,24 +250,48 @@ class ToolRegistry:
         if category:
             tools = [t for t in tools if t.category == category]
 
-        summaries = []
+        # 按分类组织工具
+        category_tools = {}
         for tool in tools:
-            summary = tool.get_summary()
-            summaries.append(
-                f"- {summary.name} [{summary.category.value}]: {summary.description}"
-            )
+            cat = tool.category
+            if cat not in category_tools:
+                category_tools[cat] = []
+            category_tools[cat].append(tool)
+
+        # 分类中文名称映射
+        category_names = {
+            ToolCategory.BASIN_INFO: "流域基本信息",
+            ToolCategory.HYDRO_MONITOR: "水雨情监测数据",
+            ToolCategory.FLOOD_CONTROL: "防洪业务",
+            ToolCategory.HYDRO_MODEL: "水利专业模型",
+            ToolCategory.DAMAGE_ASSESS: "灾损评估",
+            ToolCategory.KNOWLEDGE: "知识库",
+            ToolCategory.OUTPUT: "输出工具"
+        }
+
+        summaries = []
+        for cat, cat_tools in category_tools.items():
+            cat_name = category_names.get(cat, cat.value)
+            summaries.append(f"\n## {cat_name} ({cat.value})")
+            for tool in cat_tools:
+                summary = tool.get_summary()
+                summaries.append(f"  - {summary.name}: {summary.description}")
 
         # 添加函数工具（如 search_knowledge）
+        func_tools = []
         for name in self._tool_functions:
             if name not in self._tools:
-                # 函数工具没有完整的摘要信息，使用简单格式
-                summaries.append(f"- {name} [function]: 函数工具")
+                func_tools.append(f"  - {name}: 函数工具")
+
+        if func_tools:
+            summaries.append("\n## 函数工具 (function)")
+            summaries.extend(func_tools)
 
         return "\n".join(summaries) if summaries else "无可用工具"
 
     def get_tools_description_by_names(self, tool_names: List[str]) -> str:
         """
-        根据工具名称列表获取详细描述（用于第二阶段）
+        根据工具名称列表获取详细描述(用于第二阶段)
 
         Args:
             tool_names: 需要加载的工具名称列表
@@ -275,16 +299,25 @@ class ToolRegistry:
         Returns:
             格式化的工具详细描述
         """
+        logger.info(f"开始获取 {len(tool_names)} 个工具的详细描述: {tool_names}")
         descriptions = []
         for i, name in enumerate(tool_names, 1):
+            logger.info(f"正在处理工具 {i}/{len(tool_names)}: {name}")
             tool = self._tools.get(name)
             if tool:
-                descriptions.append(f"{i}. {tool.get_prompt_description()}")
+                desc = tool.get_prompt_description()
+                descriptions.append(f"{i}. {desc}")
+                logger.info(f"工具 {name} 描述获取完成")
             elif name in self._tool_functions:
                 # 函数工具使用简化描述
                 descriptions.append(f"{i}. 工具名称: {name}\n描述: 函数工具\n类别: function\n参数:\n  无详细参数信息")
+                logger.info(f"函数工具 {name} 描述获取完成")
+            else:
+                logger.warning(f"工具 {name} 不存在")
 
-        return "\n".join(descriptions) if descriptions else "无可用工具"
+        result = "\n".join(descriptions) if descriptions else "无可用工具"
+        logger.info(f"所有工具描述获取完成,总长度: {len(result)} 字符")
+        return result
     
     def get_tool_names_and_descriptions(self) -> Dict[str, str]:
         """

@@ -70,13 +70,13 @@ INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智�
 
 **区分要点（knowledge vs business）：**
 - "XX水库设计库容多少" → knowledge（固有属性）
-- "XX水库当前水位和库容" → business（实时数据）
+- "XX水库当前库容" → business（实时数据）
+- "统计各水库当前库容总和" → business（实时数据+统计）
 - "未来洪水预报" → business（预报结果）
-- "历史洪水最高水位与当前水位对比" → business（包含实时数据，优先归为business）
+- "历史洪水最高水位与当前水位对比" → business（包含实时数据）
 - "21.7洪水水位是否超过防洪高水位" → knowledge（纯历史数据与固有参数对比）
-- "21.7洪水水位和当前水位哪个大" → business（涉及当前实时数据）
 
-**核心原则**：1、只要问题中涉及"当前"、"实时"、"最新"等动态数据需求，整体归类为business；2、即包含固有知识查询，又包含业务的混合问题，归类为business
+**核心原则**：只要问题中涉及"当前"、"实时"、"最新"、"现在"等时间关键词，整体归类为business
 
 ## 上下文信息
 对话历史摘要: {context_summary}
@@ -166,12 +166,8 @@ BUSINESS_SUB_INTENT_PROMPT = """你是河南省卫共流域数字孪生系统的
 ## 业务子意图分类体系
 
 ### data_query（监测数据查询）
-- 仅查询当前/实时水位、流量、雨量、视频、工情等监测数据
-- 仅查询历史某时间的监测数据
-- 特点：单一数据查询，不涉及对比、分析、判断
-- 示例："盘石头水库当前水位"、"修武站2024年7月14日 8点流量"、"最近24小时雨量"
-- 反例（复合问题不属于data_query）：
-  - 复合问题："当前水位超过设计水位了吗" → 除了查询当前水位外，还要查询设计水位并进行对比分析，归为other
+- 针对单个明确站点/对象的监测数据查询（当前/实时/历史某时刻）
+- 不涉及对比、分析、判断、统计、汇总等后续处理
 
 ### flood_forecast（洪水预报）
 - 启动洪水预报计算
@@ -198,10 +194,7 @@ BUSINESS_SUB_INTENT_PROMPT = """你是河南省卫共流域数字孪生系统的
 
 ### other（其他业务操作）
 - 不属于以上类别的业务操作
-- 复合问题：需要多步骤处理的问题，如同时涉及实时数据查询和固有属性查询、对比
-- 示例：
-  - "盘石头水库当前水位超过设计水位了吗" → 需要查实时水位 + 查设计水位 + 对比
-  - "小南海水库当前水位超过预报水位了吗" → 需要查实时水位 + 查预报水位 + 对比
+- 查询对象为群体/不明确，或需要多步处理（对比、统计、汇总、排序等）
 
 ## 输出要求
 返回JSON格式：
@@ -212,16 +205,13 @@ BUSINESS_SUB_INTENT_PROMPT = """你是河南省卫共流域数字孪生系统的
 }}
 
 ## 分类规则
-1. 涉及"当前"、"实时"、"最新"、"水情"、"雨情"、"工情"、"视频"、"AI监测"、"无人机监测"等监测数据查询，且不涉及对比、判断 → data_query
+1. 针对单个明确对象的监测数据查询，无后续处理 → data_query
 2. 涉及"预报"、"预测"、"未来洪水" → flood_forecast
 3. 涉及"预演"、"模拟" → flood_simulation
 4. 涉及"预案"、"调度方案" → emergency_plan
 5. 涉及"损失"、"灾损"、"转移" → damage_assessment
-6. 复合问题和无法明确归类 → other
-
-**关键判断：data_query vs other**
-- data_query：纯粹的数据查询，如"当前水位多少"、"实时流量"
-- other：涉及对比或判断的复合问题，如"当前水位超过设计水位了吗"、"水位是否达到警戒线"
+6. 查询对象为群体/不明确，或需要多步处理（对比、统计、汇总等） → other
+7. 无法明确归类 → other
 """
 
 # 3、预定义工作流按子意图分类（用于工作流匹配阶段）
@@ -314,34 +304,34 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 ## 可用工具
 {available_tools}
 
-## 业务流程参考（仅供规划参考）
+## 业务流程参考
 {rag_context}
 
 ## 用户意图
-意图类别: {intent}
-提取实体: {entities}
+意图: {intent}
+实体: {entities}
 目标知识库: {target_kbs}
 
 ## 用户消息
 {user_message}
 
-## 输出要求
-请生成执行计划，返回JSON格式:
+## 输出JSON格式
 {{
     "steps": [
         {{
             "step_id": 1,
             "description": "步骤描述",
-            "tool_name": "工具名称（如果需要）",
-            "tool_args": {{"参数": "值", "布尔参数": true}},
-            "dependencies": [],
+            "tool_name": "工具名称或null",
+            "tool_args": {{"参数": "值"}},
+            "dependencies": [依赖步骤id],
             "is_async": false,
-            "result_display": "full"
+            "result_display": "skip/summary/full"
         }}
     ],
     "estimated_time_seconds": 30,
-    "output_type": "text 或 web_page"
+    "output_type": "text或web_page"
 }}
+
 
 **重要：tool_args中的布尔类型参数必须使用JSON布尔值true/false，不要使用字符串"true"/"false"**
 
@@ -529,17 +519,20 @@ TOOL_SELECTION_PROMPT = """你是河南省卫共流域数字孪生系统的工�
     "reason": "选择理由（简短说明为什么选择这些工具）"
 }}
 
-## 选择原则
-1. 根据用户意图和实体信息，选择最相关的工具
-2. 通常选择2-6个工具即可完成任务，不要贪多
-3. 如果需要查询站点编码，必须包含 lookup_station_code
-4. 如果需要知识库检索，必须包含 search_knowledge
+## 选择原则（严格按顺序执行）
+1. **【强制规则】流域基本信息工具选用原则**：
+   - 当用于问题意图为获取监测数据时，必须从 hydro_monitor.py 中选择工具
+   - 当用户消息包含当前、实时、最新、现在、目前等时间关键词时，也必须从 hydro_monitor.py 中选择工具
+2. **【强制规则】水雨情等监测工具选用原则**：
+   - 当用于问题意图为获取监测数据时，必须从 hydro_monitor.py 中选择工具
+   - 当用户消息包含当前、实时、最新、现在、目前等时间关键词时，也必须从 hydro_monitor.py 中选择工具   
+3. **辅助工具**：需要站点编码时包含lookup_station_code，需要知识库检索时包含search_knowledge
+4. 如果不确定需要哪个工具，可以多选几个相关的
 5. 根据数据类型选择对应的查询工具：
    - 水库水情 → query_reservoir_last, query_reservoir_process
    - 河道水情 → query_river_last, query_river_process
    - 雨量数据 → query_rain_process, query_rain_statistics, query_rain_sum
    - AI监测 → query_ai_water_last, query_ai_rain_last 等
-6. 如果不确定需要哪个工具，可以多选几个相关的
 """
 
 class Planner:
@@ -1415,9 +1408,12 @@ class Planner:
             logger.info(f"筛选出 {len(selected_tools)} 个相关工具: {selected_tools}")
 
             # 第二阶段：只加载选中工具的详细描述
+            logger.info("开始加载工具详细描述...")
             from ..tools.registry import get_tool_registry
             registry = get_tool_registry()
+            logger.info(f"获取注册表完成,开始调用 get_tools_description_by_names...")
             available_tools = registry.get_tools_description_by_names(selected_tools)
+            logger.info(f"工具描述加载完成,长度: {len(available_tools)} 字符")
 
             # 3. 准备上下文变量
             # 从意图识别阶段获取目标知识库列表，供计划生成时参考
@@ -1478,8 +1474,7 @@ class Planner:
             logger.info("=" * 60)
             logger.info("")  # 空行
 
-            # 后台异步保存动态生成的流程（不阻塞主对话）
-            asyncio.create_task(self._save_dynamic_plan(state, steps, result.get('output_type', 'text')))
+            # 注意：工作流模板保存移至 controller.py 中，在响应合成后根据 workflow_has_error 决定是否保存
 
             return {
                 "plan": steps,
@@ -1799,12 +1794,23 @@ class Planner:
             logger.warning(f"匹配已保存流程失败: {e}")
         return None
 
-    async def _save_dynamic_plan(self, state: AgentState, steps: List[Dict], output_type: str):
+    async def _save_dynamic_plan(self, state: AgentState, steps: List[Dict], output_type: str, workflow_has_error: bool = False):
         """
         保存动态生成的流程为通用工作流模板
 
         使用LLM将具体的执行计划抽象为可复用的通用模板
+
+        Args:
+            state: 当前状态
+            steps: 执行步骤列表
+            output_type: 输出类型
+            workflow_has_error: 工作流执行过程中是否有错误
         """
+        # 只有工作流全过程无错时才保存
+        if workflow_has_error:
+            logger.info("工作流执行过程中有错误，跳过保存工作流模板")
+            return
+
         if len(steps) < 2:
             return  # 步骤太少不保存
 

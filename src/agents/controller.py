@@ -283,6 +283,9 @@ class Controller:
                         template_match_service.increment_use_count(matched_template.get('id'), success=True)
                         logger.info(f"动态模板复用成功: {page_url}")
 
+                        # 在页面生成成功后，检查是否需要保存工作流模板
+                        await self._save_workflow_template_if_needed(state)
+
                         return {
                             "page_url": page_url,
                             "template_used": matched_template.get('display_name'),
@@ -307,6 +310,9 @@ class Controller:
                     template_match_service.increment_use_count(matched_template.get('id'), success=True)
                     logger.info(f"使用模板生成页面成功: {page_url}")
 
+                    # 在页面生成成功后，检查是否需要保存工作流模板
+                    await self._save_workflow_template_if_needed(state)
+
                     return {
                         "page_url": page_url,
                         "template_used": matched_template.get('display_name'),
@@ -328,31 +334,39 @@ class Controller:
             )
             # 保存为动态模板（供后续复用）- 异步执行，不阻塞主流程
             try:
-                # 提取页面目录名
-                # page_url 格式如: /static/pages/dynamic_20260127_abcdefgh/index.html
-                page_dir_name = page_url.strip('/').split('/')[-2] if '/pages/' in page_url else None
+                # 只有在工作流无错且页面生成无错时才保存 Web 模板
+                workflow_has_error = state.get('workflow_has_error', False)
+                if workflow_has_error:
+                    logger.info("工作流执行过程中有错误，跳过保存 Web 模板")
+                else:
+                    # 提取页面目录名
+                    # page_url 格式如: /static/pages/dynamic_20260127_abcdefgh/index.html
+                    page_dir_name = page_url.strip('/').split('/')[-2] if '/pages/' in page_url else None
 
-                dynamic_service = get_dynamic_template_service()
-                # 使用 asyncio.create_task 异步保存，不等待完成
-                import asyncio
-                asyncio.create_task(
-                    dynamic_service.save_dynamic_template(
-                        html_content=self._read_generated_page_content(page_url),
-                        user_query=user_message,
-                        sub_intent=sub_intent,
-                        page_title=self._generate_page_title(state),
-                        conversation_id=state.get('conversation_id', ''),
-                        execution_summary=context.get('execution_summary', ''),
-                        object_type=object_type,
-                        name=page_dir_name,
-                        # 新增参数
-                        entities=entities,
-                        intent_category=state.get('intent_category', '')
+                    dynamic_service = get_dynamic_template_service()
+                    # 使用 asyncio.create_task 异步保存，不等待完成
+                    import asyncio
+                    asyncio.create_task(
+                        dynamic_service.save_dynamic_template(
+                            html_content=self._read_generated_page_content(page_url),
+                            user_query=user_message,
+                            sub_intent=sub_intent,
+                            page_title=self._generate_page_title(state),
+                            conversation_id=state.get('conversation_id', ''),
+                            execution_summary=context.get('execution_summary', ''),
+                            object_type=object_type,
+                            name=page_dir_name,
+                            # 新增参数
+                            entities=entities,
+                            intent_category=state.get('intent_category', '')
+                        )
                     )
-                )
-                logger.info(f"动态模板保存任务已启动（异步）, 对象类型: {object_type}")
+                    logger.info(f"动态模板保存任务已启动（异步）, 对象类型: {object_type}")
             except Exception as save_err:
                 logger.warning(f"启动动态模板保存任务失败（不影响页面展示）: {save_err}")
+
+            # 在页面生成成功后，检查是否需要保存工作流模板
+            await self._save_workflow_template_if_needed(state)
 
             return {
                 "page_url": page_url,
@@ -365,7 +379,8 @@ class Controller:
             return {
                 "page_url": None,
                 "success": False,
-                "error": str(e)
+                "error": str(e),
+                "page_generation_has_error": True  # 标记页面生成错误
             }
 
     async def synthesize_response(self, state: AgentState) -> Dict[str, Any]:
@@ -441,6 +456,9 @@ class Controller:
             text_response = await self.generate_text_only(state, context)
 
             logger.info("响应合成完成（纯文字）")
+
+            # 在响应合成完成后，检查是否需要保存工作流模板
+            await self._save_workflow_template_if_needed(state)
 
             return {
                 "output_type": OutputType.TEXT.value,
@@ -1781,6 +1799,51 @@ class Controller:
             formatted.append(f"[{i}] 来源: {source_label}\n来源引用格式: {source_ref}\n内容: {content}")
 
         return "\n\n".join(formatted)
+
+    async def _save_workflow_template_if_needed(self, state: AgentState):
+        """
+        在响应合成完成后，检查是否需要保存工作流模板
+
+        只有当工作流全过程无错时才保存
+
+        Args:
+            state: 当前状态
+        """
+        # 检查是否有工作流执行错误
+        workflow_has_error = state.get('workflow_has_error', False)
+        if workflow_has_error:
+            logger.info("工作流执行过程中有错误，跳过保存工作流模板")
+            return
+
+        # 检查是否有计划步骤
+        plan = state.get('plan', [])
+        if len(plan) < 2:
+            return  # 步骤太少不保存
+
+        # 检查是否是动态规划（非工作流匹配）
+        matched_workflow = state.get('matched_workflow')
+        if matched_workflow:
+            return  # 已匹配工作流，不需要保存
+
+        # 异步保存工作流模板
+        try:
+            from .planner import get_planner
+            planner = get_planner()
+            output_type = state.get('output_type', 'text')
+
+            # 使用 asyncio.create_task 异步保存，不等待完成
+            import asyncio
+            asyncio.create_task(
+                planner._save_dynamic_plan(
+                    state=state,
+                    steps=plan,
+                    output_type=output_type,
+                    workflow_has_error=workflow_has_error
+                )
+            )
+            logger.info("工作流模板保存任务已启动（异步）")
+        except Exception as e:
+            logger.warning(f"启动工作流模板保存任务失败（不影响响应）: {e}")
 
 
 # 创建全局Controller实例

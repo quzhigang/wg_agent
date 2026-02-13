@@ -130,6 +130,8 @@ class AgentState(TypedDict):
     # 错误处理
     error: Optional[str]
     should_retry: bool
+    workflow_has_error: Optional[bool]  # 工作流执行过程中是否有错误
+    page_generation_has_error: Optional[bool]  # 页面生成过程中是否有错误
 
     # 流程控制
     next_action: Optional[str]  # 下一步动作: "plan", "execute", "respond", "wait_async", "end"
@@ -232,6 +234,8 @@ def create_initial_state(
         # 错误处理
         error=None,
         should_retry=False,
+        workflow_has_error=False,
+        page_generation_has_error=False,
 
         # 流程控制
         next_action="plan",

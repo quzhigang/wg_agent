@@ -1,14 +1,14 @@
 
-*****会话ID: de88151a-1f76-4b9d-9623-89a1574d7bbb | 问题: 图文并茂的介绍盐土庄闸？*****
+*****会话ID: 0c7d1cc0-2512-4298-9d26-c65df3edee14 | 问题: 给我统计一下当前监测的各个大中型水库的库容总和？*****
 
-## 一、意图分析 [2.89s] (Planner.analyze_intent)
-**时间**: 2026-02-11 12:03:09
+## 一、意图分析 [3.68s] (Planner.analyze_intent)
+**时间**: 2026-02-13 09:49:55
 **提示词模板**: INTENT_ANALYSIS_PROMPT
 
 **上下文变量**:
 - context_summary: 无
 - chat_history: 无
-- user_message: 图文并茂的介绍盐土庄闸？
+- user_message: 给我统计一下当前监测的各个大中型水库的库容总和？
 
 **完整提示词**:
 ```
@@ -43,13 +43,13 @@
 
 **区分要点（knowledge vs business）：**
 - "XX水库设计库容多少" → knowledge（固有属性）
-- "XX水库当前水位和库容" → business（实时数据）
+- "XX水库当前库容" → business（实时数据）
+- "统计各水库当前库容总和" → business（实时数据+统计）
 - "未来洪水预报" → business（预报结果）
-- "历史洪水最高水位与当前水位对比" → business（包含实时数据，优先归为business）
+- "历史洪水最高水位与当前水位对比" → business（包含实时数据）
 - "21.7洪水水位是否超过防洪高水位" → knowledge（纯历史数据与固有参数对比）
-- "21.7洪水水位和当前水位哪个大" → business（涉及当前实时数据）
 
-**核心原则**：1、只要问题中涉及"当前"、"实时"、"最新"等动态数据需求，整体归类为business；2、即包含固有知识查询，又包含业务的混合问题，归类为business
+**核心原则**：只要问题中涉及"当前"、"实时"、"最新"、"现在"等时间关键词，整体归类为business
 
 ## 上下文信息
 对话历史摘要: 无
@@ -58,7 +58,7 @@
 无
 
 ## 用户当前消息
-图文并茂的介绍盐土庄闸？
+给我统计一下当前监测的各个大中型水库的库容总和？
 
 ## 输出要求
 请分析用户意图，返回JSON格式:
@@ -130,418 +130,650 @@
 
 **LLM响应**:
 ```
-{'intent_category': 'knowledge', 'confidence': 0.95, 'target_kbs': ['water_project'], 'entities': {'关键词': '盐土庄闸'}, 'needs_kb_search': True, 'needs_web_search': False, 'rewritten_query': '图文并茂的介绍盐土庄闸'}
+{'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '各个大中型水库', 'object_type': '水库', 'action': '统计当前库容总和', 'time': '当前'}, 'target_kbs': ['monitor_site', 'water_project']}
 ```
 
-## 二、模板LLM精选 [3.27s] (TemplateMatchService._llm_select_template)
-**时间**: 2026-02-11 12:03:15
-**提示词模板**: TEMPLATE_SELECT_PROMPT
+## 二、业务子意图分类 [3.53s] (Planner.classify_business_sub_intent)
+**时间**: 2026-02-13 09:49:59
+**提示词模板**: BUSINESS_SUB_INTENT_PROMPT
 
 **上下文变量**:
-- user_message: 图文并茂的介绍盐土庄闸？
-- sub_intent: None
-- object_type: 未知
-- entity_params: 无
-- workflow_params: 无
-- candidates: - ID: 6cde78a6-2662-4f0e-a09f-874cba21dea7
-  名称: 单一河道断面洪水预报、预演结果展示
-  描述: 用于展示单一河道断面的洪水预报结果。包含地图定位、水位流量过程曲线（双轴）、河道断面地形及实时水位图。单一河道断面包括任一断面、河道水文站点断面、闸站断面等
-  触发模式: 单一河道断面 洪水预报 断面水位流量  河道断面 水文站点 河道预报 断面预报 洪峰流量 断面水情 最高水文 闸站预报 水闸洪水
-  支持子意图: flood_forecast
-  所需参数: 
-  必须匹配的对象类型: 无限制
-  优先级: 10
-  向量分数: 0.383
-- ID: 9db9c3b2-1dd1-4e09-bc0d-c2cae1e57587
-  名称: 单一水库的洪水预报、预演结果展示
-  描述: 用于展示单一水库的洪水预报、预演结果，包含地图定位、该水库入库/出库流量曲线、水位变化图表、关键指标卡片。支持动态数据注入，可展示任意水库的预报预演结果。
-  触发模式: 单一水库预报预演结果 洪水预报 洪水预演 入库流量 出库流量 水位变化 预报方案结果 水库水情 水库洪水 盘石头水库 水库调度
-  支持子意图: flood_forecast
-  所需参数: 
-  必须匹配的对象类型: 无限制
-  优先级: 10
-  向量分数: 0.346
-- ID: 449f95d8-e959-4346-b079-09f0c5f397dd
-  名称: 闸站详情展示
-  描述: 展示某闸的基本信息、功能特点及现场图片等详细内容
-  触发模式: 查询 闸 水闸 介绍 详情 参数 图文并茂
-  支持子意图: knowledge
-  所需参数: 闸站名称(需要展示的闸站具体名称)
-  必须匹配的对象类型: 拦河闸,节制闸,分洪闸,退水闸
-  优先级: 5
-  向量分数: 0.513
-- ID: 9c5080cb-3723-43b4-8d03-91ffbd1d92c4
-  名称: 查询河道水情
-  描述: 展示某河道水文站的基本信息及当前水情数据，用于实时水文监测与分析。
-  触发模式: 查询 水文站 河道水文站 水情 当前水位 实时水情 信息 详情 参数
-  支持子意图: data_query
-  所需参数: stcd(站点编码),stnm(站点名称)
-  必须匹配的对象类型: 河道水文站,雨量站,墒情站,闸站监测
-  优先级: 5
-  向量分数: 0.388
-- ID: 8a11bb4d-5e81-42b7-adca-8c59640927c1
-  名称: 视频监控展示
-  描述: 展示某水库的实时视频监控信息，包括设备状态和访问地址等。
-  触发模式: 查看 视频监控 实况 当前 水库 监测站 视频 视频监测
-  支持子意图: data_query
-  所需参数: stcd(站点编码),code(设备编码)
-  必须匹配的对象类型: 视频监测,视频监测站
-  优先级: 5
-  向量分数: 0.355
+- user_message: 给我统计一下当前监测的各个大中型水库的库容总和？
+- entities: {"object": "各个大中型水库", "object_type": "水库", "action": "统计当前库容总和", "time": "当前"}
 
 **完整提示词**:
 ```
-你是一个Web模板选择专家。根据用户问题和可提供的参数，从候选模板中选择最合适的模板。
+你是河南省卫共流域数字孪生系统的业务意图分类器，负责对业务类意图进行细分。
 
-## 用户问题
-图文并茂的介绍盐土庄闸？
+## 用户消息
+给我统计一下当前监测的各个大中型水库的库容总和？
 
-## 业务子意图
-None
+## 提取的实体
+{"object": "各个大中型水库", "object_type": "水库", "action": "统计当前库容总和", "time": "当前"}
 
-## 当前对象类型
-未知
+## 业务子意图分类体系
 
-## 对象识别可提供的参数
-（来自实体解析阶段：数据库查询+知识库查询+LLM匹配）
-无
+### data_query（监测数据查询）
+- 针对单个明确站点/对象的监测数据查询（当前/实时/历史某时刻）
+- 不涉及对比、分析、判断、统计、汇总等后续处理
 
-## 工作流可提供的参数
-（来自工作流执行结果）
-无
+### flood_forecast（洪水预报）
+- 启动洪水预报计算
+- 查询预报结果
+- 预警信息查询
+- 示例："未来洪水预报"、"启动自动预报"、"最新预报结果"
 
-## 候选模板列表
-- ID: 6cde78a6-2662-4f0e-a09f-874cba21dea7
-  名称: 单一河道断面洪水预报、预演结果展示
-  描述: 用于展示单一河道断面的洪水预报结果。包含地图定位、水位流量过程曲线（双轴）、河道断面地形及实时水位图。单一河道断面包括任一断面、河道水文站点断面、闸站断面等
-  触发模式: 单一河道断面 洪水预报 断面水位流量  河道断面 水文站点 河道预报 断面预报 洪峰流量 断面水情 最高水文 闸站预报 水闸洪水
-  支持子意图: flood_forecast
-  所需参数: 
-  必须匹配的对象类型: 无限制
-  优先级: 10
-  向量分数: 0.383
-- ID: 9db9c3b2-1dd1-4e09-bc0d-c2cae1e57587
-  名称: 单一水库的洪水预报、预演结果展示
-  描述: 用于展示单一水库的洪水预报、预演结果，包含地图定位、该水库入库/出库流量曲线、水位变化图表、关键指标卡片。支持动态数据注入，可展示任意水库的预报预演结果。
-  触发模式: 单一水库预报预演结果 洪水预报 洪水预演 入库流量 出库流量 水位变化 预报方案结果 水库水情 水库洪水 盘石头水库 水库调度
-  支持子意图: flood_forecast
-  所需参数: 
-  必须匹配的对象类型: 无限制
-  优先级: 10
-  向量分数: 0.346
-- ID: 449f95d8-e959-4346-b079-09f0c5f397dd
-  名称: 闸站详情展示
-  描述: 展示某闸的基本信息、功能特点及现场图片等详细内容
-  触发模式: 查询 闸 水闸 介绍 详情 参数 图文并茂
-  支持子意图: knowledge
-  所需参数: 闸站名称(需要展示的闸站具体名称)
-  必须匹配的对象类型: 拦河闸,节制闸,分洪闸,退水闸
-  优先级: 5
-  向量分数: 0.513
-- ID: 9c5080cb-3723-43b4-8d03-91ffbd1d92c4
-  名称: 查询河道水情
-  描述: 展示某河道水文站的基本信息及当前水情数据，用于实时水文监测与分析。
-  触发模式: 查询 水文站 河道水文站 水情 当前水位 实时水情 信息 详情 参数
-  支持子意图: data_query
-  所需参数: stcd(站点编码),stnm(站点名称)
-  必须匹配的对象类型: 河道水文站,雨量站,墒情站,闸站监测
-  优先级: 5
-  向量分数: 0.388
-- ID: 8a11bb4d-5e81-42b7-adca-8c59640927c1
-  名称: 视频监控展示
-  描述: 展示某水库的实时视频监控信息，包括设备状态和访问地址等。
-  触发模式: 查看 视频监控 实况 当前 水库 监测站 视频 视频监测
-  支持子意图: data_query
-  所需参数: stcd(站点编码),code(设备编码)
-  必须匹配的对象类型: 视频监测,视频监测站
-  优先级: 5
-  向量分数: 0.355
+### flood_simulation（洪水预演）
+- 启动洪水预演/模拟
+- 查询预演结果
+- 淹没分析
+- 示例："启动洪水预演"、"模拟洪水淹没范围"
 
-## 选择标准（按优先级排序）
+### emergency_plan（预案生成）
+- 生成防洪预案
+- 调度方案制定
+- 示例："生成防洪预案"、"制定调度方案"
 
-### 必要条件（不满足则必须返回null）
-1. **参数完全满足**：上述两类参数（对象识别参数+工作流参数）必须完全覆盖模板的"所需参数"。逐一检查模板所需的每个参数（如token、planCode、stcd、object_name等），确认都能提供。如果有任何一个所需参数无法满足，该模板不可选择。
-2. **子意图匹配**：模板必须支持当前的业务子意图。
-3. **对象类型匹配**：如果模板指定了"必须匹配的对象类型"（非空列表），则当前对象类型必须在该列表中。如果当前对象类型不在列表中，该模板不可选择。如果模板的"必须匹配的对象类型"为空或未指定，则跳过此校验。
+### damage_assessment（灾损评估）
+- 灾害损失评估
+- 避险转移分析
+- 受灾人口统计
+- 示例："评估洪水损失"、"避险转移方案"
 
-### 优选条件（在满足必要条件后考虑）
-4. 模板的触发模式与用户问题相关性高
-5. 优先选择优先级高的模板
-
-## 输出格式
-请返回JSON格式，包含以下字段：
-{
-    "selected_template_id": "模板ID或null",
-    "confidence": 0.0-1.0的置信度（注意：这是你对选择结果的信心程度，不是向量分数！如果模板完全匹配用户需求，应给0.85-0.95；如果基本匹配但有小瑕疵，给0.7-0.85；如果勉强匹配，给0.5-0.7）,
-    "reason": "选择理由（如果返回null，说明哪些条件不满足：参数不满足/子意图不匹配/对象类型不匹配）"
-}
-
-请直接返回JSON，不要包含其他内容。
-
-```
-
-**LLM响应**:
-```
-```json
-{
-    "selected_template_id": "449f95d8-e959-4346-b079-09f0c5f397dd",
-    "confidence": 0.88,
-    "reason": "用户问题要求图文并茂地介绍盐土庄闸，与模板'闸站详情展示'的描述和触发模式高度匹配。该模板支持展示闸的基本信息、功能特点及现场图片等详细内容，符合'图文并茂'的需求。虽然缺少闸站名称参数，但假设后续流程可以提供该参数，因此认为基本满足条件。"
-}
-```
-```
-
-## 三、文字响应生成 [17.83s] (Controller.generate_text_only)
-**时间**: 2026-02-11 12:03:29
-**提示词模板**: RESPONSE_GENERATION_PROMPT
-
-**上下文变量**:
-- chat_history: 无
-- user_message: 图文并茂的介绍盐土庄闸？
-- intent: knowledge_qa
-- plan_summary: 无执行计划
-- execution_results: 无执行结果
-- retrieved_documents: [1] 来源: 知识库: water_project, 文档: 主要建筑物泄流曲线
-来源引用格式: [主要建筑物泄流曲线](http://localhost:8000/knowledge/kb-doc/water_project/主要建筑物泄流曲线)
-内容: ## 盐土庄闸
-- **序号**: 2.0
-- **建筑物编码**: GQ_YTZJZZ
-- **闸门类型**: 平板闸
-- **河道ID**: GQ
-- **河道名称**: 共渠
-- **所在桩号**: 80857.0
-- **建筑物上游水位和流量的关系**: [[0,53],[20,54.07],[50,54.78],[80,55.28],[100,55.57],[120,55.86],[150,56.25],[200,56.70],[250,57.15],[300,57.60],[400,58.20],[500,58.85],[600,59.30],[700,59.85],[800,60.25],[900,60.60],[1000,60.92],[1100,61.30],[
-1200,61.60],[1300,61.80],[1400,62.0],[1500,62.20],[1600,62.46],[2000,63.4],[2500,64.3]]
-
-[2] 来源: 知识库: water_project, 文档: 卫共流域各建筑物信息表
-来源引用格式: [卫共流域各建筑物信息表](http://localhost:8000/knowledge/kb-doc/water_project/卫共流域各建筑物信息表)
-内容: ## 盐土庄节制闸
-- **id**: 13
-- **建筑物id**: GQ_YTZJZZ
-- **闸门类型**: 平板闸
-- **建筑类型**: 拦河闸
-- **所在河道id**: GQ
-- **所在河道**: 共渠
-- **桩号**: 93001
-- **设计流量**: 1600.0
-- **闸底高程**: 53.0
-- **闸孔数**: 7
-- **单孔净宽**: 11.0
-- **闸门高度**: 10.0
-- **闸顶高程**: 62.8
-- **now_state**: 全开
-- **update_time**: 2024-07-29 08:00:00
-- **open_n**: 20
-- **open_h**: 5.0
-- **调度规则**: 视汤河、安阳河来水情况，按五陵站不超过2000m³/s、元村集站不超过2500m³/s控制下泄，最大流量不大于1600m³/s。
-- **模型实例**: wg_mike11
-
-[3] 来源: 知识库: water_project, 文档: 卫共流域典型建筑物照片
-来源引用格式: [卫共流域典型建筑物照片](http://localhost:8000/knowledge/kb-doc/water_project/卫共流域典型建筑物照片)
-内容: # 1.2.6共渠盐土庄闸  
-
-共渠盐土庄闸现场照片。  
-
-![](images/06f8ac5a8730c32760b35aac28739c3617c8eb1bbae8b9169c45067ab72ca629.jpg)
-
-[4] 来源: 知识库: water_project, 文档: 闸站监测
-来源引用格式: [闸站监测](http://localhost:8000/knowledge/kb-doc/water_project/闸站监测)
-内容: ### 记录 12
-
-- **code:** SZ27
-- **name:** 盐土庄节制闸
-- **type:** 拦河闸
-- **n:** 7
-- **width:** 11.00
-- **height:** 62.80
-- **discharge:** 1600.00
-- **latitude:** 35.740422
-- **longitude:** 114.478433
-- **datum:** 53.00
-- **location:** 鹤壁市浚县屯子镇
-- **atriver:** 共渠
-- **state:** 已建
-
----
-
-[5] 来源: 知识库: water_project, 文档: 大沙河和卫共河道治理水力要素
-来源引用格式: [大沙河和卫共河道治理水力要素](http://localhost:8000/knowledge/kb-doc/water_project/大沙河和卫共河道治理水力要素)
-内容: # 5.3.1.2共产主义渠治理方案  
-
-共产主义渠是1958年为引黄修建的,1962年停止引黄后用于行洪。近年来由于共产主义渠来水较少,共产主义渠刘庄闸以下现状渠道河槽有所淤积。现状情...(已截断)
-
-**完整提示词**:
-```
-你是卫共流域数字孪生系统的智能助手，负责生成最终响应。
-
-## 最近对话历史
-无
-
-## 用户原始问题
-图文并茂的介绍盐土庄闸？
-
-## 用户意图
-knowledge_qa
-
-## 执行计划
-无执行计划
-
-## 执行结果
-无执行结果
-
-## 检索到的相关知识
-[1] 来源: 知识库: water_project, 文档: 主要建筑物泄流曲线
-来源引用格式: [主要建筑物泄流曲线](http://localhost:8000/knowledge/kb-doc/water_project/主要建筑物泄流曲线)
-内容: ## 盐土庄闸
-- **序号**: 2.0
-- **建筑物编码**: GQ_YTZJZZ
-- **闸门类型**: 平板闸
-- **河道ID**: GQ
-- **河道名称**: 共渠
-- **所在桩号**: 80857.0
-- **建筑物上游水位和流量的关系**: [[0,53],[20,54.07],[50,54.78],[80,55.28],[100,55.57],[120,55.86],[150,56.25],[200,56.70],[250,57.15],[300,57.60],[400,58.20],[500,58.85],[600,59.30],[700,59.85],[800,60.25],[900,60.60],[1000,60.92],[1100,61.30],[
-1200,61.60],[1300,61.80],[1400,62.0],[1500,62.20],[1600,62.46],[2000,63.4],[2500,64.3]]
-
-[2] 来源: 知识库: water_project, 文档: 卫共流域各建筑物信息表
-来源引用格式: [卫共流域各建筑物信息表](http://localhost:8000/knowledge/kb-doc/water_project/卫共流域各建筑物信息表)
-内容: ## 盐土庄节制闸
-- **id**: 13
-- **建筑物id**: GQ_YTZJZZ
-- **闸门类型**: 平板闸
-- **建筑类型**: 拦河闸
-- **所在河道id**: GQ
-- **所在河道**: 共渠
-- **桩号**: 93001
-- **设计流量**: 1600.0
-- **闸底高程**: 53.0
-- **闸孔数**: 7
-- **单孔净宽**: 11.0
-- **闸门高度**: 10.0
-- **闸顶高程**: 62.8
-- **now_state**: 全开
-- **update_time**: 2024-07-29 08:00:00
-- **open_n**: 20
-- **open_h**: 5.0
-- **调度规则**: 视汤河、安阳河来水情况，按五陵站不超过2000m³/s、元村集站不超过2500m³/s控制下泄，最大流量不大于1600m³/s。
-- **模型实例**: wg_mike11
-
-[3] 来源: 知识库: water_project, 文档: 卫共流域典型建筑物照片
-来源引用格式: [卫共流域典型建筑物照片](http://localhost:8000/knowledge/kb-doc/water_project/卫共流域典型建筑物照片)
-内容: # 1.2.6共渠盐土庄闸  
-
-共渠盐土庄闸现场照片。  
-
-![](images/06f8ac5a8730c32760b35aac28739c3617c8eb1bbae8b9169c45067ab72ca629.jpg)
-
-[4] 来源: 知识库: water_project, 文档: 闸站监测
-来源引用格式: [闸站监测](http://localhost:8000/knowledge/kb-doc/water_project/闸站监测)
-内容: ### 记录 12
-
-- **code:** SZ27
-- **name:** 盐土庄节制闸
-- **type:** 拦河闸
-- **n:** 7
-- **width:** 11.00
-- **height:** 62.80
-- **discharge:** 1600.00
-- **latitude:** 35.740422
-- **longitude:** 114.478433
-- **datum:** 53.00
-- **location:** 鹤壁市浚县屯子镇
-- **atriver:** 共渠
-- **state:** 已建
-
----
-
-[5] 来源: 知识库: water_project, 文档: 大沙河和卫共河道治理水力要素
-来源引用格式: [大沙河和卫共河道治理水力要素](http://localhost:8000/knowledge/kb-doc/water_project/大沙河和卫共河道治理水力要素)
-内容: # 5.3.1.2共产主义渠治理方案  
-
-共产主义渠是1958年为引黄修建的,1962年停止引黄后用于行洪。近年来由于共产主义渠来水较少,共产主义渠刘庄闸以下现状渠道河槽有所淤积。现状情况下渠道过流 $250\mathrm{m}^{3})$ s时,白寺附近局部水位已平左侧堤,过流400m²/s时在同山至盐土庄之间洪水已漫过左侧堤进入共西行洪区,现状渠道过流能力不足400m3/s。  
-
-可行性研究阶段对共产主义渠进行清淤和加培堤防相结合的方案与单纯加培堤防两个方案进行比较,经分析,共产主义渠加堤方案从工程投资角度分析比清淤方案优,可以减免因河道清淤对沿河建筑物的不利影响,对卫河坡洼的淹没影响不同程度有所增加,但增加的幅度较小(滞洪水位高 $2{\sim}9\mathrm{cm}$ ):同时在小麦生长期会加重对共西的浸没影响,但影响是暂时的。 因此,本次对共产主义渠的治理采取单纯堤防加培方案,不对河道进行清淤。  
-
-依据防洪规划总体安排,发生50年一遇洪水时,共产主义渠及共渠以西行洪区共同行洪,在共产主义渠河道桩号32+280处新建盐土庄闸,控制下泄流量不超过 $1600\mathrm{m^{3}/s}$ 在盐土庄闸以下共卫合流。因此,本次对共产主义渠盐土庄闸以上左堤不进行加培,仅对右堤进行加培设计:盐土庄闸以下右堤不进行加培仅对左堤进行加培设计。  
-
-<html><body><table><tr><td rowspan="2">序号</td><td rowspan="2">河道里程</td><td rowspan="2">地点</td><td colspan="4">行洪</td><td colspan="2">排涝</td></tr><tr><td>设计流量</td><td>水位</td><td>左堤设计堤顶高程</td><td>右堤设计堤顶高程</td><td>流量</td><td></td><td>水位</td></tr><tr><td>1</td><td>0+000</td><td>淇共汇合口</td><td rowspan="17"></td><td>66.53</td><td></td><td>67.83</td><td></td><td>63.19</td></tr><tr><td>2</td><td>0+490</td><td></td><td>66.29</td><td>67.59</td><td></td><td>63.08</td></tr><tr><td>3</td><td>0+970</td><td></td><td>66.10</td><td>67.40</td><td></td><td>62.96</td></tr><tr><td>4</td><td>1+450</td><td></td><td>65.97</td><td>67.27</td><td></td><td>62.85</td></tr><tr><td>5</td><td>1+950</td><td></td><td>65.83</td><td>67.13</td><td></td><td>62.74</td></tr><tr><td>6</td><td>2+450</td><td></td><td>65.74</td><td>67.04</td><td></td><td>62.62</td></tr><tr><td>7</td><td>2+950</td><td></td><td>65.60</td><td>66.90</td><td></td><td>62.50</td></tr><tr><td>8</td><td>3+450</td><td></td><td>65.47</td><td>66.77</td><td></td><td>62.40</td></tr><tr><td>9</td><td>3+950</td><td></td><td>65.36</td><td>66.66</td><td></td><td>62.29</td></tr><tr><td>10</td><td>4+450</td><td></td><td>65.27</td><td>66.57</td><td></td><td>62.19</td></tr><tr><td>11</td><td>4+950</td><td></td><td>65.16</td><td>66.46</td><td>250</td><td>62.09</td></tr><tr><td>12</td><td>5+450</td><td></td><td>与共产主义 65.07</td><td></td><td>66.37</td><td>61.98</td></tr><tr><td>13</td><td>5+950</td><td></td><td>渠以西行洪 取共同承泄 64.95</td><td></td><td>66.25</td><td>61.88</td></tr><tr><td>14</td><td>6+450</td><td></td><td>上游共产主 64.84</td><td></td><td>66.14</td><td>61.78</td></tr><tr><td>15</td><td>6+950</td><td></td><td>义渠和淇河 64.76</td><td></td><td></td><td>61.67</td></tr><tr><td>16</td><td>7+450</td><td>牛四马湖</td><td>洪水，洪峰 64.70 64.58</td><td></td><td>66.06 66.00</td><td>61.56</td></tr><tr><td>17</td><td>7+950</td><td></td><td>流量3100</td><td></td><td>65.88</td><td>61.46</td></tr><tr><td>18</td><td>8+450</td><td></td><td>64.48</td><td></td><td>65.78</td><td>61.35</td></tr><tr><td>19</td><td>8+950</td><td></td><td>64.39</td><td></td><td>65.69</td><td>61.24</td></tr><tr><td>20</td><td>9+450</td><td></td><td>64.28</td><td></td><td>65.58</td><td>61.13</td></tr><tr><td>21</td><td>9+950</td><td></td><td>64.18</td><td></td><td>65.48</td><td>60.95</td></tr><tr><td>22</td><td>10+450</td><td></td><td>64.09</td><td></td><td>65.39</td><td>60.75</td></tr><tr><td>23</td><td>10+950</td><td></td><td>63.88</td><td></td><td>65.18</td><td>60.54</td></tr><tr><td>24</td><td>11+450</td><td></td><td>63.79</td><td></td><td>65.09</td><td>60.34</td></tr><tr><td>25</td><td>11+950</td><td></td><td>63.68</td><td></td><td>64.98</td><td></td></tr><tr><td>26</td><td>12+450</td><td></td><td>63.46</td><td></td><td>64.76</td><td>60.18 60.01</td></tr></table></body></html>  
-
-#表5.3-1共产主义渠河道设计指标表 单位:流量m²/s,其余为m  
-<html><body><table><tr><td rowspan="2">序号</td><td rowspan="2">河道里程</td><td rowspan="2">地点</td><td colspan="4">行洪</td><td colspan="2">排涝</td></tr><tr><td>设计流量</td><td>水位</td><td>左堤设计堤顶高程</td><td>右堤设计堤顶高程</td><td>流量</td><td>水位</td></tr><tr><td>27</td><td>12+950</td><td></td><td></td><td>62.82</td><td></td><td>64.12</td><td></td><td>59.85</td></tr><tr><td>28</td><td>13+450</td><td></td><td></td><td>60.29</td><td>61.59</td><td></td><td>59.74</td></tr><tr><td>29</td><td>13+950</td><td></td><td>62.95</td><td></td><td>64.25</td><td></td><td>59.59</td></tr><tr><td>30</td><td>14+450</td><td></td><td>62.70</td><td></td><td>64.00</td><td></td><td>59.42</td></tr><tr><td>31</td><td>14+950</td><td></td><td></td><td>62.60</td><td>63.90</td><td></td><td>59.35</td></tr><tr><td>32</td><td>15+450</td><td></td><td>62.47</td><td></td><td>63.77</td><td></td><td>59.29</td></tr><tr><td>33</td><td>15+950</td><td></td><td>62.37</td><td></td><td>63.67</td><td></td><td>59.24</td></tr><tr><td>34</td><td>16+450</td><td></td><td>62.18</td><td></td><td>63.48</td><td></td><td>59.19</td></tr><tr><td>35</td><td>16+950</td><td></td><td>61.96</td><td></td><td>63.26</td><td></td><td>59.14</td></tr><tr><td>36</td><td>17+450</td><td></td><td>61.82</td><td></td><td>63.12</td><td></td><td>59.07</td></tr><tr><td>37</td><td>17+950</td><td></td><td>61.73</td><td></td><td>63.03</td><td></td><td>58.99</td></tr><tr><td>38</td><td>18+450</td><td></td><td>61.69</td><td></td><td>62.99</td><td></td><td>58.92</td></tr><tr><td>39</td><td>18+950</td><td></td><td>61.68</td><td></td><td>62.98</td><td></td><td>58.87</td></tr><tr><td>40</td><td>19+450</td><td></td><td>61.65</td><td></td><td>62.95</td><td></td><td>58.82</td></tr><tr><td>41</td><td>19+950</td><td></td><td>61.65</td><td></td><td>62.95</td><td></td><td>58.78</td></tr><tr><td>42</td><td>20+450</td><td></td><td>61.63</td><td></td><td>62.93</td><td></td><td>58.70</td></tr><tr><td>43</td><td>20+950</td><td></td><td>61.61</td><td></td><td>62.91</td><td></td><td>58.62</td></tr><tr><td>44</td><td>21+450</td><td></td><td>61.60</td><td></td><td>62.90</td><td></td><td>58.55</td></tr><tr><td>45</td><td>21+950</td><td></td><td>61.59</td><td></td><td>62.89</td><td></td><td>58.47</td></tr><tr><td>46</td><td>22+450</td><td></td><td>61.58</td><td></td><td>62.88</td><td></td><td>58.40</td></tr><tr><td>47</td><td>22+950</td><td></td><td>61.56</td><td></td><td>62.86</td><td></td><td>58.30</td></tr><tr><td>48</td><td>23+450</td><td></td><td>61.54</td><td></td><td>62.84</td><td></td><td>58.21</td></tr><tr><td>49</td><td>23+950</td><td></td><td>61.53</td><td></td><td>62.83</td><td></td><td>58.13</td></tr><tr><td>50</td><td>24+450</td><td></td><td>61.52</td><td></td><td>62.82</td><td></td><td>58.07</td></tr><tr><td>51</td><td>24+950</td><td></td><td>61.51</td><td></td><td>62.81</td><td></td><td>58.04</td></tr><tr><td>52</td><td>25+450</td><td></td><td>61.48</td><td></td><td>62.78</td><td></td><td>57.96</td></tr></table></body></html>  
-
-<html><body><table><tr><td rowspan="2">序号</td><td rowspan="2">河道里程</td><td rowspan="2">地点</td><td colspan="4">行洪</td><td colspan="2">排涝</td></tr><tr><td>设计流量</td><td>水位</td><td>左堤设计堤顶高程</td><td>右堤设计堤顶高程</td><td>流量</td><td>水位 57.88</td></tr><tr><td>53</td><td>25+950</td><td></td><td rowspan="19"></td><td>61.48</td><td></td></tr><tr><td>54</td><td>26+450</td><td>61.46</td><td></td><td>62.78 62.76</td><td>57.80</td></tr><tr><td>55</td><td>26+950</td><td></td><td>61.43</td><td>62.73</td><td>57.69</td></tr><tr><td>56</td><td>27+450</td><td></td><td>61.44</td><td>62.74</td><td>57.50</td></tr><tr><td>57</td><td>27+950</td><td></td><td>61.37/61.4</td><td>62.70</td><td>57.52</td></tr><tr><td>58</td><td>28+450</td><td></td><td>61.34/61.4</td><td>62.70</td><td>57.43</td></tr><tr><td>59</td><td>28+940</td><td></td><td>61.31/61.4</td><td>62.70</td><td>57.34</td></tr><tr><td>60</td><td>29+430</td><td></td><td>61.31/61.4</td><td>62.70</td><td>57.30</td></tr><tr><td>61</td><td>29+960</td><td></td><td>61.27/61.4</td><td>62.70</td><td>57.22</td></tr><tr><td>62</td><td>30+430</td><td></td><td>61.24/61.4</td><td>62.70</td><td>57.16</td></tr><tr><td>63</td><td>30+930</td><td></td><td>61.22/61.4</td><td>62.70</td><td>57.10</td></tr><tr><td>64</td><td>31+430</td><td></td><td>61.18/61.4</td><td>62.70</td><td>57.04</td></tr><tr><td>65</td><td>31+930</td><td></td><td>61.14/61.4</td><td>62.70</td><td>56.97</td></tr><tr><td rowspan="2">66</td><td rowspan="2">32+280 盐土庄节制闸</td><td rowspan="2"></td><td rowspan="2">61.14/61.4</td><td rowspan="2">62.70</td><td rowspan="2"></td><td>56.96</td></tr><tr><td></td></tr><tr><td></td><td>33+030</td><td></td><td>59.94 59.9</td><td>61.94 61.9</td><td></td><td></td></tr><tr><td>67</td><td>33+540</td><td></td><td>59.87</td><td>61.87</td><td></td><td>56.82</td></tr><tr><td>68</td><td></td><td></td><td></td><td>61.84</td><td></td><td>56.77</td></tr><tr><td>69</td><td>34+040</td><td></td><td>59.84</td><td>61.77</td><td></td><td>56.73</td></tr><tr><td>70</td><td>34+490</td><td></td><td>59.77</td><td>61.76</td><td></td><td>56.67</td></tr><tr><td>71</td><td>34+690 35+030</td><td></td><td>59.76</td><td>61.72</td><td></td><td>56.61</td></tr><tr><td>72</td><td>35+550</td><td></td><td>59.72 59.67</td><td>61.67</td><td></td><td>56.55</td></tr><tr><td>73</td><td>36+020</td><td></td><td>59.57</td><td>61.57</td><td></td><td>56.41</td></tr><tr><td>74 75</td><td>36+510</td><td></td><td>59.48</td><td>61.48</td><td></td><td>56.33</td></tr><tr><td>76</td><td>36+970</td><td></td><td>59.41</td><td>61.41</td><td></td><td>56.25 56.14</td></tr><tr><td>77</td><td>37+570</td><td></td><td>59.34</td><td>61.34</td><td>维持现状堤顶高程</td><td>55.99</td></tr></table></body></html>  
-
-#表5.3-1共产主义渠河道设计指标表 单位:流量m2/s,其余为m  
-<html><body><table><tr><td rowspan="2">序号</td><td rowspan="2">河道里程</td><td rowspan="2">地点</td><td colspan="4">行洪</td><td colspan="2">排涝</td></tr><tr><td>设计流量</td><td>水位</td><td>左堤设计堤顶高程</td><td>右堤设计堤顶高程</td><td>流量</td><td></td><td>水位 55.9</td></tr><tr><td>78</td><td>38+010</td><td></td><td rowspan="17">2000（共卫 合流）</td><td>59.27</td><td>61.27</td><td></td><td rowspan="10"></td><td rowspan="10"></td><td></td></tr><tr><td>79</td><td>38+220</td><td></td><td>59.25</td><td>61.25</td><td>55.83</td></tr><tr><td>80</td><td>38+420</td><td></td><td>59.21</td><td>61.21</td><td>55.81</td></tr><tr><td>81</td><td>38+980</td><td></td><td>59.09</td><td>61.09</td><td>55.67</td></tr><tr><td>82</td><td>39+510</td><td></td><td>59.02</td><td>61.02</td><td>55.61</td></tr><tr><td>83</td><td>40+000</td><td></td><td>58.89</td><td>60.89</td><td>55.53</td></tr><tr><td>84</td><td>40+490</td><td></td><td>58.79</td><td>60.79</td><td>55.45</td></tr><tr><td>85</td><td>41+000</td><td></td><td>58.7</td><td>60.7</td><td>55.33</td></tr><tr><td>86</td><td>41+510</td><td></td><td>58.6</td><td>60.6</td><td>55.06</td></tr><tr><td>87</td><td>42+000</td><td></td><td>58.54</td><td>60.54</td><td>55.03</td></tr><tr><td>88</td><td>42+500</td><td></td><td>58.5</td><td>60.5</td><td>54.94</td></tr><tr><td>89</td><td>43+040</td><td></td><td>58.42</td><td>60.42</td><td>54.88</td></tr><tr><td>90</td><td>43+280</td><td></td><td>58.41</td><td>60.41</td><td>54.86</td></tr><tr><td>91</td><td>43+510</td><td></td><td>58.36</td><td>60.36</td><td>54.85</td></tr><tr><td>92</td><td>43+930</td><td></td><td>58.31</td><td>60.31</td><td>54.84</td></tr><tr><td>93</td><td>44+200</td><td>入卫河口</td><td>58.15</td><td>60.12</td><td></td><td>54.84</td></tr></table></body></html>
-
-注:1、共产主义渠河道断面桩号与河槽里程桩号、堤防桩号均一致。2、盐土庄闸以上右堤堤顶高程为河道设计水位加 $1.3\mathrm{m}$ 堤防超高与白寺坡设计滞蓄水位加 $1.3\mathrm{m}$ 堤防超高的外包线,表中“上下数据分别为共渠河道设计水位与白寺坡设计滞蓄水位。3、盐土庄闸以下左堤堤顶高程为河道设计水位加2.0m的堤防超高。  
-
-<html><body><table><tr><td colspan="4"></td><td rowspan="3">卫河</td><td colspan="6">清淤设计指标对比表</td></tr><tr><td rowspan="3">序号</td><td rowspan="3">河道桩号</td><td rowspan="3">主槽桩号</td><td rowspan="3">地点</td><td colspan="3">可研方案 设计断面</td><td colspan="3">本次设计方案</td></tr><tr><td colspan="3">河底高程</td><td colspan="3">设计断面</td></tr><tr><td>（m）</td><td>底宽 (m）</td><td>河道比降</td><td>河底高程 (m)</td><td>底宽 (m)</td><td>河道比降</td></tr><tr><td>1</td><td>0+000</td><td>0+140</td><td colspan="2">淇共汇合口</td><td>58.48</td><td rowspan="6">70</td><td></td><td>58.48</td><td rowspan="6">60</td><td></td></tr><tr><td>2</td><td>0+300</td><td>0+490</td><td colspan="2">小河口节制闸</td><td>58</td><td></td><td>58</td><td></td></tr><tr><td>3</td><td>0+500</td><td>0+730</td><td colspan="2"></td><td>57.95</td><td></td><td>57.95</td><td rowspan="6"></td></tr><tr><td>4</td><td>1+190</td><td>2+040</td><td>淇门</td><td></td><td>57.73</td><td>57.73</td><td></td></tr><tr><td></td><td>6+020</td><td>6+970</td><td></td><td>耿湾村</td><td>57.14</td><td>57.14</td><td>17</td></tr><tr><td>6</td><td>7+850</td><td>8+890</td><td></td><td>东郭村</td><td>56.91</td><td>56.91</td><td></td><td rowspan="6">1/8230</td></tr><tr><td>7</td><td>14+200</td><td>15+580</td><td></td><td>纸坊村</td><td>56.13</td><td>56.13</td><td rowspan="6"></td></tr><tr><td>8</td><td>16+400</td><td>17+190</td><td></td><td>雷村</td><td>55.82</td><td></td></tr><tr><td>9</td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td>26+920</td><td></td><td>宗湾上</td><td>54.82</td><td>54.82</td></tr><tr><td>10</td><td>23+900</td><td></td><td></td><td>宗湾下</td><td>54.49</td><td>1/7427</td></tr><tr><td>11</td><td>26+360</td><td>29+290</td><td></td><td></td><td></td><td rowspan="4">1/7665 1/7893</td><td rowspan="4">54.25</td><td rowspan="4">22</td><td rowspan="4"></td></tr><tr><td>12</td><td>27+680</td><td></td><td>31+150 长虹渠入卫河口54.25/53.85</td><td></td><td>22</td></tr><tr><td>13</td><td>33+920</td><td></td><td>38+240</td><td>柴湾村</td><td>53.06</td></tr><tr><td>14</td><td>37+700</td><td>42+020</td><td></td><td>苑刘庄</td><td>52.44</td><td>52.44</td></tr></table></body></html>  
-
-<html><body><table><tr><td rowspan="3"></td><td rowspan="3">序号河道桩号主槽桩号</td><td rowspan="3"></td><td rowspan="3">地点</td><td colspan="3">可研方案</td><td colspan="3">本次设计方案</td></tr><tr><td colspan="3">设计断面</td><td colspan="3">设计断面</td></tr><tr><td rowspan="2">河底高程 （m）</td><td rowspan="2">底宽 (m）</td><td rowspan="2">河道比降</td><td rowspan="2"></td><td rowspan="2">河底高程 底宽 (m） (m)</td><td rowspan="2">河道比降</td></tr><tr><td></td></tr><tr><td>15</td><td>42+850</td><td>47+250</td><td>浚县上</td><td>51.84/51.37</td><td rowspan="4">10</td><td rowspan="2">1/7336</td><td>51.55</td><td></td><td rowspan="2"></td></tr><tr><td>16</td><td>44+380</td><td>48+760</td><td>浚县下</td><td>51.16</td><td>51.3</td><td></td></tr><tr><td rowspan="2">17</td><td rowspan="2">46+660</td><td rowspan="2">51+260</td><td rowspan="2">十里铺上</td><td rowspan="2">50.82</td><td rowspan="2"></td><td rowspan="2">1/8128</td><td>50.89</td><td rowspan="2"></td></tr><tr><td></td></tr><tr><td>18</td><td>48+120</td><td>52+730</td><td>十里铺下</td><td>50.64</td><td>维持 现状</td><td>维持现状</td><td>50.64 46.98</td><td>维持 现状</td><td>维持现状</td></tr><tr><td>19</td><td>64+590</td><td>69+870</td><td>老观嘴</td><td>47.96</td><td rowspan="2">60</td><td rowspan="2">1/9815</td><td rowspan="2">45.21</td><td rowspan="2">20</td><td rowspan="2">1/5266</td></tr><tr><td>20</td><td>73+520</td><td>79+190</td><td>浚内沟口</td><td>47.03</td></tr></table></body></html>  
-
-<html><body><table><tr><td>治理范围</td><td>提防核子</td><td>设计水位 (m)</td><td>(m)</td><td>设计提项高程视状顶高程 (m)</td><td>久高 (m)</td><td>治理指施</td></tr><tr><td rowspan="3">Z37+500- Z38+550</td><td>Z37+544</td><td>60.97/61.4</td><td>62.6</td><td>62.31</td><td>60</td><td rowspan="3">结合提顶遥机 路建设加高</td></tr><tr><td>Z37+955</td><td>60.94/61.4</td><td>62.6</td><td>62.19</td><td>1+0</td></tr><tr><td>238+540</td><td>60.62/61.4</td><td>62.6</td><td>62.33</td><td>0.27</td></tr><tr><td>Z43+200-</td><td>Z43+233</td><td>60.55</td><td>61.75</td><td>1119</td><td>0.64</td><td></td></tr></table></body></html>  
-
-#表5.4-12卫河干流左堤提防加培治理措统计表  
-
-
-<html><body><table><tr><td>治理范围</td><td>提防桩号</td><td>设计水位 (m）</td><td>设计提项高程规状提项高程</td><td></td><td>欠高 (m）</td><td>治理指施</td></tr><tr><td rowspan="2">Z43+850</td><td>Z43+635</td><td>60.51</td><td>（m） 61.71</td><td>61.15</td><td>0.56</td><td rowspan="8"></td></tr><tr><td>Z43+830</td><td>60.48</td><td>61.68</td><td>61.09</td><td>0.59</td></tr><tr><td rowspan="2">Z44+800 245+150</td><td>Z44+835</td><td>60.35</td><td>61.55</td><td>61.22</td><td>0.33 迎水侧加防油</td></tr><tr><td>Z45+120</td><td>60.33</td><td>61.53</td><td>61.19</td><td>0.34 （位于</td></tr><tr><td rowspan="4">Z46+100- Z47+700</td><td>Z46+117</td><td>60.20</td><td>019</td><td>+L09</td><td>0.66 城，提项为</td></tr><tr><td>Z46+609</td><td>60.15</td><td></td><td></td><td>土路）</td></tr><tr><td></td><td></td><td>61.35</td><td>60.76</td><td>0.59</td></tr><tr><td>Z47+240</td><td>60.11</td><td>61.31</td><td>60.76</td><td>0.55</td></tr><tr><td rowspan="11">Z49+600- Z54+290</td><td>Z47+672 Z49+663</td><td>60.11 60.01</td><td>61.31 1219</td><td>60.78 60.85</td><td>0.53 0.36</td><td rowspan="11">土提加培</td></tr><tr><td>Z50+291</td><td>60.00</td><td>61.20</td><td>60.32</td><td>0.88</td></tr><tr><td></td><td>59.99</td><td></td><td></td><td></td></tr><tr><td>Z50+909</td><td>5665</td><td></td><td>60.49 60.21</td><td>0.70</td></tr><tr><td>Z51+505</td><td>59.98</td><td>61.19 61.18</td><td>60.16</td><td>0.98 1.02</td></tr><tr><td>Z52+005</td><td>9665</td><td></td><td>60.4</td><td>0.76</td></tr><tr><td>252+505 Z53+005</td><td>59.95</td><td>61.16 61.15</td><td>60.1</td><td>1.05</td></tr><tr><td></td><td>59.93</td><td></td><td></td><td></td></tr><tr><td>Z53+407</td><td>59.92</td><td>61.13 61.12</td><td>60.22 60.21</td><td>0.91</td></tr><tr><td>Z53+932</td><td>1665</td><td></td><td>60.77</td><td>160</td></tr><tr><td>Z54+206</td><td></td><td>61.11</td><td></td><td>0.34 0.51</td></tr><tr><td rowspan="4">Z93+870 056+46Z</td><td>Z93+921 Z94+317</td><td>55.10 55.05</td><td>0695</td><td>56.39 56.28</td><td>0.57</td><td rowspan="4">土提加培</td></tr><tr><td>Z94+620</td><td></td><td>56.85</td><td></td><td>0.66</td></tr><tr><td></td><td>55.02</td><td>56.82</td><td>56.16</td><td></td></tr><tr><td>Z94+920 Z95+423</td><td>55.00</td><td>56.80</td><td>56.2</td><td>0.60</td></tr><tr><td rowspan="2">Z95+400 295+650 295+970</td><td>Z95+626</td><td>54.93</td><td>56.73</td><td>56.25</td><td>0.48 水侧加防流</td><td rowspan="2">境（提项为 2018年铺设 凝土路）</td></tr><tr><td>520-962</td><td></td><td>56.68</td><td>56.27</td><td>0.41</td></tr><tr><td rowspan="11">OLI-96Z</td><td>Z96+108</td><td>54.85 54.84</td><td>56.65 56.64</td><td>56.1 56.23</td><td>0.55 0.41</td><td rowspan="11">（提填为</td></tr><tr><td>606+101Z</td><td>54.18</td><td>55.98</td><td>55.4</td><td>0.58</td></tr><tr><td>2102-411</td><td>54.12</td><td>55.92</td><td>55.44</td><td>0.48</td></tr><tr><td>Z102-911</td><td>54.07</td><td>55.87</td><td>55.1</td><td>0.77</td></tr><tr><td>Z103-514</td><td>53.98</td><td>55.78</td><td>55.07</td><td>0.71</td></tr><tr><td>Z104+014</td><td>53.87</td><td>55.67</td><td>54.99</td><td>0.68 面水侧加防箱</td></tr><tr><td>Z101+850- Z106+450 Z104+514</td><td>53.77</td><td>55.57</td><td>54.8</td><td>0.77</td><td rowspan="4">凝土路）</td></tr><tr><td>Z105+011</td><td>53.73</td><td>55.53</td><td>54.8</td><td>0.73</td></tr><tr><td>Z105+413</td><td>53.66</td><td>55.46</td><td>54.7</td><td>0.76</td></tr><tr><td>2105-914</td><td>53.53</td><td>55.33</td><td>54.4</td><td>0.93</td></tr><tr><td></td><td>Z106-414</td><td>53.45</td><td>55.25</td><td>54.48</td><td>0.77</td></tr><tr><td>Z107+700-</td><td>Z107+729</td><td>53.25</td><td>55.05</td><td>54.42</td><td>0.63</td><td></td></tr></table></body></html>  
-
-<html><body><table><tr><td>治理范围</td><td>堤防桩号</td><td>设计水位 (m)</td><td>设计提顶高程现状堤项高程 （m）</td><td></td><td>欠高 （m）</td><td>治理措施</td></tr><tr><td rowspan="7">Z110+730</td><td>Z108+230</td><td>53.14</td><td>54.94</td><td>54.12</td><td>0.82</td><td rowspan="7">迎水侧加防浪 凝土路面）</td></tr><tr><td>Z108+730</td><td>53.06</td><td>54.86</td><td>54.25</td><td>0.61</td></tr><tr><td>Z109+230</td><td>53.00</td><td>54.80</td><td>54.24</td><td>0.56</td></tr><tr><td>Z109+730</td><td>52.94</td><td>54.74</td><td>53.96</td><td>0.78 墙（堤顶为混</td></tr><tr><td>Z110+229</td><td>52.87</td><td>54.67</td><td>53.75</td><td>0.92</td></tr><tr><td>Z110+327</td><td>52.85</td><td>54.65</td><td>53.89</td><td>0.76</td></tr><tr><td>Z110+428</td><td>52.83</td><td>54.63</td><td>53.87</td><td>0.76</td></tr><tr><td rowspan="5">Z110+730~ Z113+100</td><td>Z111+228</td><td>52.69</td><td>54.49</td><td>54.13</td><td>0.36</td><td rowspan="8"></td></tr><tr><td>Z111+768</td><td>52.56</td><td>54.36</td><td>53.85</td><td>0.51</td></tr><tr><td>Z112+270</td><td>52.45</td><td>54.25</td><td>53.86</td><td>0.39</td></tr><tr><td>Z112+769</td><td>52.41</td><td>54.21</td><td>53.88</td><td>0.33 结合堤顶巡视</td></tr><tr><td>Z113+063</td><td>52.39</td><td>54.19</td><td>53.9</td><td>0.29 道路建设加高</td><td rowspan="5">至设计项高程</td></tr><tr><td>Z115+859</td><td></td><td>51.76</td><td>53.56 53.17</td><td>0.39</td></tr><tr><td rowspan="2">Z115+780~ Z116+100</td><td>Z116+060</td><td>51.67</td><td>53.47</td><td>53 0.47</td></tr><tr><td>Z140+302</td><td>48.27</td><td>50.27</td><td>49.88 0.39</td></tr><tr><td rowspan="2">Z140+250~ Z140+550</td><td>Z140+507</td><td>48.26</td><td>50.26</td><td>49.82</td><td>0.44</td></tr><tr><td>Z141+903</td><td>48.12</td><td>50.12</td><td>49.67</td><td>0.45</td></tr><tr><td rowspan="4">Z141+850~ Z142+650</td><td>Z142+204</td><td>48.11</td><td>50.11</td><td>49.64</td><td>0.47</td><td rowspan="4">迎水侧加防浪 墙（堤顶为混 凝土路面）</td></tr><tr><td>Z142+402</td><td>48.11</td><td>50.11</td><td>49.7</td><td>0.41</td></tr><tr><td>Z142+602</td><td>48.10</td><td>50.10</td><td></td><td></td></tr><tr><td></td><td></td><td></td><td>49.71</td><td>0.39</td></tr><tr><td rowspan="6">Z143+550~ Z146+050</td><td>Z143+607 Z144+104</td><td>48.02 47.94</td><td>50.02 49.94</td><td>49.48 49.31</td><td>0.54 0.63</td><td rowspan="6">土堤加培 (Z144+350- 在背水侧堤脚</td></tr><tr><td>Z144+605</td><td>47.91</td><td>49.91</td><td>49.13</td><td>0.78</td></tr><tr><td></td><td>47.81</td><td>49.81</td><td>49.12</td><td>Z145+050段 0.69</td></tr><tr><td>Z145+103</td><td></td><td>49.78</td><td>49.14</td><td>0.64</td></tr><tr><td>Z145+603</td><td>47.78</td><td></td><td></td><td>修筑挡土墙）</td></tr><tr><td>Z146+003</td><td>47.72</td><td>49.72</td><td>49.25</td><td>0.47</td></tr><tr><td rowspan="5">Z147+150- Z148+850</td><td>Z147+203</td><td>47.56</td><td>49.56 49.55</td><td>48.95</td><td>0.61 0.62</td><td rowspan="5">土堤加培</td></tr><tr><td>Z147+403 Z147+803</td><td>47.55 47.50</td><td>49.50</td><td>48.93</td><td>0.51</td></tr><tr><td>Z148+303</td><td></td><td>49.48</td><td>48.99</td><td>0.46</td></tr><tr><td>Z148+802</td><td>47.48</td><td></td><td>49.02</td><td></td></tr><tr><td></td><td>47.42</td><td>49.42</td><td>49.03</td><td>0.39</td></tr><tr><td rowspan="5">Z149+150~ Z151+450</td><td>Z149+204</td><td>47.30</td><td>49.30</td><td>48.83</td><td>0.47 0.34</td><td rowspan="5">土堤加培</td></tr><tr><td>Z149+704</td><td>47.28</td><td>49.28</td><td>48.94</td><td>0.46</td></tr><tr><td>Z150+202 Z150+703</td><td>47.28</td><td>49.28</td><td>48.82</td><td>0.55</td></tr><tr><td></td><td>47.23</td><td>49.23</td><td>48.68</td><td></td></tr><tr><td>Z151+203 Z151+403</td><td>47.14 47.11</td><td>49.14 49.11</td><td>48.6 48.56</td><td>0.54 0.55</td></tr></table></body></html>  
-
-<html><body><table><tr><td>治理范围</td><td>堤防桩号</td><td>设计水位 （m）</td><td>设计堤顶高程现状堤顶高程 （m）</td><td>（m）</td><td>欠高 (m）</td><td>治理措施</td></tr><tr><td rowspan="5">Z151+850~ Z153+550</td><td>Z151+903</td><td>47.06</td><td>49.06</td><td>48.58</td><td>0.48</td><td rowspan="5">土堤加培</td></tr><tr><td>Z152+403</td><td>47.00</td><td>49.00</td><td>48.54</td><td>0.46</td></tr><tr><td>Z152+903</td><td>46.95</td><td>48.95</td><td>48.41</td><td>0.54</td></tr><tr><td>Z153+403</td><td>46.92</td><td>48.92</td><td>48.39</td><td>0.53</td></tr><tr><td>Z153+504</td><td>46.91</td><td>48.91</td><td>48.46</td><td>0.45</td></tr><tr><td rowspan="3">Z153+850~ Z154+150</td><td>Z153+903</td><td>46.86</td><td>48.86</td><td>48.38</td><td>0.48</td><td rowspan="3">土堤加培</td></tr><tr><td>Z154+003</td><td>46.84</td><td>48.84</td><td>48.31</td><td>0.53</td></tr><tr><td>Z154+102</td><td>46.82</td><td>48.82</td><td>48.36</td><td>0.46</td></tr><tr><td rowspan="2">Z158+800~ Z159+150</td><td>Z158+829</td><td>46.26</td><td>48.26</td><td>47.66</td><td>0.60</td><td rowspan="2">土堤加培</td></tr><tr><td>Z159+127</td><td>46.20</td><td>48.20</td><td>47.58</td><td>0.62</td></tr><tr><td rowspan="3">Z160+800~ Z161+050</td><td>Z160+830</td><td>45.92</td><td>47.92</td><td>47.41</td><td>0.51</td><td rowspan="3">迎水侧加防浪 墙（堤顶为混 凝土路面）</td></tr><tr><td>Z160+933</td><td>45.90</td><td>47.90</td><td>47.47</td><td>0.43</td></tr><tr><td>Z161+035</td><td>45.88</td><td>47.88</td><td>47.33</td><td>0.55</td></tr><tr><td rowspan="3">Z169+500~ Z170+250</td><td>Z169+539</td><td>45.03</td><td>47.03</td><td>46.59</td><td>0.44</td><td rowspan="3">土堤加培</td></tr><tr><td>Z169+735</td><td>45.01</td><td>47.01</td><td>46.48</td><td>0.53</td></tr><tr><td>Z169+935</td><td>44.99</td><td>46.99</td><td>46.48</td><td>0.51</td></tr><tr><td rowspan="4">Z172+300~ Z173+750</td><td>Z172+338</td><td>44.68</td><td>46.68</td><td>46.25</td><td>0.43</td><td rowspan="4">土堤加培</td></tr><tr><td>Z172+837</td><td>44.65</td><td>46.65</td><td>46</td><td>0.65</td></tr><tr><td>Z173+337</td><td>44.62</td><td>46.62</td><td>46.11</td><td>0.51</td></tr><tr><td>Z173+737</td><td>44.59</td><td>46.59</td><td>46</td><td>0.59</td></tr><tr><td rowspan="6">Z174+300~ Z176+030</td><td>Z174+336</td><td>44.54</td><td>46.54</td><td>46.07</td><td>0.47</td><td rowspan="6">土堤加培</td></tr><tr><td>Z174+435</td><td>44.53</td><td>46.53</td><td>45.98</td><td>0.55</td></tr><tr><td>Z174+836</td><td>44.51</td><td>46.51</td><td>46.23</td><td>0.28</td></tr><tr><td>Z175+334</td><td>44.48</td><td>46.48</td><td>45.82</td><td>0.66</td></tr><tr><td>Z175+834</td><td>44.43</td><td>46.43</td><td>45.82</td><td>0.61</td></tr><tr><td>Z175+935</td><td>44.42</td><td>46.42</td><td>45.89</td><td>0.53</td></tr><tr><td rowspan="3">Z177+700~ Z177+950</td><td>Z177+734</td><td>44.26</td><td>46.26</td><td>45.81</td><td>0.45</td><td rowspan="3">土堤加培</td></tr><tr><td>Z177+834</td><td>44.26</td><td>46.26</td><td>45.7</td><td>0.56</td></tr><tr><td>Z177+934</td><td>44.26</td><td>46.26</td><td>45.83</td><td>0.43</td></tr><tr><td rowspan="2">Z180+000~ Z180+150</td><td>Z180+030</td><td>44.06</td><td>46.06</td><td>45.54</td><td>0.52</td><td rowspan="2">土堤加培</td></tr><tr><td>Z180+130</td><td>44.06</td><td>46.06</td><td>45.54</td><td>0.52</td></tr><tr><td rowspan="4">Z181+600~ Z182+150</td><td>Z181+631</td><td>43.97</td><td>45.97</td><td>45.3</td><td>0.67</td><td rowspan="3">土堤加培</td></tr><tr><td>Z181+931</td><td>43.92</td><td>45.92</td><td>45.42</td><td>0.50</td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td>Z182+132</td><td>43.89</td><td>45.89</td><td>45.2</td><td>0.69</td><td></td></tr></table></body></html>
-
-注:表中"”上下数据为卫河河道设计洪水位与白寺坡设计滞蓄水位。  
-
-#表5.4-13 卫河干流右堤堤防加培治理措施统计表  
-
-
-<html><body><table><tr><td>治理范围</td><td>典型断面</td><td>设计水位 （m）</td><td>设计堤顶高程 (m)</td><td>现状堤顶高程 （m）</td><td>欠高 （m）</td></tr><tr><td rowspan="4">Y28+400~ Y29+250</td><td>Y28+413</td><td>61.78/62.49</td><td>63.69</td><td>63.07</td><td>0.62</td></tr><tr><td>Y28+639</td><td>61.77/62.49</td><td>63.69</td><td>62.78</td><td>0.91</td></tr><tr><td>Y28+913</td><td>61.74/62.49</td><td>63.69</td><td>62.9</td><td>0.79</td></tr><tr><td>Y29+231</td><td>61.72/62.49</td><td>63.69</td><td>63.4</td><td>0.29</td></tr><tr><td rowspan="20">Y53+250~ Y65+950</td><td>Y53+297</td><td>59.99</td><td>61.19</td><td>60.82</td><td>0.37</td></tr><tr><td>Y53+887</td><td>59.99</td><td>61.19</td><td>60.6</td><td>0.59</td></tr><tr><td>Y54+365</td><td>59.98</td><td>61.18</td><td>60.79</td><td>0.39</td></tr><tr><td>Y54+405</td><td>59.98</td><td>61.18</td><td>60.6</td><td>0.58</td></tr><tr><td>Y54+889</td><td>59.95</td><td>61.15</td><td>60.95</td><td>0.20</td></tr><tr><td>Y55+378</td><td>59.94</td><td>61.14</td><td>60.67</td><td>0.47</td></tr><tr><td>Y55+897</td><td>59.92</td><td>61.12</td><td>60.75</td><td>0.37</td></tr><tr><td>Y56+417</td><td>59.91</td><td>61.71</td><td>60.56</td><td>1.15</td></tr><tr><td>Y56+878</td><td>59.90</td><td>61.90</td><td>60.65</td><td>1.25</td></tr><tr><td>Y57+372</td><td>59.90</td><td>61.90</td><td>60.7</td><td>1.20</td></tr><tr><td>Y57+872</td><td>59.89</td><td>61.89</td><td>60.7</td><td>1.19</td></tr><tr><td>Y58+358</td><td>59.85</td><td>61.85</td><td>60.6</td><td>1.25</td></tr><tr><td>Y58+870</td><td>59.72</td><td>61.72</td><td>60.7</td><td>1.02</td></tr><tr><td>Y59+371</td><td>59.64</td><td>61.64</td><td>60.47</td><td>1.17</td></tr><tr><td>Y59+878</td><td>59.52</td><td>61.52</td><td>60.5</td><td>1.02</td></tr><tr><td>Y60+383</td><td>59.45</td><td>61.45</td><td>60.2</td><td>1.25</td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td>Y60+833</td><td>59.39</td><td>61.39</td><td>60.35</td><td>1.04</td></tr></table></body></html>  
-
-<html><body><table><tr><td>治理范围</td><td colspan="2">典型断面</td><td>设计水位 (m）</td><td>设计堤顶高程 (m)</td><td>现状堤顶高程 (m)</td><td>欠高 (m)</td><td>治理指施</td></tr><tr><td rowspan="11"></td><td colspan="2">Y61+311</td><td>59.36</td><td>61.36</td><td>60.25</td><td>1.11</td><td rowspan="11">土堤加培 0.49 0.42</td></tr><tr><td>Y61+785</td><td></td><td>59.32</td><td>61.32</td><td>60.33</td><td>660</td></tr><tr><td>Y62+288</td><td></td><td>59.26</td><td>61.26</td><td>60.18</td><td>1.08</td></tr><tr><td>Y62+784</td><td></td><td>59.15</td><td>61.15</td><td>60.56</td><td>0.59</td></tr><tr><td>Y63+288</td><td></td><td>59.07</td><td>61.07</td><td>60.61</td><td>0.46</td></tr><tr><td>Y63+769</td><td></td><td>59.02</td><td>61.02</td><td>60.06</td><td>0.96</td></tr><tr><td>Y64+293</td><td></td><td>58.93</td><td>60.93</td><td>60.12</td><td>0.81</td></tr><tr><td>Y64+764</td><td></td><td>58.82</td><td>60.82</td><td>59.94</td><td>0.88</td></tr><tr><td colspan="2">Y65+295</td><td>58.67</td><td>60.67</td><td>60.08</td><td>0.59</td></tr><tr><td colspan="2">Y65+704</td><td>58.60</td><td>60.60</td><td>59.99</td><td>0.61</td></tr><tr><td colspan="2" rowspan="3">Y67+600~ Y68+300</td><td colspan="2">Y67+600 58.40</td><td>60.40 60.38</td><td>59.7</td><td rowspan="3">0.70</td></tr><tr><td colspan="2">Y67+800</td><td>58.38</td><td>59.51</td><td>0.87 0.94</td></tr><tr><td colspan="2">Y68+002</td><td>58.36</td><td>60.36</td><td>59.42</td></tr><tr><td colspan="2">Y68+300</td><td>58.33</td><td>60.33</td><td>59.63</td><td>0.70</td></tr><tr><td colspan="2">Y78+590</td><td>56.95</td><td>58.75</td><td>57.95</td><td>0.80</td><td></td></tr><tr><td colspan="2">Y79+084 5984+500</td><td>56.92</td><td>58.72</td><td>58.16</td><td>0.56</td><td></td><td></td></tr><tr><td colspan="2">Y88+100~</td><td colspan="2">Y84+440</td><td>56.19</td><td>57.99 57.44</td><td colspan="2">57.5</td></tr><tr><td colspan="2">Y88+250</td><td colspan="2">Y88+137</td><td>55.64</td><td></td><td colspan="2">57.02</td></tr><tr><td rowspan="6">Y92+400~ Y94+850</td><td colspan="2">Y88+237</td><td>55.64</td><td>57.44</td><td colspan="2">56.88</td><td>0.56</td></tr><tr><td colspan="2">Y92+440</td><td>55.23</td><td>57.03</td><td colspan="2">56.49</td><td>0.54</td></tr><tr><td colspan="2">Y92+939</td><td>55.20</td><td>57.00</td><td colspan="2">56.29</td><td>0.71</td></tr><tr><td colspan="2">Y93+440</td><td>55.18</td><td>56.98</td><td colspan="2">56.3</td><td>0.68</td></tr><tr><td colspan="2">Y93+940</td><td>55.14</td><td>56.94</td><td colspan="2">56.38</td><td>0.56</td></tr><tr><td colspan="2">Y94+439</td><td>55.06</td><td>56.86</td><td colspan="2">56.34</td><td>0.52</td></tr><tr><td rowspan="4">Y101+950- Y103+200</td><td colspan="2">Y101+957</td><td>54.26</td><td>56.06</td><td colspan="2">55.42</td><td>90</td></tr><tr><td colspan="2">Y102+457</td><td>54.21</td><td>56.01</td><td colspan="2">55.51</td><td>0.50</td></tr><tr><td colspan="2">Y102+957</td><td>54.16</td><td>55.96</td><td colspan="2">55.25</td><td>0.71</td></tr><tr><td colspan="2">Y103+158</td><td>54.13</td><td>55.93</td><td colspan="2">55.39</td><td>0.54</td></tr><tr><td rowspan="5">Y105+750~Y 107+800</td><td colspan="2">Y105+752</td><td>53.77</td><td>55.57</td><td colspan="2">54.8</td><td>0.77</td></tr><tr><td colspan="2">Y106+251</td><td>53.70</td><td>55.50</td><td colspan="2">54.47</td><td>1.03</td></tr><tr><td colspan="2">Y106+753</td><td>53.60</td><td>55.40</td><td colspan="2">54.48</td><td>0.92</td></tr><tr><td colspan="2">Y107+252</td><td>53.51</td><td>55.31</td><td colspan="2">54.63</td><td>0.68</td></tr><tr><td colspan="2">Y107+756</td><td>53.45</td><td>55.25</td><td colspan="2">54.5</td><td>0.75</td></tr></table></body></html>  
-
-<html><body><table><tr><td>治理范围</td><td>典型断面</td><td>设计水位 (m）</td><td>设计堤顶高程现状堤顶高程 (m）</td><td>(m)</td><td>欠高 (m）</td><td>治理措施</td></tr><tr><td rowspan="5">Y112+450- Y114+000</td><td>Y112+476</td><td>52.63</td><td>54.43</td><td>54.07</td><td>0.36</td><td rowspan="5">土堤加培</td></tr><tr><td>Y112+574</td><td>52.61</td><td>54.41</td><td>53.97</td><td>0.44</td></tr><tr><td>Y113+076</td><td>52.53</td><td>54.33</td><td>53.79</td><td></td></tr><tr><td>Y113+575</td><td>52.45</td><td>54.25</td><td>53.73</td><td>0.52</td></tr><tr><td>Y113+875</td><td>52.42</td><td>54.22</td><td>53.71</td><td>0.51</td></tr><tr><td>Y140+050~</td><td>Y140+065</td><td>48.64</td><td>50.64</td><td>50.04</td><td>0.60</td><td rowspan="2">土堤加培</td></tr><tr><td rowspan="8">Y140+300</td><td>Y140+265</td><td>48.56</td><td>50.56</td><td>49.96</td><td>0.60</td></tr><tr><td>Y143+965 Y144+465</td><td>48.12 48.10</td><td>50.12 50.10</td><td>49.45</td><td>0.67</td><td rowspan="8">土堤加培</td></tr><tr><td></td><td>48.07</td><td>50.07</td><td>49.28</td><td>0.82</td></tr><tr><td>Y144+966</td><td></td><td></td><td>49.33</td><td>0.74</td></tr><tr><td>Y145+465</td><td>48.01</td><td>50.01</td><td>49.18</td><td>0.83</td></tr><tr><td>Y145+965</td><td>47.93</td><td>49.93</td><td>49</td><td>0.93</td></tr><tr><td>Y146+466</td><td>47.84</td><td>49.84</td><td>49.1</td><td>0.74</td></tr><tr><td>Y146+966</td><td>47.77</td><td>49.77</td><td>49.06</td><td>0.71</td></tr><tr><td>Y147+467</td><td>47.60</td><td>49.60</td><td>49.33</td><td>0.27</td></tr><tr><td rowspan="4"></td><td>Y147+967</td><td>47.56</td><td>49.56</td><td>48.94</td><td>0.62</td></tr><tr><td>Y148+466</td><td>47.56</td><td>49.56</td><td>48.99</td><td>0.57</td></tr><tr><td>Y148+966</td><td>47.50</td><td>49.50</td><td>49.05</td><td>0.45</td></tr><tr><td>Y149+166</td><td>47.49</td><td>49.49</td><td>48.92</td><td>0.57</td></tr><tr><td rowspan="4">Y150+850~ Y151+800</td><td>Y150+866</td><td>47.29</td><td>49.29</td><td>47.76</td><td>1.53</td><td rowspan="4">迎水侧加防浪墙 （堤顶为2019年 铺设沥青路面）</td></tr><tr><td>Y151+166</td><td>47.28</td><td>49.28</td><td>48.62</td><td>0.66</td></tr><tr><td>Y151+667</td><td>47.24</td><td>49.24</td><td>48.76</td><td>0.48</td></tr><tr><td>Y151+767</td><td>47.22</td><td>49.22</td><td>48.64</td><td>0.58</td></tr><tr><td rowspan="3">Y160+500~ Y160+750</td><td>Y160+515</td><td>46.21</td><td>48.21</td><td>47.5</td><td>0.71</td><td rowspan="3">土堤加培</td></tr><tr><td>Y160+615</td><td>46.20</td><td>48.20</td><td>47.18</td><td>1.02</td></tr><tr><td>Y160+716</td><td>46.18</td><td>48.18</td><td>47.49</td><td>0.69</td></tr><tr><td rowspan="4">Y175+650- Y176+600</td><td>Y175+670</td><td>44.67</td><td>46.47</td><td>46.21</td><td>0.26</td><td rowspan="4">迎水侧加防浪墙 （提顶为2016年 铺设沥青路面）</td></tr><tr><td>Y175+870</td><td>44.65</td><td>46.45</td><td>46.17</td><td>0.28</td></tr><tr><td>Y176+170</td><td>44.64</td><td>46.44</td><td>46.12</td><td>0.32</td></tr><tr><td>Y176+570</td><td>44.62</td><td>46.42</td><td>46.13</td><td>0.29</td></tr><tr><td rowspan="2">Y176+950~ Y177+100</td><td>Y176+970</td><td>44.59</td><td>46.39</td><td>45.98</td><td>0.41</td><td rowspan="2">迎水侧加防浪墙 （堤顶为2016年 铺设沥青路面）</td></tr><tr><td>Y177+070</td><td>44.59</td><td>46.39</td><td>46.05</td><td>0.34</td></tr><tr><td rowspan="2">Y178+550~ Y178+700</td><td>Y178+573</td><td>44.43</td><td>46.23</td><td>45.72</td><td>0.51</td><td rowspan="2">土堤加培</td></tr><tr><td>Y178+674</td><td>44.42</td><td>46.22</td><td>45.83</td><td>0.39</td></tr><tr><td rowspan="3">Y179+350~ Y180+200</td><td>Y179+374</td><td>44.33</td><td>46.13</td><td>45.7</td><td>0.43</td><td rowspan="2">结合堤顶巡视道 路建设加高至设</td></tr><tr><td>Y179+574</td><td>44.32</td><td>46.12</td><td>45.82</td><td>0.30</td></tr><tr><td>Y179+876</td><td>44.31</td><td>46.11</td><td>45.79</td><td>0.32</td><td>计顶高程</td></tr></table></body></html>
+### other（其他业务操作）
+- 不属于以上类别的业务操作
+- 查询对象为群体/不明确，或需要多步处理（对比、统计、汇总、排序等）
 
 ## 输出要求
-1. 结合对话历史理解用户问题的完整含义（如用户说"小南海呢？"，需结合历史知道是在问流域面积）
-2. 根据执行结果，生成清晰、准确、专业的回答
-3. 回答应该简洁明了，直接切中主题，突出关键数据和结论
-4. 如果执行过程中有错误，请适当说明并给出建议
-5. 【重要】如果使用了检索到的知识，必须在回答末尾添加"参考来源"部分。直接复制上面每条知识的"来源引用格式"字段内容作为来源链接，不要修改或简化！
+返回JSON格式：
+{
+    "business_sub_intent": "子意图类别（data_query/flood_forecast/flood_simulation/emergency_plan/damage_assessment/other）",
+    "confidence": 0.95,
+    "reason": "分类理由"
+}
 
-## 格式禁止
-- 【禁止】不要使用Markdown表格格式（如 | 列1 | 列2 | 这种格式）
-- 【禁止】不要罗列大量数据项，表格和详细数据应在左侧报告页面中展示
-- 【建议】使用简洁的文字描述或短列表（如"- 项目: 值"）来呈现关键信息
-- 【建议】如果数据较多，只提取最关键的2-3个指标进行说明，并提示用户查看左侧报告页面获取完整信息
-
-请生成最终回答:
+## 分类规则
+1. 针对单个明确对象的监测数据查询，无后续处理 → data_query
+2. 涉及"预报"、"预测"、"未来洪水" → flood_forecast
+3. 涉及"预演"、"模拟" → flood_simulation
+4. 涉及"预案"、"调度方案" → emergency_plan
+5. 涉及"损失"、"灾损"、"转移" → damage_assessment
+6. 查询对象为群体/不明确，或需要多步处理（对比、统计、汇总等） → other
+7. 无法明确归类 → other
 
 ```
 
 **LLM响应**:
 ```
-盐土庄闸是位于中国卫共流域的重要水利工程，以下是其关键信息的概述：
-
-- **地理位置**: 盐土庄闸位于河南省鹤壁市浚县屯子镇，处于共产主义渠（简称“共渠”）上。
-- **功能与设计**:
-  - 盐土庄节制闸为拦河闸，主要用于控制洪水和调节流量。
-  - 设计最大泄洪能力为1600立方米/秒，闸门类型为平板闸，共有7孔，单孔净宽11米。
-  - 闸底高程为53.0米，闸顶高程为62.8米。
-- **调度规则**:
-  - 根据汤河、安阳河来水情况，按五陵站不超过2000m³/s、元村集站不超过2500m³/s控制下泄，最大流量不大于1600m³/s。
-- **现状**:
-  - 当前状态为全开，闸门开启高度为5.0米，开启数量为20个。
-- **历史背景**:
-  - 共产主义渠在1958年修建，1962年后主要用于行洪。由于河道淤积问题，近年来进行了治理，盐土庄闸作为重要节点被新建以控制下泄流量。
-
-此外，盐土庄闸的照片及详细数据可参考相关资料进行进一步了解。
-
-参考来源:  
-[主要建筑物泄流曲线](http://localhost:8000/knowledge/kb-doc/water_project/主要建筑物泄流曲线)  
-[卫共流域各建筑物信息表](http://localhost:8000/knowledge/kb-doc/water_project/卫共流域各建筑物信息表)  
-[卫共流域典型建筑物照片](http://localhost:8000/knowledge/kb-doc/water_project/卫共流域典型建筑物照片)  
-[闸站监测](http://localhost:8000/knowledge/kb-doc/water_project/闸站监测)
+{'business_sub_intent': 'other', 'confidence': 0.95, 'reason': "用户请求对'各个大中型水库'的库容进行统计总和，查询对象为群体且涉及统计处理，符合'other'类别规则。"}
 ```
 
----
+## 三、对象类型合成 [3.48s] (Planner._resolve_object_type)
+**时间**: 2026-02-13 09:50:05
+**提示词模板**: OBJECT_TYPE_SYNTHESIS_PROMPT
+
+**上下文变量**:
+- user_message: 给我统计一下当前监测的各个大中型水库的库容总和？
+- object_name: 各个大中型水库
+- db_result: 数据库中未找到名为'各个大中型水库'的站点
+- rag_context: 以下是相关的知识库内容：
+
+[1] 文档: 卫共流域系统接入监测站点情况, 章节: (3)水情监测
+# (3)水情监测  
+
+卫共流域水情监测包括:  
+
+1、大型、中型和小型水库水情监测站点 89 个,监测数据包含库水位、需水量、下泄流量过程;  
+
+2、河道水情监测站点 20 个,其中常年具备完整监测数据的国家级水文站点 11 个,监测数据包含水位和流量过程;  
+
+(4)闸站监测  
+
+接入卫共流域除水库闸站以外的各类主干河道闸站共计 44 个,包括拦河闸、退水闸、分洪闸(堰),主要为大沙河、卫河、共渠、汤永河、安阳河上的拦河闸及各蓄滞洪区分洪闸、分洪堰、退水闸。
+
+[2] 文档: 卫共流域大中型水库主要水力特性, 章节: 群英水库
+## 群英水库
+水库编码: 4.10821000003e11
+类型: 中型
+所在河流: 大沙河
+流域面积: 165.0
+坝顶高程: 490.5
+防浪墙高程: 491.6
+溢洪道高程: 477.0
+溢洪道宽度: 56.0
+溢洪道闸门孔数: 7.0
+溢洪道闸门尺寸:
+溢洪道设计泄量/最大泄量: 1330/2710
+泄洪洞底高程: 412（445）
+泄洪洞宽*高*长: 1*1（0.8*0.8）
+泄洪洞设计流量/最大泄量: 10.52/10.74（8.16/8.51）
+输水洞高程: 412（445）
+输水洞尺寸宽*高*长:
+输水洞设计流量/最大流量:
+电站装机功率/kw:
+电站引水流量:
+库底高程: 390.0
+死水位: 425.0
+汛限水位: 477.0
+防洪高水位:
+兴利水位: 477.0
+设计洪水位: 481.75
+校核洪水位: 485.2
+总库容: 1660.0
+调洪库容: 828.0
+防洪库容: 700.0
+兴利库容: 1300.0
+死库容: 53.0
+最大泄洪量: 2480.0
+备注:
+
+[3] 文档: 水库水文站, 章节: 英雄水库 (4)
+### 英雄水库 (4)
+
+- **county:** 林州市
+- **dead_cap:** 0.23
+- **res_name:** 英雄水库
+- **che_flo_sta:** 100
+- **che_flo_lev:** 412.92
+- **main_dam_wav_wal_elev:** 
+- **main_dam_top_len:** 200
+- **wat_shed_a
+...(更多内容已省略)
+
+**完整提示词**:
+```
+你是卫共流域数字孪生系统的实体识别助手，负责根据检索到的信息确定对象的类型。
+
+## 用户消息
+给我统计一下当前监测的各个大中型水库的库容总和？
+
+## 待识别对象
+对象名称：各个大中型水库
+
+## 数据库查询结果
+数据库中未找到名为'各个大中型水库'的站点
+
+## 知识库检索结果
+以下是相关的知识库内容：
+
+[1] 文档: 卫共流域系统接入监测站点情况, 章节: (3)水情监测
+# (3)水情监测  
+
+卫共流域水情监测包括:  
+
+1、大型、中型和小型水库水情监测站点 89 个,监测数据包含库水位、需水量、下泄流量过程;  
+
+2、河道水情监测站点 20 个,其中常年具备完整监测数据的国家级水文站点 11 个,监测数据包含水位和流量过程;  
+
+(4)闸站监测  
+
+接入卫共流域除水库闸站以外的各类主干河道闸站共计 44 个,包括拦河闸、退水闸、分洪闸(堰),主要为大沙河、卫河、共渠、汤永河、安阳河上的拦河闸及各蓄滞洪区分洪闸、分洪堰、退水闸。
+
+[2] 文档: 卫共流域大中型水库主要水力特性, 章节: 群英水库
+## 群英水库
+水库编码: 4.10821000003e11
+类型: 中型
+所在河流: 大沙河
+流域面积: 165.0
+坝顶高程: 490.5
+防浪墙高程: 491.6
+溢洪道高程: 477.0
+溢洪道宽度: 56.0
+溢洪道闸门孔数: 7.0
+溢洪道闸门尺寸:
+溢洪道设计泄量/最大泄量: 1330/2710
+泄洪洞底高程: 412（445）
+泄洪洞宽*高*长: 1*1（0.8*0.8）
+泄洪洞设计流量/最大泄量: 10.52/10.74（8.16/8.51）
+输水洞高程: 412（445）
+输水洞尺寸宽*高*长:
+输水洞设计流量/最大流量:
+电站装机功率/kw:
+电站引水流量:
+库底高程: 390.0
+死水位: 425.0
+汛限水位: 477.0
+防洪高水位:
+兴利水位: 477.0
+设计洪水位: 481.75
+校核洪水位: 485.2
+总库容: 1660.0
+调洪库容: 828.0
+防洪库容: 700.0
+兴利库容: 1300.0
+死库容: 53.0
+最大泄洪量: 2480.0
+备注:
+
+[3] 文档: 水库水文站, 章节: 英雄水库 (4)
+### 英雄水库 (4)
+
+- **county:** 林州市
+- **dead_cap:** 0.23
+- **res_name:** 英雄水库
+- **che_flo_sta:** 100
+- **che_flo_lev:** 412.92
+- **main_dam_wav_wal_elev:** 
+- **main_dam_top_len:** 200
+- **wat_shed_a
+...(更多内容已省略)
+
+## 任务
+根据以上信息，确定对象的类型。
+
+## 判断规则（按顺序执行）
+1. 首先检查"待识别对象"是否包含"水库/站/闸/蓄滞洪区/流域"等关键词，若不包含，则忽略该对象，直接从"用户消息"中提取包含这些关键词的有效对象
+2. 优先使用数据库查询结果中的station_type字段
+3. 如果数据库无结果，根据知识库检索内容推断
+4. 如果名称中包含"水库"且无其他信息，推断为"水库水文站"
+5. 若用户消息中也无有效对象，默认object为"全流域"，object_type为"流域"
+
+## 输出要求
+返回JSON格式：
+{
+    "object": "对象名称（从用户消息中提取的有效对象或全流域）",
+    "object_type": "对象类型",
+    "stcd": "站点编码（如果有）",
+    "confidence": 0.9,
+    "source": "类型来源：db/rag/infer/user_message",
+    "reason": "判断依据"
+}
+
+## 对象类型选项
+- 站点类：水库水文站、河道水文站、雨量站、闸站监测、AI监测站点、工程安全监测、取水监测、墒情站
+- 工程类：水库、河道、蓄滞洪区、闸站
+- 业务类：洪水预报、洪水预演、预案生成、灾损评估
+- 区域类：流域、行政区
+- 其他：unknown（如果无法确定）
+
+```
+
+**LLM响应**:
+```
+{'object': '大中型水库', 'object_type': '水库', 'stcd': '', 'confidence': 0.85, 'source': 'infer', 'reason': "用户消息中提到'各个大中型水库'，名称中包含'水库'关键词，且知识库中提及了多个中型和大型水库的详细信息。虽然数据库未找到该名称的站点，但根据上下文可推断其为工程类中的'水库'类型。"}
+```
+
+## 四、工作流选择 [1.35s] (Planner.check_workflow_match)
+**时间**: 2026-02-13 09:50:06
+**提示词模板**: WORKFLOW_SELECT_PROMPT
+
+**上下文变量**:
+- user_message: 给我统计一下当前监测的各个大中型水库的库容总和？
+- entities: {"object": "大中型水库", "object_type": "水库", "action": "统计当前库容总和", "time": "当前"}
+- business_sub_intent: other
+- predefined_workflows: 
+暂无预定义工作流模板，请检查已保存的动态工作流或进行动态规划。
+
+- saved_workflows: - ID: 19c0e794-39fb-48dc-beb4-bc537e538a65
+  名称: compare_reservoir_realtime_vs_historical_flood
+  中文名: 水库实时与历史洪水水位对比
+  描述: 获取特定水库的当前实时水位，并检索历史特定洪水事件期间的最高水位进行对比分析。
+  触发模式: 用户询问水库当前水位是否超过了历史上某次特定洪水（如21.7洪水）的最高水位或特征水位。
+  相似度: 0.529
+- ID: ef95bb00-d9cf-48c5-8326-e787e7542405
+  名称: query_reservoir_water_level_limit
+  中文名: 水库水情查询对比
+  描述: 用于查询指定水库的实时水情数据，并与该水库的汛限水位、设计水位、防洪高水位等进行对比，判断是否超过或低于。
+  触发模式: 用于查询指定水库的实时水情数据，并与该水库的汛限水位、设计水位、防洪高水位等进行对比，判断是否超过或低于。只适合水库
+  相似度: 0.502
+- ID: c9ea37ec-3985-49fe-8d07-6f84a0e0f39a
+  名称: flood_event_comparison
+  中文名: 洪水事件对比分析
+  描述: 针对特定水文站点，查询历史洪水期间的最大洪峰、总过洪量，并与当前实时流量进行对比分析。
+  触发模式: 询问{{对象}}在某次洪水期间的最大洪峰、总过洪量，并要求与当前流量进行对比（适用于河道水文站及历史洪水数据来源）
+  相似度: 0.488
+- ID: 95d5eace-d98a-4613-90f0-72d603c722a2
+  名称: query_river_water_level_status
+  中文名: 河道水情查询对比
+  描述: 用于查询指定河道测站当前水位是否超过警戒水位、保证水位等的通用工作流
+  触发模式: 用户询问某河道测站当前水位是否超过警戒水位、保证水位等特征值，仅适用于河道水文站数据来源，只适合河道
+  相似度: 0.466
+
+**完整提示词**:
+```
+你是河南省卫共流域数字孪生系统的业务流程选择器，负责从可用工作流中选择最匹配的一个。
+
+## 输入信息
+- 用户消息：给我统计一下当前监测的各个大中型水库的库容总和？
+- 实体：{"object": "大中型水库", "object_type": "水库", "action": "统计当前库容总和", "time": "当前"}
+- 子意图：other
+
+## 可用的预定义工作流
+
+暂无预定义工作流模板，请检查已保存的动态工作流或进行动态规划。
+
+
+## 可用的已保存工作流
+- ID: 19c0e794-39fb-48dc-beb4-bc537e538a65
+  名称: compare_reservoir_realtime_vs_historical_flood
+  中文名: 水库实时与历史洪水水位对比
+  描述: 获取特定水库的当前实时水位，并检索历史特定洪水事件期间的最高水位进行对比分析。
+  触发模式: 用户询问水库当前水位是否超过了历史上某次特定洪水（如21.7洪水）的最高水位或特征水位。
+  相似度: 0.529
+- ID: ef95bb00-d9cf-48c5-8326-e787e7542405
+  名称: query_reservoir_water_level_limit
+  中文名: 水库水情查询对比
+  描述: 用于查询指定水库的实时水情数据，并与该水库的汛限水位、设计水位、防洪高水位等进行对比，判断是否超过或低于。
+  触发模式: 用于查询指定水库的实时水情数据，并与该水库的汛限水位、设计水位、防洪高水位等进行对比，判断是否超过或低于。只适合水库
+  相似度: 0.502
+- ID: c9ea37ec-3985-49fe-8d07-6f84a0e0f39a
+  名称: flood_event_comparison
+  中文名: 洪水事件对比分析
+  描述: 针对特定水文站点，查询历史洪水期间的最大洪峰、总过洪量，并与当前实时流量进行对比分析。
+  触发模式: 询问{{对象}}在某次洪水期间的最大洪峰、总过洪量，并要求与当前流量进行对比（适用于河道水文站及历史洪水数据来源）
+  相似度: 0.488
+- ID: 95d5eace-d98a-4613-90f0-72d603c722a2
+  名称: query_river_water_level_status
+  中文名: 河道水情查询对比
+  描述: 用于查询指定河道测站当前水位是否超过警戒水位、保证水位等的通用工作流
+  触发模式: 用户询问某河道测站当前水位是否超过警戒水位、保证水位等特征值，仅适用于河道水文站数据来源，只适合河道
+  相似度: 0.466
+
+## 匹配规则
+
+1. **时间判断（flood_forecast子意图必须遵守）**
+   - entities.time为具体历史日期（如"2024年7月"、"去年"、"上次"） → 选择历史查询工作流
+   - entities.time为"当前"、"最新"、"未来"或null → 选择最新查询工作流
+
+2. **data_query子意图必须严格匹配数据来源**
+   - 数据来源由entities中的object_type字段确定
+   - 工作流的数据来源必须与object_type完全对应
+
+3. **工作流必须完全覆盖用户需求**，部分满足返回null
+
+4. **无可用工作流时返回null**
+
+## 输出格式
+返回JSON：
+{
+    "matched_workflow": null或"预定义工作流名称",
+    "saved_workflow_id": null或"已保存工作流的UUID",
+    "output_type": "text或web_page"
+}
+
+注意：matched_workflow填预定义工作流名称，saved_workflow_id填已保存工作流的UUID，两者不要混淆。
+
+```
+
+**LLM响应**:
+```
+{'matched_workflow': None, 'saved_workflow_id': None, 'output_type': None}
+```
+
+## 五、工具筛选 [3.80s] (Planner._select_relevant_tools)
+**时间**: 2026-02-13 09:50:10
+**提示词模板**: TOOL_SELECTION_PROMPT
+
+**上下文变量**:
+- user_message: 给我统计一下当前监测的各个大中型水库的库容总和？
+- business_sub_intent: other
+- entities: {"object": "大中型水库", "object_type": "水库", "action": "统计当前库容总和", "time": "当前"}
+- tools_summary: 
+## 流域基本信息 (basin_info)
+  - login_basin_system: 登录卫共流域数字孪生系统，获取访问令牌(Token)。通常在需要鉴权的接口调用前执行。
+  - get_map_data: 查询各类地理要素的地图数据（包含空间坐标），支持测站、水库、蓄滞洪区、分洪闸堰等类型
+  - get_list_data: 查询各类要素的列表数据（不含空间坐标），如水库防洪责任人扩展信息
+  - get_reservoir_info: 查询水库的基础属性信息，包括位置、工程等级、流域面积、库容、校核洪水位等
+  - get_reservoir_flood_detail: 查询单个水库的防洪特征值详情，包括校核洪水位、设计洪水位、正常蓄水位、死水位、库容等
+  - get_reservoir_flood_list: 获取所有水库的防洪特征值信息列表，包含各水库的校核洪水位、设计洪水位、正常蓄水位、库容等
+  - get_sluice_info: 查询水闸的基础属性信息，包括位置、河流名称、工程规模、设计流量等
+  - get_flood_dam_info: 查询分洪闸堰的基础信息，包括位置、设计分洪流量等
+  - get_flood_storage_area: 查询蓄滞洪区的基础信息，包括面积、进洪设施、设计蓄洪库容、设计蓄洪水位等
+  - get_river_flood_list: 获取所有河道测站的防洪特征值信息列表，包括警戒水位、保证水位、左右堤高程、实测最高水位等
+  - get_station_list: 按测站类型查询测站的基础信息列表，包括测站编码、名称、位置、河流名称等
+  - get_camera_list: 获取视频监控摄像头列表，包括摄像头编码、名称、关联测站、视频流地址等
+  - get_drone_project_list: 查询无人机项目列表，获取项目ID和项目名称
+  - get_drone_device_list: 查询无人机设备列表，获取设备序列号、名称、类型、状态等信息
+  - get_remote_sensing_task_list: 查询遥感监测任务列表，支持洪涝水淹、洪涝监测、水利工程变形、小流域监测等任务类型
+  - lookup_station_code: 根据站点名称查询站点编码(stcd)，支持精确匹配和模糊匹配，可用于水雨情实时数据查询前获取站点编码
+
+## 水雨情监测数据 (hydro_monitor)
+  - query_rain_process: 根据测站编码和时间范围查询雨量历史过程数据，返回时段降水量、日降水量、累计降水量等信息
+  - query_rain_statistics: 根据测站编码查询雨量统计数据，返回1小时、3小时、6小时、12小时、24小时等多时段的雨量统计信息
+  - query_rain_sum: 根据时间范围查询所有测站的雨量累计数据，返回测站编码、名称、累计降水量、测站位置等信息
+  - query_reservoir_last: 获取水库的最新实时水情数据，可以指定水库测站编码，包括库水位、蓄水量、入库流量、出库流量等信息
+  - query_reservoir_process: 根据测站编码和时间范围查询水库的历史水情过程数据，返回库水位、蓄水量、入库流量、出库流量等时序数据
+  - query_river_last: 获取河道测站的当前、最新、实时水情数据，可以指定河道测站编码，包括水位、流量、水势、告警级别等信息
+  - query_river_process: 根据测站编码和时间范围查询河道水情历史过程数据，返回水位、流量、水势等时序数据，当前河道水情查询请用query_river_last工具
+  - query_ai_water_last: 获取AI智能监测设备的最新水情数据，返回测站编码、名称、水位、数据时间等信息
+  - query_ai_water_process: 根据测站编码和时间范围查询AI智能监测设备的水情历史过程数据
+  - query_ai_rain_last: 获取AI智能监测设备的最新雨量数据，返回测站编码、名称、时段降水量、数据时间等信息
+  - query_ai_rain_process: 根据测站编码和时间范围查询AI智能监测设备的雨量历史过程数据
+  - query_camera_preview: 根据摄像头编码(code)获取实时视频预览流地址。注意：code是摄像头编码(如41062240201327003002)，不是站点编码(stcd)！需要先调用get_camera_list获取摄像头列表，从返回的code字段获取摄像头编码
+  - query_sensor_data_p...(已截断)
+
+**完整提示词**:
+```
+你是河南省卫共流域数字孪生系统的工具选择助手，负责根据用户需求筛选需要的工具。
+
+## 用户消息
+给我统计一下当前监测的各个大中型水库的库容总和？
+
+## 业务子意图
+other
+
+## 提取的实体
+{"object": "大中型水库", "object_type": "水库", "action": "统计当前库容总和", "time": "当前"}
+
+## 可用工具摘要
+
+## 流域基本信息 (basin_info)
+  - login_basin_system: 登录卫共流域数字孪生系统，获取访问令牌(Token)。通常在需要鉴权的接口调用前执行。
+  - get_map_data: 查询各类地理要素的地图数据（包含空间坐标），支持测站、水库、蓄滞洪区、分洪闸堰等类型
+  - get_list_data: 查询各类要素的列表数据（不含空间坐标），如水库防洪责任人扩展信息
+  - get_reservoir_info: 查询水库的基础属性信息，包括位置、工程等级、流域面积、库容、校核洪水位等
+  - get_reservoir_flood_detail: 查询单个水库的防洪特征值详情，包括校核洪水位、设计洪水位、正常蓄水位、死水位、库容等
+  - get_reservoir_flood_list: 获取所有水库的防洪特征值信息列表，包含各水库的校核洪水位、设计洪水位、正常蓄水位、库容等
+  - get_sluice_info: 查询水闸的基础属性信息，包括位置、河流名称、工程规模、设计流量等
+  - get_flood_dam_info: 查询分洪闸堰的基础信息，包括位置、设计分洪流量等
+  - get_flood_storage_area: 查询蓄滞洪区的基础信息，包括面积、进洪设施、设计蓄洪库容、设计蓄洪水位等
+  - get_river_flood_list: 获取所有河道测站的防洪特征值信息列表，包括警戒水位、保证水位、左右堤高程、实测最高水位等
+  - get_station_list: 按测站类型查询测站的基础信息列表，包括测站编码、名称、位置、河流名称等
+  - get_camera_list: 获取视频监控摄像头列表，包括摄像头编码、名称、关联测站、视频流地址等
+  - get_drone_project_list: 查询无人机项目列表，获取项目ID和项目名称
+  - get_drone_device_list: 查询无人机设备列表，获取设备序列号、名称、类型、状态等信息
+  - get_remote_sensing_task_list: 查询遥感监测任务列表，支持洪涝水淹、洪涝监测、水利工程变形、小流域监测等任务类型
+  - lookup_station_code: 根据站点名称查询站点编码(stcd)，支持精确匹配和模糊匹配，可用于水雨情实时数据查询前获取站点编码
+
+## 水雨情监测数据 (hydro_monitor)
+  - query_rain_process: 根据测站编码和时间范围查询雨量历史过程数据，返回时段降水量、日降水量、累计降水量等信息
+  - query_rain_statistics: 根据测站编码查询雨量统计数据，返回1小时、3小时、6小时、12小时、24小时等多时段的雨量统计信息
+  - query_rain_sum: 根据时间范围查询所有测站的雨量累计数据，返回测站编码、名称、累计降水量、测站位置等信息
+  - query_reservoir_last: 获取水库的最新实时水情数据，可以指定水库测站编码，包括库水位、蓄水量、入库流量、出库流量等信息
+  - query_reservoir_process: 根据测站编码和时间范围查询水库的历史水情过程数据，返回库水位、蓄水量、入库流量、出库流量等时序数据
+  - query_river_last: 获取河道测站的当前、最新、实时水情数据，可以指定河道测站编码，包括水位、流量、水势、告警级别等信息
+  - query_river_process: 根据测站编码和时间范围查询河道水情历史过程数据，返回水位、流量、水势等时序数据，当前河道水情查询请用query_river_last工具
+  - query_ai_water_last: 获取AI智能监测设备的最新水情数据，返回测站编码、名称、水位、数据时间等信息
+  - query_ai_water_process: 根据测站编码和时间范围查询AI智能监测设备的水情历史过程数据
+  - query_ai_rain_last: 获取AI智能监测设备的最新雨量数据，返回测站编码、名称、时段降水量、数据时间等信息
+  - query_ai_rain_process: 根据测站编码和时间范围查询AI智能监测设备的雨量历史过程数据
+  - query_camera_preview: 根据摄像头编码(code)获取实时视频预览流地址。注意：code是摄像头编码(如41062240201327003002)，不是站点编码(stcd)！需要先调用get_camera_list获取摄像头列表，从返回的code字段获取摄像头编码
+  - query_sensor_data_process: 根据传感器ID和时间范围查询传感器的历史监测数据
+  - query_drone_status: 查询大疆无人机设备的实时状态，包括设备序列号、状态、电量、位置等信息
+  - send_sms: 发送告警短信通知，需要提供接收手机号码和短信内容
+
+## 防洪业务 (flood_control)
+  - model_plan_add: 新增洪水预报模拟方案，设置方案名称、时间范围、业务模型等参数
+  - model_plan_edit: 编辑已存在的洪水预报模拟方案
+  - model_plan_delete: 删除指定的洪水预报模拟方案
+  - model_plan_detail: 根据方案编码查看模拟方案的详细信息
+  - model_plan_state: 查看模拟方案的当前计算状态
+  - model_plan_list_all: 查询全部洪水预报模拟方案列表(不分页)，支持按方案名称、编码、状态等条件筛选
+  - model_plan_calc: 启动指定方案的洪水预报模型计算
+  - model_plan_stop: 终止正在进行的模拟方案计算
+  - model_plan_progress: 获取模拟方案的计算进度信息
+  - model_plan_count_state: 获取不同计算状态的方案数量统计
+  - model_plan_count_plan: 获取各业务模型的模拟方案数量统计
+  - model_plan_auto_forecast: 手动触发一次自动洪水预报计算（无需登录）
+  - model_basic_list_all: 查询全部基础模型列表(不分页)，支持按模型名称、编码、类型等条件筛选
+  - model_basic_detail: 根据模型ID查看基础模型的详细信息，包括模型介绍、原理、参数等
+  - model_basic_count: 获取基础模型、模型实例、业务模型、模拟方案的数量统计
+  - model_instance_list_all: 查询全部模型实例列表(不分页)，支持按实例名称、编码、基础模型、流域等条件筛选
+  - model_instance_detail: 根据实例ID查看模型实例的详细信息
+  - model_business_list_all: 查询全部业务模型列表(不分页)，支持按业务模型名称、编码、类型等条件筛选
+  - model_business_add: 新增业务模型，设置业务模型名称、编码、类型等参数
+  - model_business_detail: 根据业务模型编码查看业务模型的详细信息
+  - forecast_rain_ecmwf_avg: 获取流域平均的格网预报降雨过程(无需登录)，返回时序降雨数据
+  - forecast_rain_ecmwf_each: 获取各子流域的格网预报降雨过程，返回按子流域编码分组的降雨时序数据
+  - forecast_rain_ecmwf_rect: 获取矩形区域内的格网预报降雨过程，通过经纬度范围指定区域
+  - forecast_rain_ecmwf_stc: 获取指定时段的ECMWF降雨分区统计信息，包括各子流域累计、平均、最大降雨量
+  - forecast_rain_ecmwf_acc: 获取所有格网点指定时段的ECMWF累计降雨，返回经纬度和累计降雨值
+  - contour_rain_today: 获取8点以后降雨等值面，返回GeoJSON格式的等值面数据
+  - contour_rain_any: 生成/获取任意时段累计降雨等值面
+  - contour_rain_plan: 生成/获取方案累计降雨等值面
+  - contour_rain_proc: 获取逐小时降雨等值面过程
+  - contour_rain_acc: 获取不同时段累计降雨等值面，interval负数表示历史，正数表示未来
+  - contour_rain_future_img: 获取未来24/48/72小时降雨等值面图片(Base64格式)
+  - contour_rain_update: 更新等值面(无需登录)
+  - monitor_rain_area_proc_whole: 获取指定时段的流域整体面雨量过程
+  - monitor_rain_manual: 手动更新降水监测数据(无需登录)
+  - model_rain_pattern_list: 查询设计雨型列表
+  - model_rain_pattern_add: 新增设计雨型
+  - model_rain_pattern_detail: 查看设计雨型详情
+  - model_typical_rain_list: 分页查询典型暴雨列表
+  - model_typical_rain_add: 新增典型暴雨
+  - model_typical_rain_detail: 查看典型暴雨详情
+  - model_typical_rain_add_from_history: 从历史数据新增典型暴雨
+  - model_rain_area_get_by_plan: 获取指定方案的各子流域降雨过程(无需登录)，返回按子流域编码分组的降雨时序数据
+  - model_rain_area_get_basin_area_rain_stc: 获取指定方案的全流域平均面雨量过程及统计值(无需登录)，包括累计、最大降雨量和平均值
+  - model_rain_area_get_basin_area_rain_acc: 获取指定方案的全流域平均面雨量过程及实时累计降雨
+  - model_rain_area_get_basin_list: 获取指定方案有降雨预报的流域清单
+  - model_rain_area_detail: 获取指定方案、指定流域的降雨过程及统计，包括累计、最大降雨量和时间
+  - model_rain_area_get_by_rsvr: 获取指定方案、指定水文站的上游流域降雨过程
+  - model_rain_area_forecast_rain_stc: 获取自动预报方案的降雨态势，包括平均、最大降雨量和降雨等级
+  - model_rain_area_add_ecmwf: 根据格网预报(ECMWF)设置方案降雨过程
+  - model_rain_area_add_ecmwf_translate: 根据格网预报设置方案降雨过程(可放大平移)，支持设置放大倍数和经纬度偏移量
+  - model_rain_area_add_manual: 手动设置方案降雨过程，通过JSON格式指定降水量时序数据
+  - model_rain_area_add_manual_center: 手动设置方案降雨过程(可设降雨中心)，支持设置多个降雨中心区域
+  - model_rain_area_add_bnd: 从数据库导入方案降雨过程
+  - model_result_outflow_delete: 删除产流结果，根据方案编码和可选的流域编码删除子流域洪水计算结果
+  - model_result_outflow_get_basin_list: 获取指定方案的子流域基础信息清单，返回子流域编码和名称列表
+  - model_result_outflow_detail: 获取指定方案、指定子流域的降雨及洪水过程结果及统计结果，包括降雨过程、洪水过程、峰值时间、累计降雨、洪峰流量等
+  - model_result_outflow_source: 获取洪水来源类型：0=降雨计算、1=直接导入、2=无洪水
+  - loss_plan_list: 分页查询淹没分析方案列表，支持按编码、名称、状态、蓄滞洪区编码、类型等条件过滤
+  - loss_plan_add: 新增淹没分析方案，用于创建新的洪水淹没分析计算方案
+  - loss_plan_delete: 删除指定的淹没分析方案
+  - loss_plan_calc: 执行淹没分析方案计算，返回预计计算所需时间（秒）
+  - loss_plan_detail: 获取淹没分析方案详情及计算结果数据
+  - loss_plan_gis: 获取淹没分布GIS数据，返回GeoJSON格式的淹没范围和深度信息
+  - loss_plan_auto: 自动计算淹没分析（无需登录）
+  - flood_plan_list_all: 查询全部防汛预案列表（不分页），支持按预案名称、文号、年度、分类等条件过滤
+  - flood_plan_add: 新增防汛预案（支持文件上传），用于创建新的防汛预案记录
+  - flood_plan_delete: 删除指定的防汛预案
+  - flood_plan_detail: 查看防汛预案详情，包括预案名称、文号、年度、分类、文件信息等
+  - flood_plan_catalog: 获取防汛预案类型目录，返回一级分类及其下属二级分类的树形结构
+  - monitor_rsvr_now: 获取水库河道实时水情（无需登录），返回水位、库容、入库流量、出库流量等实时数据
+  - monitor_rsvr_stc: 获取水库当前形势统计，返回总数、正常数、预警数、危险数等统计信息
+  - monitor_rsvr_track: 水雨情态势过程回溯，获取指定时段内水库水情变化过程
+  - monitor_rsvr_storage: 水库纳蓄能力分析，返回总库容、当前蓄量、可用库容、蓄水率等信息
+  - mike_gate_all: 获取闸门工情（无需登录），返回闸门状态（全开/半开/全关）、开度、开启孔数等信息
+  - mike_runoff: 获取子流域NAM模型产流结果（无需登录），返回各子流域的产流时间序列
+  - mike_rsvr_info: 获取水库基本信息（无需登录），包括水库编码、名称、汛限水位、正常水位、死水位、总库容等
+  - mike_control: 获取水库的可控建筑物，返回泄洪洞、溢洪道等可控设施信息及最大过流能力
+  - mike_hvrela: 获取蓄滞洪区的库容曲线，返回水位-库容关系数据
+  - mike_spec_time: 获取指定时刻的水情，返回各水库测站的水位、入库流量、出库流量等数据
+  - mike_cal_pa: 计算指定时间各子流域的前期影响雨量(Pa值)，用于洪水预报模型参数计算
+  - mike_fsda_struct: 获取指定业务模型对应蓄滞洪区的建筑物信息，如分洪堰等
+  - mike_fsda_set_boundary: 设置蓄滞洪区进洪预演模型的边界条件，用于配置模型计算参数
+
+## 灾损评估 (damage_assess)
+  - flood_damage_loss_calc: 根据模型编码和业务类型计算洪涝灾害造成的损失，包括受灾面积、受灾人口、受灾GDP、受灾企业数等，并返回受灾村庄和区县的GeoJSON数据
+  - hedge_placement_list: 根据预案编码查询避险安置点列表，包括安置点名称、位置、联系人、容纳人数等信息
+  - hedge_transfer_route_list: 根据预案编码查询转移路线列表，包括转移村庄、目标安置点、转移时间、联系人等信息
+
+## 水利专业模型 (hydro_model)
+  - auto_forcast: 创建洪水自动预报模型方案并进行计算
+  - create_model: 手工创建模型方案，仅创建方案不设置边界条件，也不计算
+  - change_model_baseinfo: 修改模型方案名称、描述和保存时间步长
+  - del_model: 删除模型方案，返回剩下的模型方案基础信息集合
+  - run_model: 计算模型，返回所需的计算时间(秒)
+  - run_model_quick: 一维快速计算模型(不进行GIS结果后处理)，返回所需的计算时间(秒)
+  - stop_model: 停止模型计算，返回成功信息
+  - modify_initial: 修改方案的水库河道初始水位条件
+  - change_rfmodel: 修改方案的各个子流域产汇流模型类型
+  - change_boundry: 修改方案的洪水入流边界条件，可指定为利用降雨计算洪水、直接指定子流域洪水过程、指定河道洪水过程或无洪水入流
+  - modify_gatestate: 修改方案闸站调度设置
+  - change_reach_break: 修改方案河堤溃口设置
+  - set_dispatch_target: 设置方案的优化调度目标参数
+  - iter_cal: 开始方案的优化迭代计算
+  - backcal_resdd: 反向推演水库的调度方案和该调度方案下的调蓄结果。需要设置水库允许达到的最高水位，并且只针对已经完成的预报预演方案
+  - set_fault_gate: 设置方案的故障闸门
+  - get_sampleline: 获取GIS样板线，为geojson格式的河道分段线要素，用于在地图区分色动态渲染过程结果，如流量、流速等
+  - get_reachinfo: 获取河道基本信息，包括河道名称、编码、起止桩号及长度等信息
+  - get_gatestate: 获取全流域里各闸站建筑最新状态监测信息，包括闸门状态、开孔数、开度、更新时间
+  - get_sectiondata: 根据断面STCD和桩号，获取河道断面原始测量数据。当断面为水文站点或闸站时，第1个参数为该站点STCD，第2个为空字符串；否则第1个参数为河道编码，第2个为桩号
+  - get_sectiondata_frompoint: 根据坐标点，获取河道断面原始测量数据
+  - get_reachsection_location: 根据河道断面桩号，获取该河道断面中心点的经纬度坐标位置信息
+  - get_station_info: 获取河道上各大中型水库、河道水文站点、河道控制闸站的基本信息和监测水情信息，包括站点stcd、所在河道和桩号、控制流域面积、水位流量等监测水情信息等
+  - get_strddrule_info: 获取水库、河道闸站等所有洪水控制建筑的规则调度信息
+  - get_control_strs: 根据业务编码和站点STCD获取关联的洪水控制建筑物，如水库的各个溢流堰和泄洪洞，蓄滞洪区的各个进洪分洪闸堰
+  - get_now_waterinfo: 获取所有水库、河道闸站、水文站点当前最新水情信息。如果业务编码字符串为空字符串，则获取所有水库闸站和水文站点的当前水情，否则是业务模型相关的
+  - get_design_flood: 获取和业务模型相关的各河道不同量级设计洪水过程，如50年一遇设计洪水过程
+  - get_nsbd_sectioninfo: 获取流域范围内，各河道与南水北调交叉断面的基本信息，包括交叉断面位置、设计水位、设计流量、校核流量、堤顶高程等
+  - get_business_view: 获取业务模型的默认初始三维场景相机姿态信息，包括相机位置坐标、朝向和俯仰角
+  - get_rfmodel: 获取方案的产汇流模型类型，返回各子流域采用的产汇流模型编码（共3种：nam、swmm5、xaj）
+  - get_reach_break: 获取方案河堤溃口设置信息，包括溃口编码、名称、位置、溃口宽度、溃堤时长、溃决水位、溃口底高程、开始溃口时间等
+  - get_faultgate_baseinfo: 获取故障水闸的闸门基本信息，根据业务编码获取，一个业务编码对应一个故障水闸。返回建筑物编码、名称及各闸门的编码、名称、闸底高程、闸门高度、经纬度坐标等信息
+  - get_fault_gate: 获取方案的故障闸门信息，包括故障水闸名称、故障描述、各闸门最大开度和当前开度、故障闸门名称及经纬度
+  - get_ddinfo: 获取模型方案所有可控建筑物的调度信息，包括建筑物编码、序号、名称、类型、所在河道及闸门调度过程
+  - get_initial_waterlevel: 获取模型方案的初始水情信息，包括各水库和河道站点的序号、名称、初始水位、水位来源、stcd编码等
+  - get_bndinfo: 获取模型方案的边界条件信息，包括边界条件类型描述（如'降雨计算洪水'）和边界条件值（各子流域的流量过程）
+  - get_dispatch_target: 获取方案的优化调度目标设置信息，包括方案ID、调度目标（站点名称、stcd、最大流量）、各水库约束水位及其他约束条件
+  - get_models: 获取已有所有模型方案信息，包括方案名称、描述、业务模型编码、起止时间、状态、进度等12个属性
+  - get_dispatch_plan: 获取方案主要控制闸站的简短调度指令，包含水库、河道闸站、蓄滞洪区3种类型的各控制闸站的调度信息
+  - get_tjdata_result: 获取方案的结果数据，包含水库、河道断面、蓄滞洪区的洪水计算结果以及结果概述、河道风险，此外还可能包含调度方案结果
+  - get_gisgc_polygon_result: 获取方案某时刻河道水面GIS面要素结果，为geojson格式的带Z值的三维水面要素，用于在三维场景中绘制三维水面
+  - get_sampleline_data_result: 获取方案的GIS过程线的全过程属性结果，用于在地图区分色动态渲染过程结果，如流量、流速等
+  - get_gistj_result: 获取方案的GIS统计线结果，为geojson格式的河道分段线要素，用于在地图区分色渲染全过程最大流量、流速等分布结果
+  - get_gistj_polygon_result: 获取方案的GIS统计面结果(淹没面)，为geojson格式的二维面要素，用于在地图中分水渲染淹没区水深分布
+  - get_point_result: 查询方案河道上某点的水位流量等结果，用于在地图中点击查询某位置结果信息。如果时间为空字符串，则返回时间序列
+  - get_zp_result: 获取方案某类结果的顺河道纵剖面数据，用于前端页面纵剖图绘制
+  - get_reachsections: 获取方案有水位结果的河道断面桩号清单，包括各河道基本信息和各河道有水位结果的断面桩号
+  - get_sectionres: 获取方案单一河道断面的水位流量过程
+  - get_sectionlist_res: 获取方案多个河道断面的水位流量过程
+  - get_catchment_discharges: 获取方案多个子流域的产汇流模型流量过程
+  - get_gateres: 获取方案某闸门的水力要素结果，包括过闸流量、上下游水位过程、流速过程、水头差等
+  - get_atreach: 根据方案ID获取该方案的特殊河道断面信息，包括河道ID和桩号
+  - get_risk_warning: 获取方案的风险预警信息，包含水库风险预警、河道风险预警、蓄滞洪区进洪风险预警、降雨预警、南水北调交叉断面风险预警、山洪风险预警
+  - get_history_autoforcast_list: 获取历史洪水自动预报方案信息清单，包含方案ID、预报起止时间和本场次降雨总降雨量
+  - del_history_autoforcast: 删除某场历史自动预报方案
+  - get_rain_flood_list: 获取预演场次洪水信息列表，所有预演方案均关联有一场场次洪水，一场场次洪水可能对应多个预演方案，但只有一个推荐方案
+  - get_rainflood_plan_list: 获取某场次洪水的预演方案清单，包含方案名称、描述、业务模型、起止时间、状态等信息
+  - change_rainflood_recomplan: 修改某场次洪水的推荐预演方案
+  - important_inspect: 获取预演方案的工程重点巡查区域信息，即通过方案预演后得到的工程风险区域作为重点巡查区域，包含水库、河道、蓄滞洪区的巡查信息
+  - get_history_autoforcast_res: 获取历史洪水自动预报结果，结果与get_tjdata_result接口返回结果相同
+  - get_mountain_forecast_flood: 获取山区预报信息，包括山洪区域名称、村庄名称、经纬度、被淹时间、风险等级等
+
+## 函数工具 (function)
+  - search_knowledge: 函数工具
+  - generate_report_page: 函数工具
+
+## 任务
+从上述工具中选择完成任务所需的工具。
+
+## 输出要求
+返回JSON格式：
+{
+    "selected_tools": ["工具名称1", "工具名称2", ...],
+    "reason": "选择理由（简短说明为什么选择这些工具）"
+}
+
+## 选择原则（严格按顺序执行）
+1. **【强制规则】水雨情等监测工具选用原则**：
+   - 当用于问题意图为获取监测数据时，必须从 hydro_monitor.py 中选择工具
+   - 当用户消息包含当前、实时、最新、现在、目前等时间关键词时，也必须从 hydro_monitor.py 中选择工具
+2. **辅助工具**：需要站点编码时包含lookup_station_code，需要知识库检索时包含search_knowledge
+3. 如果不确定需要哪个工具，可以多选几个相关的
+4. 根据数据类型选择对应的查询工具：
+   - 水库水情 → query_reservoir_last, query_reservoir_process
+   - 河道水情 → query_river_last, query_river_process
+   - 雨量数据 → query_rain_process, query_rain_statistics, query_rain_sum
+   - AI监测 → query_ai_water_last, query_ai_rain_last 等
+
+```
+
+**LLM响应**:
+```
+{'selected_tools': ['query_reservoir_last'], 'reason': '用户需要统计当前监测的各个大中型水库的库容总和，因此需要获取每个水库的实时水情数据，其中包含蓄水量（库容）信息。query_reservoir_last 是 hydro_monitor.py 中用于获取水库最新实时水情数据的工具，符合需求。'}
+```
 

@@ -341,8 +341,14 @@ async def _execute_workflow_step(workflow, state: Dict[str, Any]) -> Dict[str, A
         # 检查步骤是否成功
         if not step_result.get('success', True):
             logger.warning(f"步骤 {step_id} 执行失败: {step_result.get('error')}")
-            # 步骤失败，可以在这里添加重试或替代方案逻辑
-            # 目前直接继续下一步或终止
+            # 标记工作流有错误
+            return {
+                'execution_results': new_step_results,
+                'workflow_context': new_workflow_context,
+                'current_step_index': current_step_index + 1,
+                'workflow_has_error': True,
+                'next_action': 'execute' if current_step_index + 1 < total_steps else 'respond'
+            }
 
         # 检查工作流是否提前完成
         if step_result.get('workflow_completed', False):
@@ -421,6 +427,7 @@ async def _execute_workflow_step(workflow, state: Dict[str, Any]) -> Dict[str, A
             'workflow_context': workflow_context,
             'current_step_index': current_step_index + 1,
             'error': f"步骤 {step_id} 执行异常: {str(e)}",
+            'workflow_has_error': True,
             'next_action': 'respond'
         }
 

@@ -307,8 +307,8 @@ wg_agent/
 │   │   ├── hydromodel_baseinfo.py   # 水利模型基础信息
 │   │   ├── hydromodel_parget.py     # 水利模型参数获取
 │   │   ├── hydromodel_resultget.py  # 水利模型结果获取
-│   │   ├── station_lookup.py        # 测站查询工具
-│   │   ├── auth.py                  # 认证工具
+│   │   ├── station_lookup.py        # 测站类型查询工具
+│   │   ├── auth.py                  # 登录认证工具
 │   │   └── mcp_websearch.py         # 网络搜索工具
 │   ├── workflows/                    # 工作流
 │   │   ├── base.py                  # 工作流基类

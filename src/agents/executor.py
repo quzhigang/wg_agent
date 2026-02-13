@@ -575,12 +575,13 @@ async def executor_node(state: AgentState) -> Dict[str, Any]:
     # 处理执行失败
     if not result.success:
         retry_decision = await executor.handle_retry(current_step, result.error, state)
-        
+
         if retry_decision['should_retry']:
             return {
                 "plan": plan,
                 "should_retry": True,
-                "error": result.error
+                "error": result.error,
+                "workflow_has_error": True  # 标记工作流有错误
             }
         else:
             # 失败后继续下一步或结束
@@ -589,6 +590,7 @@ async def executor_node(state: AgentState) -> Dict[str, Any]:
                 "current_step_index": current_index + 1,
                 "execution_results": [result.model_dump()],
                 "error": result.error,
+                "workflow_has_error": True,  # 标记工作流有错误
                 "next_action": "execute" if current_index + 1 < len(plan) else "respond"
             }
     
