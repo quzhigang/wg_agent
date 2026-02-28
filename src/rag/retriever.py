@@ -135,7 +135,8 @@ class RAGRetriever:
         query: str,
         top_k: Optional[int] = None,
         filter_category: Optional[str] = None,
-        target_kbs: Optional[List[str]] = None
+        target_kbs: Optional[List[str]] = None,
+        doc_filter: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """
         检索相关文档
@@ -175,7 +176,7 @@ class RAGRetriever:
                 return []
 
             # 使用多知识库检索
-            search_results = self._multi_kb_index.search_multi_kb(kb_configs, query, top_k=k, use_rerank=False)
+            search_results = self._multi_kb_index.search_multi_kb(kb_configs, query, top_k=k, use_rerank=False, doc_filter=doc_filter)
 
             # 转换为统一格式
             results = []
@@ -400,7 +401,8 @@ class RAGRetriever:
         intent: Optional[str] = None,
         max_length: int = 8000,
         target_kbs: Optional[List[str]] = None,
-        retrieval_mode: Optional[str] = None
+        retrieval_mode: Optional[str] = None,
+        doc_filter: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         获取与用户消息相关的上下文
@@ -430,7 +432,7 @@ class RAGRetriever:
             )
         else:
             results = await self.retrieve(
-                query=user_message, top_k=top_k, target_kbs=target_kbs
+                query=user_message, top_k=top_k, target_kbs=target_kbs, doc_filter=doc_filter
             )
         
         # 格式化上下文

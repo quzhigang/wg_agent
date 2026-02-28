@@ -34,3 +34,9 @@
 2026-02-28 20:24:54.672 | INFO     | src.workflows.registry:register:51 | 注册工作流: flood_manualforecast_getresult
 2026-02-28 20:24:54.672 | INFO     | src.workflows.registry:init_default_workflows:187 | 默认工作流加载完成
 2026-02-28 20:24:54.673 | INFO     | src.main:lifespan:58 | 工作流注册表初始化完成
+2026-02-28 20:24:57.992 | INFO     | src.rag.knowledge_base:_init_vector_db:97 | PageIndex向量索引连接成功: 107 个文档, 37459 个节点
+2026-02-28 20:24:57.994 | INFO     | src.rag.knowledge_base:__init__:82 | 知识库初始化完成（对接PageIndex）
+2026-02-28 20:24:59.735 | INFO     | src.main:lifespan:67 | 知识库初始化完成，文档数: 107
+2026-02-28 20:24:59.735 | INFO     | src.main:lifespan:71 | API服务地址: http://0.0.0.0:8000
+2026-02-28 20:24:59.735 | INFO     | src.main:lifespan:72 | 智能体启动完成，等待请求...
+2026-02-28 20:24:59.735 | INFO     | src.main:lifespan:75 | 企业微信回调已启用，路由: /wecom/callback

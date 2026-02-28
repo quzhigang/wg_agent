@@ -503,7 +503,8 @@ class MultiKBVectorIndex:
         return deduplicated_results[:top_k]
     
     def search_multi_kb(self, kb_configs: List[Dict[str, str]], query: str,
-                        top_k: int = 10, use_rerank: bool = True) -> List[Dict[str, Any]]:
+                        top_k: int = 10, use_rerank: bool = True,
+                        doc_filter: List[str] = None) -> List[Dict[str, Any]]:
         """
         跨多个知识库进行向量相似度检索
 
@@ -512,6 +513,7 @@ class MultiKBVectorIndex:
             query: 查询文本
             top_k: 返回的最大结果数（去重后）
             use_rerank: 是否使用 rerank 重排序
+            doc_filter: 限定搜索的文档名称列表（可选），用于按子意图精准过滤
 
         返回:
             合并后的检索结果列表（按相似度排序，按 node_id 去重）
@@ -529,7 +531,7 @@ class MultiKBVectorIndex:
                 continue
 
             try:
-                results = self.search(kb_id, chroma_dir, query, recall_k)
+                results = self.search(kb_id, chroma_dir, query, recall_k, doc_filter=doc_filter)
                 all_results.extend(results)
             except Exception as e:
                 print(f"搜索知识库 [{kb_id}] 失败: {e}")

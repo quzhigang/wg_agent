@@ -1461,17 +1461,29 @@ class Planner:
             # 获取业务子意图
             business_sub_intent = state.get('business_sub_intent', 'other')
 
-            # 1. 仅对特定子意图检索业务流程知识库
-            # 洪水预报、洪水预演、预案生成、灾损评估需要业务流程参考
-            # 其他子意图（如data_query、other）不需要固定知识库检索
-            sub_intents_need_kb = ['history_rain', 'rain_forecast', 'flood_forecast', 'flood_simulation', 'emergency_plan', 'damage_assessment']
+            # 1. 对需要业务流程参考的子意图检索 business_workflow 知识库
+            # doc_filter 有值时只检索对应文档，为 None 时检索全库
+            # data_query 流程简单，凭工具描述即可规划，无需 RAG 检索
+            # 文档名由用户在知识库系统中上传时自行命名，上传后填入对应文档名
+            sub_intent_doc_filter = {
+                'flood_forecast':    ['1、洪水自动预报结果查询工作流', '2、历史洪水自动预报结果查询工作流',
+                                      '3、进行洪水自动预报并查询结果工作流', '4、人工洪水预报结果查询工作流',
+                                      '5、进行洪水人工预报并查询结果工作流'],
+                'history_rain':      None,  # 文档上传后填入对应文档名
+                'rain_forecast':     None,
+                'flood_simulation':  None,
+                'emergency_plan':    None,
+                'damage_assessment': None,
+                'other':             None,
+            }
 
             rag_context = "无相关业务流程参考"
             rag_doc_count = 0
 
-            if business_sub_intent in sub_intents_need_kb:
+            if business_sub_intent in sub_intent_doc_filter:
                 plan_target_kbs = ["business_workflow"]
-                logger.info(f"子意图 {business_sub_intent} 需要业务流程参考，目标知识库: {plan_target_kbs}")
+                doc_filter = sub_intent_doc_filter.get(business_sub_intent)
+                logger.info(f"子意图 {business_sub_intent} 检索业务流程知识库，doc_filter: {doc_filter}")
 
                 # 执行RAG检索，获取业务流程参考
                 try:
@@ -1481,7 +1493,8 @@ class Planner:
                         user_message=state['user_message'],
                         intent=state.get('intent'),
                         max_length=2000,
-                        target_kbs=plan_target_kbs
+                        target_kbs=plan_target_kbs,
+                        doc_filter=doc_filter
                     )
                     rag_context = rag_result.get('context', '无相关业务流程参考')
                     rag_doc_count = rag_result.get('document_count', 0)
@@ -1489,7 +1502,7 @@ class Planner:
                 except Exception as rag_error:
                     logger.warning(f"计划生成RAG检索失败: {rag_error}")
             else:
-                logger.info(f"子意图 {business_sub_intent} 不需要固定知识库检索，跳过RAG检索")
+                logger.info(f"子意图 {business_sub_intent} 不在业务流程知识库检索范围，跳过RAG检索")
 
             # 2. 两阶段工具加载
             # 第一阶段：根据任务筛选需要的工具
