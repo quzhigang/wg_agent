@@ -35,6 +35,8 @@ class IntentCategory(str, Enum):
 class BusinessSubIntent(str, Enum):
     """业务子意图（第3类细分）"""
     DATA_QUERY = "data_query"              # 监测数据查询
+    HISTORY_RAIN = "history_rain"          # 历史降雨
+    RAIN_FORECAST = "rain_forecast"        # 降雨预报
     FLOOD_FORECAST = "flood_forecast"      # 洪水预报
     FLOOD_SIMULATION = "flood_simulation"  # 洪水预演
     EMERGENCY_PLAN = "emergency_plan"      # 预案生成

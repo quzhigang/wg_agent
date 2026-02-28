@@ -399,7 +399,7 @@ class GetStationInfoTool(BaseTool):
     
     @property
     def description(self) -> str:
-        return "获取河道上各大中型水库、河道水文站点、河道控制闸站的基本信息和监测水情信息，包括站点stcd、所在河道和桩号、控制流域面积、水位流量等监测水情信息等"
+        return "获取河道上各大中型水库、河道水文站点、河道控制闸站的基本信息和监测水情信息，包括站点stcd、所在河道和桩号、控制流域面积、水位流量等监测水情信息，以及防洪特征水位（level1=警戒水位，level3=保证水位）"
     
     @property
     def category(self) -> ToolCategory:

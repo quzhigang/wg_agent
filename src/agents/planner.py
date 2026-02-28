@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 import json
 import uuid
 import asyncio
+from datetime import datetime, timedelta
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
@@ -38,6 +39,35 @@ class TaskPlan(BaseModel):
     output_type: str = Field(default="text", description="输出类型")
 
 
+# 知识库描述字典（集中维护，供动态规划提示词使用，需与意图分析提示词中的描述保持同步）
+KB_DESCRIPTIONS = {
+    "catchment_basin": "卫共流域概况、流域面积、行政区划、防洪标准、水库等水利工程数量等",
+    "water_project": "水库、河道、闸站、蓄滞洪区、险工险段、南水北调工程、各河段防洪标准、工程现场照片等",
+    "monitor_site": "雨量站、水库和河道水文站、视频监测等站点信息，以及这些水利工程的基本参数信息",
+    "history_flood": "仅包含2021年7月'21.7'和2023年7月'23.7'两场典型历史洪水的详细信息，以及1956、1963、1982、1996、2016年特大洪水的简要介绍，其他年份无数据",
+    "flood_preplan": "水库汛期调度运用计划、蓄滞洪区运用预案、流域和河道防洪预案等",
+    "system_function": "防洪'四预'系统的功能介绍、操作使用手册、系统api接口等",
+    "business_workflow": "防洪'四预'系统的业务操作流程信息，包括数据查询、预报预演等业务流程",
+    "hydro_model": "水利专业模型简介、模型类别、模型编码、模型算法、模型原理等",
+    "catchment_planning": "海河流域防洪规划、防洪形势、暴雨洪水、防洪工程体系等",
+    "project_designplan": "水库、河道和蓄滞洪区等水利工程的设计治理方案报告",
+}
+
+
+def format_target_kbs_with_desc(target_kbs: list) -> str:
+    """将知识库ID列表格式化为带内容范围说明的文本，供动态规划提示词使用"""
+    if not target_kbs:
+        return "无"
+    lines = []
+    for kb_id in target_kbs:
+        desc = KB_DESCRIPTIONS.get(kb_id, "")
+        if desc:
+            lines.append(f"- {kb_id}: {desc}")
+        else:
+            lines.append(f"- {kb_id}")
+    return "\n".join(lines)
+
+
 # 1、意图分析提示词（三大类分类，简化版 - 移除business子意图详细分类）
 INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智能助手"小卫"，负责分析用户意图。
 
@@ -53,7 +83,7 @@ INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智�
 - catchment_basin(流域概况)：卫共流域概况、流域面积、行政区划、防洪标准、水库等水利工程数量等
 - water_project(水利工程)：水库、河道、闸站、蓄滞洪区、险工险段、南水北调工程、各河段防洪标准、工程现场照片等
 - monitor_site(监测站点)：雨量站、水库和河道水文站、视频监测、取水监测、安全监测、AI监测等站点信息，且包含这些水利工程的基本参数信息
-- history_flood(历史洪水)："21.7"、"23.7"等典型历史洪水信息、发生过程和受灾情况
+- history_flood(历史洪水)：包含2021年7月的"21.7"和2023年7月的"23.7"这2场典型历史洪水的详细信息、包括发生过程和受灾情况等，此外还包括1956年、1963年、1982年、1996年、2016年发生的最大一场特大洪水的简要介绍，其他年份不涉及。
 - flood_preplan(防洪预案)：水库汛期调度运用计划、蓄滞洪区运用预案、流域和河道防洪预案等
 - system_function(系统功能)：防洪"四预"系统的功能介绍、操作使用手册、系统api接口等
 - business_workflow(业务流程)：防洪"四预"系统的业务操作流程信息，包括数据查询、预报预演等业务，包括调用接口和顺序
@@ -113,7 +143,7 @@ INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智�
 }}
 注意：rewritten_query字段非常重要！如果用户消息存在省略（如"小南海呢？"），必须结合对话历史补全为完整查询（如"小南海水库的流域面积"）。如果用户消息已经完整，则直接复制用户消息。
 注意：
-- target_kbs从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, hydro_model, catchment_planning, project_designplan
+- target_kbs从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, hydro_model, catchment_planning, project_designplan，其中catchment_basin必须包含
 - needs_kb_search和needs_web_search的判断规则：
   1. 知识库能完全回答（如卫共流域概况、水库基本信息、历史洪水记录、规划内容等静态信息）：needs_kb_search=true, needs_web_search=false
   2. 知识库完全不能回答的情况，needs_kb_search=false, needs_web_search=true：
@@ -150,7 +180,7 @@ INTENT_ANALYSIS_PROMPT = """你是河南省卫共流域数字孪生系统的智�
 注意：
 - business类只需识别类别和提取实体，具体业务子意图和工作流将在下一阶段确定
 - 如果无法确定object_type，一定要填null，不要猜测！后续阶段会通过数据库和知识库查询补全
-- target_kbs用于辅助计划生成阶段的知识库检索，从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, business_workflow, hydro_model, catchment_planning, project_designplan
+- target_kbs用于辅助计划生成阶段的知识库检索，从以下知识库id中选择相关的：catchment_basin, water_project, monitor_site, history_flood, flood_preplan, system_function, business_workflow, hydro_model, catchment_planning, project_designplan，其中catchment_basin必须包含
 - 根据问题涉及的内容选择相关知识库，如涉及历史洪水则包含history_flood，涉及水库信息则包含water_project
 """
 
@@ -166,8 +196,20 @@ BUSINESS_SUB_INTENT_PROMPT = """你是河南省卫共流域数字孪生系统的
 ## 业务子意图分类体系
 
 ### data_query（监测数据查询）
-- 针对单个明确站点/对象的监测数据查询（当前/实时/历史某时刻）
+- 针对单个明确站点/对象,查询当前实时或历史某时刻的水位、流量、雨量、视频、工情等监测数据
 - 直接查询水情数据，无需获取特征参数进行对比、判断
+- 仅涉及单站点降雨数据查询（不统计全流域或区间整体降雨情况）
+
+### history_rain（历史降雨）
+- 查询流域历史典型暴雨信息、往年汛期发生过的较大规模降雨事件
+- 统计全流域和各区间整体降雨情况：累计面雨量、降雨过程、单站点最大雨强、最大单站点降雨量等
+- 区别于data_query：本意图关注全流域/区域整体降雨统计，而非单站点监测数据
+
+### rain_forecast（降雨预报）
+- 查询全流域和各区间（安阳河流域、合河淇门区间、焦作合河区间、焦作以上、淇河流域、卫共淇门以下）未来各时段预报降雨
+- 查询各预报格网未来各时段预报累计降雨量及逐小时过程
+- 获取全流域未来各时段预报降雨等值面（geojson格式）
+- 涉及"预报雨量"、"未来降雨"、"预报降雨"等（注意区分降雨预报与洪水预报）
 
 ### flood_forecast（洪水预报）
 - 启动洪水预报计算
@@ -197,26 +239,34 @@ BUSINESS_SUB_INTENT_PROMPT = """你是河南省卫共流域数字孪生系统的
 ## 输出要求
 返回JSON格式：
 {{
-    "business_sub_intent": "子意图类别（data_query/flood_forecast/flood_simulation/emergency_plan/damage_assessment/other）",
+    "business_sub_intent": "子意图类别（data_query/history_rain/rain_forecast/flood_forecast/flood_simulation/emergency_plan/damage_assessment/other）",
     "confidence": 0.95,
     "reason": "分类理由"
 }}
 
 ## 分类规则
-1. 涉及"预报"、"预测"、"未来洪水" → flood_forecast
-2. 涉及"预演"、"模拟" → flood_simulation
-3. 涉及"预案"、"调度方案" → emergency_plan
-4. 涉及"损失"、"灾损"、"转移" → damage_assessment
-5. 涉及对比、判断、统计、汇总等后续处理，或需要获取特征参数（如防洪高水位、设计水位、汛限水位等）与实时数据对比 → other
-6. 查询对象为群体/不明确 → other
-7. 针对单个明确对象直接查询水情数据，无需对比判断 → data_query
-8. 无法明确归类 → other
+1. 涉及"预演"、"模拟" → flood_simulation
+2. 涉及"预案"、"调度方案" → emergency_plan
+3. 涉及"损失"、"灾损"、"转移" → damage_assessment
+4. 涉及"洪水预报"、"预测洪水"、"未来洪水"、"预报流量/水位" → flood_forecast
+5. 涉及"预报雨量"、"未来降雨"、"预报降雨"、"降雨预报"，且统计对象为全流域/区间/格网 → rain_forecast
+6. 涉及历史暴雨事件、往年汛期降雨统计（全流域或区间整体面雨量、降雨过程等） → history_rain
+7. 涉及对比、判断、统计、汇总等后续处理，或需要获取特征参数（如防洪高水位、设计水位、汛限水位等）与实时数据对比 → other
+8. 查询对象为群体/不明确 → other
+9. 针对单个明确站点/对象直接查询实时或历史监测数据（水位、流量、单站点雨量等），无需对比判断 → data_query
+10. 无法明确归类 → other
 """
 
 # 3、预定义工作流按子意图分类（用于工作流匹配阶段）
 PREDEFINED_WORKFLOWS_BY_SUB_INTENT = {
     "data_query": """
 暂无预定义的数据查询工作流模板，请检查已保存的动态工作流或进行动态规划。
+""",
+    "history_rain": """
+暂无预定义的历史降雨工作流模板，请检查已保存的动态工作流或进行动态规划。
+""",
+    "rain_forecast": """
+暂无预定义的降雨预报工作流模板，请检查已保存的动态工作流或进行动态规划。
 """,
     "flood_forecast": """
 1. get_auto_forecast_result - 查询最新自动预报结果
@@ -309,7 +359,6 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 ## 用户意图
 意图: {intent}
 实体: {entities}
-目标知识库: {target_kbs}
 
 ## 用户消息
 {user_message}
@@ -391,12 +440,26 @@ PLAN_GENERATION_PROMPT = """你是河南省卫共流域数字孪生系统的任�
 - 正确：$step_1[0].code$ （获取数组第一个元素的code字段）
 - 错误：$step_1.code$ （数组没有code属性，会返回None）
 
+**目标知识库（含内容范围说明）：**
+{target_kbs}
+
 **知识库检索规划（重要）：**
-- 如果用户问题需要知识库中的信息（如历史洪水数据、水库特征参数、防洪标准等），必须在计划中添加"search_knowledge"工具调用步骤
+- 如果用户问题需要知识库中的信息，必须在计划中添加"search_knowledge"工具调用步骤
 - search_knowledge工具参数：{{"query": "检索关键词", "target_kbs": ["知识库id列表"]}}
-- 目标知识库应根据问题内容选择，参考上面的"目标知识库"字段
+- 使用前必须检查上方"目标知识库"的内容范围说明，确认该知识库确实包含所需数据
+- 如果根据内容范围说明判断知识库中没有用户所需数据（如询问不在覆盖年份内的历史降雨），则不要规划search_knowledge步骤，而是在最终汇总步骤（tool_name=null）中直接说明数据不可得
 - 知识库检索步骤应安排在需要该信息的步骤之前
-- 例如：查询历史洪水水位需要先search_knowledge检索history_flood，再进行数据处理
+
+**河道和水库防洪特征值保底规则（重要）：**
+- 当计划中包含 get_river_flood_list获取河道防洪特征值或包含 get_reservoir_flood_list获取水库防洪特征值时，必须紧跟一个 get_station_info 步骤作为保底数据源
+- 对于河道来说get_station_info 返回的 level1 对应警戒水位，level3 对应保证水位；而对于水库来说，get_station_info 返回的 level1 对应汛限水位，level2 对应防洪高水位，level3 对应设计水位
+- 最终汇总步骤（tool_name 为 null）中须合并两个数据源：优先使用 get_river_flood_list 的 wrz/grz或get_reservoir_flood_list中的actz等值，若为空则取 get_station_info 的 level1/level2/level3
+
+**水库水情查询专项规则（重要）：**
+- 当用户意图是“查询某水库当前水情/详情页展示”，计划必须包含以下三类步骤：
+  1) query_reservoir_last（实时水位、蓄水量、出库流量、更新时间、水势）
+  2) query_reservoir_process（search_begin_time=当前时间前1个月，search_end_time=当前时间）
+  3) search_knowledge（检索“水库基础信息、水位-库容关系曲线”，target_kbs至少包含 monitor_site 和 water_project）
 """
 
 # 6、工作流模板化生成提示词（将具体执行计划抽象为通用模板）
@@ -527,20 +590,30 @@ TOOL_SELECTION_PROMPT = """你是河南省卫共流域数字孪生系统的工�
 
 ## 选择原则
 1. **【强制规则】basin_info**：提取的实体包含水库、水闸、蓄滞洪区、测站、河道等流域对象时，必须从 basin_info 选择对应工具
-   - 河道水文站 → get_river_flood_list(警戒水位等特征值)
+   - 河道水文站 → get_river_flood_list(警戒水位等特征值)，同时选择 get_station_info 作为保底数据源
    - 水库 → get_reservoir_flood_detail(防洪特征值)
    - 水闸 → get_sluice_info
    - 蓄滞洪区 → get_flood_storage_area, get_flood_dam_info
 
 2. **【强制规则】hydro_monitor**：问题意图为获取监测数据，或包含当前/实时/最新等时间关键词时，必须从 hydro_monitor 选择
    - 河道水情 → query_river_last
-   - 水库水情 → query_reservoir_last
+   - 水库水情（当前）→ query_reservoir_last
+   - 水库水情（近一月过程）→ query_reservoir_process
    - 雨量 → query_rain_statistics, query_rain_sum
    - AI监测 → query_ai_water_last, query_ai_rain_last
 
-3. **【强制规则】组合使用**：两条强制规则彼此独立，需同时判断。问题需要与警戒水位、保证水位、设计水位、汛限水位等特征水位进行数值对比时，必须同时选择 basin_info 的特征值工具和 hydro_monitor 的实时数据工具
+3. **【强制规则】组合使用**：两条强制规则彼此独立，需同时判断。问题需要与警戒水位、保证水位、设计水位、汛限水位等特征水位进行数值对比时，必须同时选择 basin_info 的特征值工具和 hydro_monitor 的实时数据工具，并选择 get_station_info 作为特征值保底数据源
 
-4. 其他：需要站点编码时包含 lookup_station_code，需要知识库检索时包含 search_knowledge
+4. **【强制规则】rain_control**：问题涉及降雨时，不管是历史降雨还是预报降雨，必须同时从rain_control里选择多个合适的工具作为补充
+   - 需要提取降雨过程数值（起止时间、累积雨量、时序数据）→ 必须选 monitor_rain_area_proc_whole（返回时序面雨量数值）
+   - 需要绘制降雨空间分布图 → 才选 contour_rain_* 系列（只返回GeoJSON等值面矢量，无法提取数值）
+   - 注意：contour_rain_* 工具仅用于地图可视化，不含可供分析的数值数据，不能替代 monitor_rain_area_proc_whole
+
+5. 其他：需要站点编码时包含 lookup_station_code，需要知识库检索时包含 search_knowledge
+6. 当用户查询“水库水情”且需要展示详情页时，默认同时选择：
+   - query_reservoir_last（实时水位/蓄水量/出入库流量）
+   - query_reservoir_process（近一个月水位与出库流量过程）
+   - search_knowledge（检索水库基础信息、水位-库容关系；target_kbs 至少包含 monitor_site、water_project）
 """
 
 class Planner:
@@ -1391,7 +1464,7 @@ class Planner:
             # 1. 仅对特定子意图检索业务流程知识库
             # 洪水预报、洪水预演、预案生成、灾损评估需要业务流程参考
             # 其他子意图（如data_query、other）不需要固定知识库检索
-            sub_intents_need_kb = ['flood_forecast', 'flood_simulation', 'emergency_plan', 'damage_assessment']
+            sub_intents_need_kb = ['history_rain', 'rain_forecast', 'flood_forecast', 'flood_simulation', 'emergency_plan', 'damage_assessment']
 
             rag_context = "无相关业务流程参考"
             rag_doc_count = 0
@@ -1443,7 +1516,7 @@ class Planner:
                 "rag_context": rag_context,
                 "intent": state.get('intent', 'unknown'),
                 "entities": state.get('entities', {}),
-                "target_kbs": target_kbs,  # 传递目标知识库，供LLM规划检索步骤
+                "target_kbs": format_target_kbs_with_desc(target_kbs),  # 传递带内容范围说明的知识库描述
                 "user_message": state['user_message']
             }
             
@@ -1733,6 +1806,18 @@ class Planner:
         replacements["{{query}}"] = user_message
         replacements["{query}"] = user_message
 
+        # 内置动态时间占位符
+        now = datetime.now()
+        dynamic_replacements = {
+            "当前时间": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "一个月前时间": (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S"),
+            "now": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "one_month_ago": (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        }
+        for key, value in dynamic_replacements.items():
+            replacements[f"{{{{{key}}}}}"] = value
+            replacements[f"{{{key}}}"] = value
+
         filled_steps = []
         for step in plan_steps:
             new_step = step.copy()
@@ -1750,6 +1835,52 @@ class Planner:
                             new_value = arg_value
                             for placeholder, replacement in replacements.items():
                                 new_value = new_value.replace(placeholder, replacement)
+                            # 参数自愈：常见占位符异常时回退关键实体与时间参数
+                            if arg_key.lower() == "stcd":
+                                fallback_stcd = entities.get("stcd")
+                                if fallback_stcd:
+                                    invalid_stcd = (
+                                        not new_value
+                                        or "{{" in new_value or "}}" in new_value
+                                        or "{?" in new_value or "?}" in new_value
+                                        or "编码" in new_value
+                                        or "??" in new_value
+                                    )
+                                    if invalid_stcd:
+                                        new_value = str(fallback_stcd)
+
+                            if arg_key in ["search_begin_time", "search_end_time"]:
+                                now = datetime.now()
+                                if arg_key == "search_begin_time":
+                                    fallback_time = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                                else:
+                                    fallback_time = now.strftime("%Y-%m-%d %H:%M:%S")
+                                invalid_time = (
+                                    not new_value
+                                    or "{{" in new_value or "}}" in new_value
+                                    or "{" in new_value or "}" in new_value
+                                    or "??" in new_value
+                                )
+                                if invalid_time:
+                                    new_value = fallback_time
+
+                            if arg_key == "query" and step.get("tool_name") == "search_knowledge":
+                                fallback_obj = entities.get("object")
+                                fallback_stcd = entities.get("stcd")
+                                invalid_query = (
+                                    not new_value
+                                    or "{{" in new_value or "}}" in new_value
+                                    or "{" in new_value or "}" in new_value
+                                    or "??" in new_value
+                                )
+                                if invalid_query:
+                                    obj_ok = bool(fallback_obj and "?" not in str(fallback_obj))
+                                    if obj_ok:
+                                        new_value = f"{fallback_obj} 水库基础信息 水位 库容 关系曲线"
+                                    elif fallback_stcd:
+                                        new_value = f"{fallback_stcd} 水库基础信息 水位 库容 关系曲线"
+                                    else:
+                                        new_value = user_message
                             # 如果仍是未替换的占位符，设为None（避免传入无效值）
                             if (new_value.startswith("{{") and new_value.endswith("}}")) or \
                                (new_value.startswith("{") and new_value.endswith("}") and len(new_value) > 2):

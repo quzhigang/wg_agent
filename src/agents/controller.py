@@ -450,6 +450,9 @@ class Controller:
                     # 传递执行计划和执行结果（用于页面数据生成）
                     "plan": state.get('plan', []),
                     "execution_results": state.get('execution_results', []),
+                    # 传递工作流匹配信息（用于 _save_workflow_template_if_needed 判断是否跳过保存）
+                    "matched_workflow": state.get('matched_workflow'),
+                    "saved_workflow_id": state.get('saved_workflow_id'),
                 }
 
             # 不需要页面，只生成文字回复

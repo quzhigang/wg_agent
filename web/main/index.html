@@ -276,6 +276,8 @@
                 // 业务子意图中文映射
                 const subIntentMap = {
                     'data_query': '监测数据查询',
+                    'history_rain': '历史降雨',
+                    'rain_forecast': '降雨预报',
                     'flood_forecast': '洪水预报',
                     'flood_simulation': '洪水预演',
                     'emergency_plan': '预案生成',
@@ -324,8 +326,27 @@
                                 const confidence = confidenceMatch ? confidenceMatch[1] : '90';
 
                                 stageEl.innerHTML = '<span class="process-icon" style="color:#00d4ff">⏳</span><span>意图识别: <span style="color:#00d4ff;font-weight:500">业务操作</span> > <span style="color:#00ff9d;font-weight:500">' + subIntentName + '</span> <span style="color:#a0aec0">(' + confidence + '%)</span> <span style="color:#a0aec0;font-size:12px">正在匹配工作流...</span></span>';
+
+                                // 3秒后若仍未收到 workflow_match 事件，则自动切换为"正在进行动态规划..."
+                                const planningTimer = setTimeout(() => {
+                                    if (stageEl.dataset.workflowMatchDone !== '1') {
+                                        const html = stageEl.innerHTML;
+                                        const confM = html.match(/\((\d+)%\)/);
+                                        const conf2 = confM ? confM[1] : confidence;
+                                        stageEl.innerHTML = '<span class="process-icon" style="color:#00d4ff">⏳</span><span>意图识别: <span style="color:#00d4ff;font-weight:500">业务操作</span> > <span style="color:#00ff9d;font-weight:500">' + subIntentName + '</span> <span style="color:#a0aec0">(' + conf2 + '%)</span> <span style="color:#a0aec0;font-size:12px">正在进行动态规划...</span></span>';
+                                    }
+                                }, 3000);
+                                stageEl.dataset.planningTimer = planningTimer;
+
                             } else if (stageName === 'workflow_match') {
-                                // 第3阶段：工作流匹配完成
+                                // 第3阶段：工作流匹配结果（节点完成后才到达此处）
+                                // 清除定时器，标记已收到 workflow_match 事件
+                                if (stageEl.dataset.planningTimer) {
+                                    clearTimeout(parseInt(stageEl.dataset.planningTimer));
+                                    delete stageEl.dataset.planningTimer;
+                                }
+                                stageEl.dataset.workflowMatchDone = '1';
+
                                 const matchedWorkflow = data.matched_workflow || '';
                                 const subIntent = data.business_sub_intent || '';
                                 const subIntentName = subIntentMap[subIntent] || subIntent;
@@ -342,13 +363,16 @@
                                 }
                                 intentText += ' <span style="color:#a0aec0">(' + confidence + '%)</span>';
 
-                                // 添加工作流名称（使用中文）
                                 if (matchedWorkflow) {
+                                    // 匹配到工作流：完成并显示工作流名称
                                     const workflowDisplayName = workflowNameMap[matchedWorkflow] || matchedWorkflow;
                                     intentText += ' <span style="color:#00ffd4;font-size:12px">→ ' + workflowDisplayName + '</span>';
+                                    stageEl.innerHTML = '<span class="process-icon" style="color:#00ff9d">✓</span><span>意图识别: ' + intentText + '</span>';
+                                } else {
+                                    // 未匹配（动态规划）：plan 已在此节点内生成，直接标记完成
+                                    stageEl.innerHTML = '<span class="process-icon" style="color:#00ff9d">✓</span><span>意图识别: ' + intentText + ' <span style="color:#a0aec0;font-size:12px">动态规划</span></span>';
+                                    stageEl.dataset.awaitingPlan = '1';
                                 }
-
-                                stageEl.innerHTML = '<span class="process-icon" style="color:#00ff9d">✓</span><span>意图识别: ' + intentText + '</span>';
                             }
                         }
                         break;
@@ -385,6 +409,15 @@
                         }
                         break;
                     case 'plan':
+                        // 如果意图行正在等待动态规划完成，将其更新为完成状态
+                        const pendingStageEl = ui.assistantLi.querySelector('.intent-status[data-awaiting-plan="1"]');
+                        if (pendingStageEl) {
+                            delete pendingStageEl.dataset.awaitingPlan;
+                            // 将 ⏳ 替换为 ✓，并移除"正在进行动态规划..."提示
+                            pendingStageEl.innerHTML = pendingStageEl.innerHTML
+                                .replace('<span class="process-icon" style="color:#00d4ff">⏳</span>', '<span class="process-icon" style="color:#00ff9d">✓</span>')
+                                .replace(/ <span style="color:#a0aec0;font-size:12px">正在进行动态规划\.\.\.<\/span>/, '');
+                        }
                         const planDiv = document.createElement('div');
                         planDiv.className = 'process-item';
                         planDiv.innerHTML = '<div style="width:100%"><div style="margin-bottom:5px;color:var(--text-muted)">执行计划:</div><div class="steps-container" style="padding-left:10px"></div></div>';
@@ -404,6 +437,14 @@
                         });
                         break;
                     case 'step_start':
+                        // 如果意图行正在等待动态规划完成（第一个步骤到来时更新为完成）
+                        const pendingStageEl2 = ui.assistantLi.querySelector('.intent-status[data-awaiting-plan="1"]');
+                        if (pendingStageEl2) {
+                            delete pendingStageEl2.dataset.awaitingPlan;
+                            pendingStageEl2.innerHTML = pendingStageEl2.innerHTML
+                                .replace('<span class="process-icon" style="color:#00d4ff">⏳</span>', '<span class="process-icon" style="color:#00ff9d">✓</span>')
+                                .replace(/ <span style="color:#a0aec0;font-size:12px">正在进行动态规划\.\.\.<\/span>/, '');
+                        }
                         // step_start 事件现在作为备用，主要逻辑在 plan 和 step_end 中处理
                         const startEl = ui.assistantLi.querySelector('.step-item[data-id="' + data.step_id + '"]');
                         if (startEl && !startEl.classList.contains('active') && !startEl.classList.contains('completed')) {

@@ -258,6 +258,49 @@ class DataFileGenerator:
                 if video_url:
                     extracted['default_video_url'] = video_url
 
+            elif tool_name == 'search_knowledge':
+                # 知识库检索结果（补充基础信息与地理坐标）
+                docs = self._extract_search_knowledge_documents(output)
+                if docs:
+                    extracted['knowledge_documents'] = docs
+
+                    parsed_info = []
+                    import re
+                    for doc in docs:
+                        content = doc.get('content', '') if isinstance(doc, dict) else ''
+                        if not content:
+                            continue
+                        kv_pattern = r'-\s*\*\*([^*]+)\*\*[\uFF1A:]\s*(.+?)(?=\n|$)'
+                        for key, value in re.findall(kv_pattern, content):
+                            parsed_info.append({
+                                'label': key.strip(),
+                                'value': value.strip()
+                            })
+
+                    if parsed_info:
+                        if 'parsed_info_table' not in extracted:
+                            extracted['parsed_info_table'] = []
+                        extracted['parsed_info_table'].extend(parsed_info)
+
+                        if 'key_metrics' not in extracted:
+                            extracted['key_metrics'] = {}
+                        extracted['key_metrics'].update(self._extract_key_metrics(parsed_info))
+
+                        # 从知识库键值对中提取站点基础信息
+                        station_info = self._extract_station_info_from_parsed_info(parsed_info)
+                        if station_info:
+                            existing_station = extracted.get('station_info', {})
+                            if not isinstance(existing_station, dict):
+                                existing_station = {}
+                            existing_station.update(station_info)
+                            extracted['station_info'] = existing_station
+
+                    geo_info = self._extract_geo_info(docs)
+                    if not geo_info and parsed_info:
+                        geo_info = self._extract_geo_from_parsed_info(parsed_info)
+                    if geo_info and not extracted.get('geo_info'):
+                        extracted['geo_info'] = geo_info
+
             elif tool_name == 'lookup_station_code':
                 # 站点编码查询结果
                 station_info = self._extract_station_info(output)
@@ -432,6 +475,81 @@ class DataFileGenerator:
         elif isinstance(output, list) and len(output) > 0:
             return self._extract_station_info(output[0])
         return None
+
+    def _extract_search_knowledge_documents(self, output: Any) -> List[Dict[str, Any]]:
+        """
+        从 search_knowledge 返回中提取文档列表
+
+        兼容两种返回格式：
+        1. 直接 list: search_knowledge(...) -> [doc, ...]
+        2. ToolResult 格式: {success: true, data: [doc, ...]}
+        """
+        if isinstance(output, list):
+            return [item for item in output if isinstance(item, dict)]
+
+        if isinstance(output, dict):
+            data = output.get('data')
+            if isinstance(data, list):
+                return [item for item in data if isinstance(item, dict)]
+
+        return []
+
+    def _extract_station_info_from_parsed_info(self, parsed_info: List[Dict[str, str]]) -> Dict[str, Any]:
+        """
+        从 search_knowledge 解析后的键值对中提取站点基础信息
+        """
+        station_info: Dict[str, Any] = {}
+        for item in parsed_info:
+            label = str(item.get('label', '')).strip().lower()
+            value = str(item.get('value', '')).strip()
+            if not value:
+                continue
+
+            if label in ['站点名称', '站名', '监测站点名称', '监测站名称', 'stnm', 'name']:
+                station_info['name'] = value
+            elif label in ['站点编码', '监测站编码', '对象编码', 'stcd']:
+                station_info['stcd'] = value
+            elif label in ['监测类型', '站点类型', '类型', 'type']:
+                station_info['type'] = value
+            elif label in ['行政区划', '地址', '位置', '地点', 'location']:
+                station_info['location'] = value
+
+        return station_info
+
+    def _extract_geo_from_parsed_info(self, parsed_info: List[Dict[str, str]]) -> Optional[Dict[str, Any]]:
+        """
+        从键值对中兜底提取经纬度
+        """
+        import re
+
+        lng = None
+        lat = None
+        for item in parsed_info:
+            label = str(item.get('label', '')).strip().lower()
+            value = str(item.get('value', '')).strip()
+            if not value:
+                continue
+
+            if lng is None and label in ['经度', 'longitude', 'lng', 'lgtd']:
+                m = re.search(r'-?\d+(?:\.\d+)?', value)
+                if m:
+                    lng = float(m.group(0))
+            if lat is None and label in ['纬度', 'latitude', 'lat', 'lttd']:
+                m = re.search(r'-?\d+(?:\.\d+)?', value)
+                if m:
+                    lat = float(m.group(0))
+
+        if lng is None or lat is None:
+            return None
+
+        if not (73 <= lng <= 136 and 18 <= lat <= 54):
+            return None
+
+        return {
+            'latitude': lat,
+            'longitude': lng,
+            'center': [lng, lat]
+        }
 
     def _extract_params_data(self, tool_name: str, output: Any) -> Optional[Dict[str, Any]]:
         """

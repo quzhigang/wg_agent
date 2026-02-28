@@ -1223,9 +1223,11 @@
                             </ul>
                         </div>
                         <div class="branch-item">
-                            <h4>Business 子意图 (6类)</h4>
+                            <h4>Business 子意图 (8类)</h4>
                             <ul>
                                 <li>data_query - 监测数据查询</li>
+                                <li>history_rain - 历史降雨</li>
+                                <li>rain_forecast - 降雨预报</li>
                                 <li>flood_forecast - 洪水预报</li>
                                 <li>flood_simulation - 洪水预演</li>
                                 <li>emergency_plan - 预案生成</li>
@@ -1495,6 +1497,8 @@
                                 </div>
                                 <div class="sub-intent-grid">
                                     <div class="sub-intent-item active">data_query<br><small>监测数据查询</small></div>
+                                    <div class="sub-intent-item">history_rain<br><small>历史降雨</small></div>
+                                    <div class="sub-intent-item">rain_forecast<br><small>降雨预报</small></div>
                                     <div class="sub-intent-item active">flood_forecast<br><small>洪水预报</small></div>
                                     <div class="sub-intent-item">flood_simulation<br><small>洪水预演</small></div>
                                     <div class="sub-intent-item">emergency_plan<br><small>预案生成</small></div>
@@ -1924,6 +1928,8 @@
             ],
             sub: [
                 { name: 'data_query', desc: '监测数据查询' },
+                { name: 'history_rain', desc: '历史降雨' },
+                { name: 'rain_forecast', desc: '降雨预报' },
                 { name: 'flood_forecast', desc: '洪水预报' },
                 { name: 'flood_simulation', desc: '洪水预演' },
                 { name: 'emergency_plan', desc: '预案生成' },
@@ -2463,9 +2469,9 @@
                 </div>
 
                 <div class="intent-section">
-                    <h4>📊 第二阶段：Business子意图分类（6类）</h4>
+                    <h4>📊 第二阶段：Business子意图分类（8类）</h4>
                     <p style="color: #64748b; margin-bottom: 15px; font-size: 0.9em;">
-                        当第一阶段识别为 Business 意图时，进一步细分为以下6类业务子意图：
+                        当第一阶段识别为 Business 意图时，进一步细分为以下8类业务子意图：
                     </p>
                     <div class="intent-grid">
             `;

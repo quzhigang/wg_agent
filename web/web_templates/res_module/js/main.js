@@ -9,10 +9,10 @@ const API_URLS = {
 
 // 本模板所需参数，包括方案名称、水库名称、水库stcd和认证Token
 const DEFAULT_PARAMS = {
-    planCode: 'model_20260127101007',
+    planCode: 'model_20260228194403',
     stcd: '31005650',
     reservoirName: '盘石头水库', // 统一定义水库名称
-    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJmZjExMTA3Ny1mOTVkLTRlZDEtOWI1OS02ODM1MDVmNzlhNWYiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzEzOTc5NzAyNDEsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc3MDc5MzE3MCwiZXhwIjoxNzcxMzk3OTcwfQ.Q0L5AEwzir54TNihYXnpBNH8x9330iI9yMJhUDFRkjM67IfszPkjcRvaVR3BCLNbHKQvr2vngfC1_hy_1tfJow' // 认证Token
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiIwOWI4MWIyMS0xZWY3LTQwNGYtOTE3MC0wNGU5NzA3MTM1OTAiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzI4ODM4NDIxODUsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc3MjI3OTA0MiwiZXhwIjoxNzcyODgzODQyfQ.jlZEwZiaRI6ti1LJoish8cLTsIeT2UIn-OcQ7K0t0dvJFgH9pe3GvC4Hj9n3GvRnSmdCvqKNMBz3mWMkC07Y0w' // 认证Token
 };
 
 // 主入口函数

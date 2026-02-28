@@ -408,13 +408,13 @@ class GetReservoirFloodListTool(BaseTool):
             OutputField(name="dsflz", description="设计洪水位(m)"),
             OutputField(name="normz", description="正常蓄水位(m)"),
             OutputField(name="ddz", description="死水位(m)"),
-            OutputField(name="actz", description="汛限水位(m)"),
+            OutputField(name="actz", description="实际蓄水位(m)"),
             OutputField(name="ttcp", description="总库容(亿m³)"),
             OutputField(name="actcp", description="兴利库容(亿m³)"),
             OutputField(name="ddcp", description="死库容(亿m³)"),
             OutputField(name="hhrz", description="历史最高水位(m)"),
-            OutputField(name="rsvrtp", description="水库类型(1大型/2中型/3小型)"),
-            OutputField(name="fsrs", description="防汛限制水位信息数组"),
+            OutputField(name="rsvrtp", description="水库类型(4-大型/3-中型/1、2-小型)"),
+            OutputField(name="fsrs", description="防汛限制水位信息数组，里面的fsltdz为特定时间的汛限水位"),
         ]
     
     async def execute(self, **kwargs) -> ToolResult:
