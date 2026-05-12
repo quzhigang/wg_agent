@@ -1,0 +1,69 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: WEIGONG BASIN FORECAST
+      - heading "全流域洪水预报结果" [level=1] [ref=e6]
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]: 方案名称
+        - generic "加载中" [ref=e10]
+      - generic [ref=e11]:
+        - generic [ref=e12]: 水库预警
+        - generic [ref=e13]:
+          - generic [ref=e14]:
+            - generic [ref=e15]: 超汛限水位
+            - generic [ref=e16]: "|"
+            - generic [ref=e17]: "--座"
+          - generic [ref=e18]:
+            - generic [ref=e19]: 超防洪高水位
+            - generic [ref=e20]: "|"
+            - generic [ref=e21]: "--座"
+      - generic [ref=e22]:
+        - generic [ref=e23]: 河道预警
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - generic [ref=e26]: 超警戒水位
+            - generic [ref=e27]: "|"
+            - generic [ref=e28]: "--处"
+          - generic [ref=e29]:
+            - generic [ref=e30]: 超保证水位
+            - generic [ref=e31]: "|"
+            - generic [ref=e32]: "--处"
+      - generic [ref=e33]:
+        - generic [ref=e34]: 蓄滞洪区预警
+        - generic [ref=e35]:
+          - generic [ref=e36]:
+            - generic [ref=e37]: 启用
+            - generic [ref=e38]: "|"
+            - generic [ref=e39]: "--处"
+          - generic [ref=e40]:
+            - generic [ref=e41]: 未启用
+            - generic [ref=e42]: "|"
+            - generic [ref=e43]: "--处"
+  - main [ref=e44]:
+    - generic [ref=e45]:
+      - generic [ref=e46]:
+        - generic [ref=e47]: 流域地图
+        - generic [ref=e48]: 加载中
+      - generic [ref=e50]:
+        - application [ref=e51]
+        - generic:
+          - generic [ref=e52]:
+            - generic "放大" [ref=e53] [cursor=pointer]
+            - generic "缩小" [ref=e54] [cursor=pointer]
+          - generic [ref=e56]:
+            - text: Powered by
+            - link "Esri" [ref=e57] [cursor=pointer]:
+              - /url: https://www.esri.com/
+    - generic [ref=e58]:
+      - generic [ref=e59]:
+        - generic [ref=e60]: 预报结果
+        - generic [ref=e61]: 等待数据
+      - tablist [ref=e62]:
+        - button "水库" [ref=e63] [cursor=pointer]
+        - button "河道" [ref=e64] [cursor=pointer]
+        - button "蓄滞洪区" [ref=e65] [cursor=pointer]
+      - generic [ref=e67]: 正在获取全流域洪水预报结果...
+    - generic [ref=e71]:
+      - generic [ref=e72]: 过程曲线
+      - generic [ref=e73]: 请选择对象

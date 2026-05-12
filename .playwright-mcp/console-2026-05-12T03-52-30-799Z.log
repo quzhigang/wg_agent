@@ -1,0 +1,2 @@
+[    2849ms] [INFO] 全流域关键对象: {maxReservoir: 陈家院水库, maxReach: 黄土岗} @ http://localhost:8000/ui/basin_module/js/main.js?_t=1772280000000:179
+[   10340ms] [INFO] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://js.arcgis.com/4.29/esri/themes/base/fonts/fonts/b8b15cdf-85d1-4120-8daa-48863d803939.woff2 @ http://localhost:8000/ui/basin_module/index.html?_t=2:0

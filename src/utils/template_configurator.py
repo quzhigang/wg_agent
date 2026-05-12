@@ -271,9 +271,9 @@ class TemplateConfigurator:
         Returns:
             模板访问 URL
         """
-        # 提取模板目录名
+        # web/web_templates 下的每个模板目录会在 FastAPI 中挂载到 /ui/{dir}
         template_dir = Path(template_path).parent.name
-        return f"/static/web_templates/{template_dir}/index.html"
+        return f"/ui/{template_dir}/index.html"
 
     def reset_template(
         self,

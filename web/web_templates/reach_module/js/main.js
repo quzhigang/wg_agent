@@ -12,10 +12,10 @@ const API_URLS = {
 
 // 本模板所需参数，包括方案名称、站点名称、站点stcd和认证Token
 const DEFAULT_PARAMS = {
-    planCode: 'model_20260228193508',
+    planCode: 'model_auto_20250701120000',
     stcd: '31004900',
     reservoirName: '修武站', // 统一定义站点名称
-    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI3YTE4MjFkOS1hMzIxLTQ4MmEtYmNmOC00MDIxMjMyYjY2MGEiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzI4ODI1NTA4ODIsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc3MjI3Nzc1MCwiZXhwIjoxNzcyODgyNTUwfQ.ImFUoYWr9NoRftQBfRJBqutLAZ1VRfMFxQsKG4HB_IBowM6wU9_HLGt_eJ_f30jRDmr8NN5c8rR2zIFR2u4gWA' // 认证Token
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI4MjM4MWVjYi0yYzViLTQ1ZTItOTJjYi1iM2M1OWY3ZjhkNWIiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzkxNzIxMjU4MjgsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc3ODU2NzMyNSwiZXhwIjoxNzc5MTcyMTI1fQ.AUjo7Za3K304TeU2bKO9GnqzljKtP4asfQIhRCvgf3mK0lMM-gGT3hJFhjOPmKV3bt_-jENJ8fYvC6O2i4HN5w' // 认证Token
 };
 
 // 主入口函数

@@ -1,0 +1,5 @@
+[     570ms] [ERROR] Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID @ https://map.slt.henan.gov.cn/geoscene/sharing/rest/portals/self?f=json&culture=zh-cn:0
+[     571ms] [ERROR] [esri.WebMap] #load() Failed to load web map f @ https://js.arcgis.com/4.29/:131
+[     633ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005550:0
+[   48227ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005580:0
+[   72003ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31004600:0

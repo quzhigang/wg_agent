@@ -1,0 +1,51 @@
+[    3697ms] [INFO] 全流域关键对象: {maxReservoir: 陈家院水库, maxReach: 黄土岗} @ http://localhost:8000/ui/basin_module/js/main.js?_t=1772280000000:174
+[    4421ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005550:0
+[    4476ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005580:0
+[    4530ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31006000:0
+[    4592ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31004600:0
+[    4652ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31004950:0
+[    4705ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=gshsk:0
+[    4760ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005485:0
+[    4811ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31006050:0
+[    4865ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005200:0
+[    4917ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005480:0
+[    4967ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005110:0
+[    5018ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005650:0
+[    5068ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005530:0
+[    5133ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31005500:0
+[    5184ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31006700:0
+[    5238ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31006950:0
+[    5289ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31006850:0
+[    5341ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31006570:0
+[    5364ms] [ERROR] Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID @ https://map.slt.henan.gov.cn/geoscene/sharing/rest/portals/self?f=json&culture=zh-cn:0
+[    5365ms] [ERROR] [esri.WebMap] #load() Failed to load web map f @ https://js.arcgis.com/4.29/:131
+[    5407ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_res_base&stcd=31006500:0
+[    5462ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31006302:0
+[    5510ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31004300:0
+[    5559ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31003910:0
+[    5607ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31004000:0
+[    5632ms] [INFO] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://js.arcgis.com/4.29/esri/themes/base/fonts/fonts/09ab0626-bb45-4650-acc8-0182d693df02.woff2 @ https://js.arcgis.com/4.29/esri/views/MapView.js:34
+[    5668ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31006410:0
+[    5718ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=SZ27:0
+[    5769ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31005700:0
+[    5820ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_qh:0
+[    5870ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31006900:0
+[    5927ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=HP0074105220008064:0
+[    5979ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_ayh:0
+[    6036ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31003700:0
+[    6088ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31006200:0
+[    6142ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31003600:0
+[    6190ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31004900:0
+[    6242ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=31006600:0
+[    6289ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=HP0074107210000029:0
+[    6340ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=SZ24:0
+[    6391ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=SZ42:0
+[    6453ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=SZ33:0
+[    6503ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_dsh:0
+[    6556ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_sanmh:0
+[    6625ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_yh:0
+[    6687ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_smh:0
+[    6739ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_bqh:0
+[    6807ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_ch:0
+[    6859ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_tyh:0
+[    6923ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:8000/proxy/map/location?ref_table=geo_st_base&stcd=nsbd_th:0

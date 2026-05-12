@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全流域洪水预报结果展示</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/dark/main.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/echarts.min.js"></script>
+    <script src="https://js.arcgis.com/4.29/"></script>
+    <link rel="icon" href="data:;base64,=">
+</head>
+<body>
+    <div class="basin-shell">
+        <header class="basin-header">
+            <div>
+                <div class="eyebrow">WEIGONG BASIN FORECAST</div>
+                <h1 id="pageTitle">全流域洪水预报结果</h1>
+            </div>
+            <div class="header-metrics" id="summaryMetrics"></div>
+        </header>
+
+        <main class="basin-layout">
+            <section class="panel map-panel">
+                <div class="panel-title">
+                    <span>流域地图</span>
+                    <small id="mapStatus">加载中</small>
+                </div>
+                <div id="viewDiv"></div>
+            </section>
+
+            <section class="panel feature-panel">
+                <div class="panel-title">
+                    <span>预报结果</span>
+                    <small id="featureStatus">等待数据</small>
+                </div>
+                <div class="category-tabs" role="tablist">
+                    <button class="tab-button active" data-type="reservoir">水库</button>
+                    <button class="tab-button" data-type="reach">河道</button>
+                    <button class="tab-button" data-type="detention">蓄滞洪区</button>
+                </div>
+                <div id="featureList" class="feature-list"></div>
+            </section>
+
+            <section class="panel chart-panel">
+                <div class="chart-head">
+                    <div>
+                        <div class="panel-title inline-title">
+                            <span id="chartTitle">过程曲线</span>
+                            <small id="chartSubtitle">请选择对象</small>
+                        </div>
+                    </div>
+                    <div id="detailMetrics" class="detail-metrics"></div>
+                </div>
+                <div id="chartDiv"></div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="js/main.js?_t=1778577574064"></script>
+</body>
+</html>

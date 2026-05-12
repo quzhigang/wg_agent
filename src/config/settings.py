@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     # ===========================================
     # LLM Configuration - 默认配置
     # ===========================================
-    openai_api_key: str = "sk-fYNBIb1rjJveHJpsVxhb27NKyMOIa9SwRrr8U6lxFGCztIC2"
-    openai_api_base: str = "https://max.openai365.top/v1"
-    openai_model_name: str = "gemini-3-flash"
+    openai_api_key: str = "sk-4ee9cb16572b5af2e6093c15ae324bebdb883ecd030444f2425e4f7b14c34a6e"
+    openai_api_base: str = "https://api.lingshuai.cc/v1"
+    openai_model_name: str = "gpt-5.5"
     openai_temperature: float = 0.7
     openai_max_tokens: int = 4096
 

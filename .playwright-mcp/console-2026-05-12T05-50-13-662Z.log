@@ -1,0 +1,2 @@
+[     492ms] [ERROR] Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID @ https://map.slt.henan.gov.cn/geoscene/sharing/rest/portals/self?f=json&culture=zh-cn:0
+[     492ms] [ERROR] [esri.WebMap] #load() Failed to load web map f @ https://js.arcgis.com/4.29/:131

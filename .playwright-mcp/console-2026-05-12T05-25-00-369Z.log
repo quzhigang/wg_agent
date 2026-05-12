@@ -1,0 +1,3 @@
+[     523ms] [INFO] 全流域关键对象: {maxReservoir: 陈家院水库, maxReach: 元村} @ http://localhost:8000/ui/basin_module/js/main.js?_t=1772280000000:251
+[     668ms] [ERROR] Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID @ https://map.slt.henan.gov.cn/geoscene/sharing/rest/portals/self?f=json&culture=zh-cn:0
+[     668ms] [ERROR] [esri.WebMap] #load() Failed to load web map f @ https://js.arcgis.com/4.29/:131
