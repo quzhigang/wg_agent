@@ -18,6 +18,8 @@
 13. 传感器数据过程查询接口
 14. 无人机设备状态查询接口
 15. 短信发送接口
+16. 水库当前库容汇总工具
+17. 水库当前出流汇总工具
 
 所有接口的基础地址为: http://10.20.2.153
 """
@@ -551,6 +553,398 @@ class QueryReservoirProcessTool(BaseTool):
         except Exception as e:
             logger.error(f"水库水情过程查询失败: {e}")
             return ToolResult(success=False, error=str(e))
+
+
+class SumReservoirCurrentStorageTool(BaseTool):
+    """按水库规模汇总实时蓄水量。"""
+
+    @property
+    def name(self) -> str:
+        return "sum_reservoir_current_storage"
+
+    @property
+    def description(self) -> str:
+        return "根据水库基础信息和水库最新水情数据，筛选大型、中型等指定规模水库，并汇总实时蓄水量w"
+
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="reservoir_info",
+                type="array",
+                description="水库基础信息列表，需包含stcd、res_name、eng_scal或eng_grad",
+                required=True
+            ),
+            ToolParameter(
+                name="realtime_water",
+                type="array",
+                description="水库最新水情列表，需包含stcd、stnm、w、tm",
+                required=True
+            ),
+            ToolParameter(
+                name="scale_codes",
+                type="array",
+                description="需要统计的水库规模编码，默认['2','3']，分别对应大型、中型",
+                required=False,
+                default=["2", "3"]
+            )
+        ]
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="total_storage_10k_m3", description="当前库容/蓄水量合计(万m³)"),
+            OutputField(name="total_storage_100m_m3", description="当前库容/蓄水量合计(亿m³)"),
+            OutputField(name="reservoir_count", description="纳入统计的水库数量"),
+            OutputField(name="missing_current_count", description="缺少实时库容数据的水库数量"),
+            OutputField(name="reservoirs", description="纳入统计的水库明细"),
+            OutputField(name="missing_current", description="缺少实时数据的目标水库"),
+        ]
+
+    async def execute(self, **kwargs) -> ToolResult:
+        reservoir_info = self._unwrap_data(kwargs.get("reservoir_info"))
+        realtime_water = self._unwrap_data(kwargs.get("realtime_water"))
+        scale_codes = {str(code) for code in (kwargs.get("scale_codes") or ["2", "3"])}
+
+        if not isinstance(reservoir_info, list):
+            return ToolResult(success=False, error="reservoir_info必须是列表")
+        if not isinstance(realtime_water, list):
+            return ToolResult(success=False, error="realtime_water必须是列表")
+
+        target_info = {}
+        for item in reservoir_info:
+            if not isinstance(item, dict):
+                continue
+            stcd = self._norm_text(item.get("stcd"))
+            scale_code = self._norm_text(item.get("eng_scal") or item.get("eng_grad"))
+            if stcd and scale_code in scale_codes:
+                target_info[stcd] = {
+                    "stcd": stcd,
+                    "name": item.get("res_name") or item.get("stnm") or item.get("name"),
+                    "scale_code": scale_code,
+                    "scale_name": self._scale_name(scale_code),
+                }
+
+        total_storage = 0.0
+        reservoirs = []
+        seen_codes = set()
+
+        for item in realtime_water:
+            if not isinstance(item, dict):
+                continue
+            stcd = self._norm_text(item.get("stcd"))
+            if not stcd or stcd not in target_info:
+                continue
+
+            storage = self._to_float(item.get("w"))
+            if storage is None:
+                continue
+
+            info = target_info[stcd]
+            total_storage += storage
+            seen_codes.add(stcd)
+            reservoirs.append({
+                "stcd": stcd,
+                "name": item.get("stnm") or info.get("name"),
+                "scale_code": info.get("scale_code"),
+                "scale_name": info.get("scale_name"),
+                "storage_10k_m3": storage,
+                "water_level_m": self._to_float(item.get("rz")),
+                "data_time": item.get("tm"),
+            })
+
+        missing_current = [
+            info for stcd, info in target_info.items()
+            if stcd not in seen_codes
+        ]
+
+        reservoirs.sort(key=lambda row: (row.get("scale_code") or "", row.get("name") or ""))
+
+        return ToolResult(
+            success=True,
+            data={
+                "summary": "已按当前水库水情w字段汇总大型、中型水库当前库容",
+                "scale_codes": sorted(scale_codes),
+                "scale_names": [self._scale_name(code) for code in sorted(scale_codes)],
+                "reservoir_count": len(reservoirs),
+                "target_reservoir_count": len(target_info),
+                "missing_current_count": len(missing_current),
+                "total_storage_10k_m3": round(total_storage, 3),
+                "total_storage_100m_m3": round(total_storage / 10000, 6),
+                "unit": {
+                    "source_field": "query_reservoir_last.w",
+                    "storage_10k_m3": "万m³",
+                    "storage_100m_m3": "亿m³"
+                },
+                "reservoirs": reservoirs,
+                "missing_current": missing_current,
+            },
+            metadata={
+                "calculation": "sum(query_reservoir_last.w) where get_reservoir_info.eng_scal in scale_codes"
+            }
+        )
+
+    @staticmethod
+    def _unwrap_data(value: Any) -> Any:
+        if isinstance(value, dict) and "data" in value:
+            return value.get("data")
+        return value
+
+    @staticmethod
+    def _norm_text(value: Any) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @staticmethod
+    def _to_float(value: Any) -> Optional[float]:
+        if value is None or value == "":
+            return None
+        try:
+            return float(str(value).replace(",", "").strip())
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _scale_name(code: str) -> str:
+        return {
+            "1": "大(1)型",
+            "2": "大(2)型",
+            "3": "中型",
+            "4": "小(1)型",
+            "5": "小(2)型",
+        }.get(str(code), f"规模{code}")
+
+
+class SumReservoirCurrentOutflowTool(BaseTool):
+    """按水库规模汇总实时库容和出库流量。"""
+
+    @property
+    def name(self) -> str:
+        return "sum_reservoir_current_outflow"
+
+    @property
+    def description(self) -> str:
+        return "根据水库基础信息和水库最新水情数据，筛选大型、中型等指定规模水库，并汇总当前库容w和当前出库流量otq"
+
+    @property
+    def category(self) -> ToolCategory:
+        return ToolCategory.HYDRO_MONITOR
+
+    @property
+    def parameters(self) -> List[ToolParameter]:
+        return [
+            ToolParameter(
+                name="reservoir_info",
+                type="array",
+                description="水库基础信息列表，需包含stcd、res_name、eng_scal或eng_grad",
+                required=True
+            ),
+            ToolParameter(
+                name="realtime_water",
+                type="array",
+                description="水库最新水情列表，需包含stcd、stnm、w、otq、tm",
+                required=True
+            ),
+            ToolParameter(
+                name="scale_codes",
+                type="array",
+                description="需要统计的水库规模编码，默认['2','3']，分别对应大型、中型",
+                required=False,
+                default=["2", "3"]
+            )
+        ]
+
+    @property
+    def output_fields(self) -> list:
+        return [
+            OutputField(name="total_storage_10k_m3", description="当前库容/蓄水量合计(万m³)"),
+            OutputField(name="total_storage_100m_m3", description="当前库容/蓄水量合计(亿m³)"),
+            OutputField(name="total_outflow_m3_s", description="当前出库流量/泄洪流量合计(m³/s)"),
+            OutputField(name="reservoir_count", description="纳入统计的水库数量"),
+            OutputField(name="valid_outflow_count", description="有有效出流数据的水库数量"),
+            OutputField(name="missing_outflow_count", description="缺少出流数据的水库数量"),
+            OutputField(name="reservoirs", description="纳入统计的水库明细"),
+            OutputField(name="missing_outflow", description="缺少出流数据的目标水库"),
+        ]
+
+    async def execute(self, **kwargs) -> ToolResult:
+        reservoir_info = SumReservoirCurrentStorageTool._unwrap_data(kwargs.get("reservoir_info"))
+        realtime_water = SumReservoirCurrentStorageTool._unwrap_data(kwargs.get("realtime_water"))
+        scale_codes = {str(code) for code in (kwargs.get("scale_codes") or ["2", "3"])}
+
+        if not isinstance(reservoir_info, list):
+            return ToolResult(success=False, error="reservoir_info必须是列表")
+        if not isinstance(realtime_water, list):
+            return ToolResult(success=False, error="realtime_water必须是列表")
+
+        target_info = {}
+        for item in reservoir_info:
+            if not isinstance(item, dict):
+                continue
+            stcd = SumReservoirCurrentStorageTool._norm_text(item.get("stcd"))
+            scale_code = SumReservoirCurrentStorageTool._norm_text(item.get("eng_scal") or item.get("eng_grad"))
+            if stcd and scale_code in scale_codes:
+                target_info[stcd] = {
+                    "stcd": stcd,
+                    "name": item.get("res_name") or item.get("stnm") or item.get("name"),
+                    "scale_code": scale_code,
+                    "scale_name": SumReservoirCurrentStorageTool._scale_name(scale_code),
+                    "longitude": SumReservoirCurrentStorageTool._to_float(item.get("longitude") or item.get("lgtd")),
+                    "latitude": SumReservoirCurrentStorageTool._to_float(item.get("latitude") or item.get("lttd")),
+                }
+
+        total_storage = 0.0
+        total_outflow = 0.0
+        reservoirs = []
+        missing_outflow = []
+        seen_codes = set()
+        valid_outflow_count = 0
+
+        realtime_by_stcd = {
+            SumReservoirCurrentStorageTool._norm_text(item.get("stcd")): item
+            for item in realtime_water
+            if isinstance(item, dict) and item.get("stcd")
+        }
+
+        for stcd, info in target_info.items():
+            item = realtime_by_stcd.get(stcd)
+            if not item:
+                missing_outflow.append({
+                    **info,
+                    "reason": "未匹配到最新水情数据"
+                })
+                continue
+
+            seen_codes.add(stcd)
+            storage = SumReservoirCurrentStorageTool._to_float(item.get("w"))
+            outflow = SumReservoirCurrentStorageTool._to_float(item.get("otq"))
+            if storage is not None:
+                total_storage += storage
+            if outflow is not None:
+                total_outflow += outflow
+                valid_outflow_count += 1
+            else:
+                missing_outflow.append({
+                    **info,
+                    "data_time": item.get("tm"),
+                    "reason": "otq为空"
+                })
+
+            longitude = SumReservoirCurrentStorageTool._to_float(item.get("lgtd") or item.get("longitude") or info.get("longitude"))
+            latitude = SumReservoirCurrentStorageTool._to_float(item.get("lttd") or item.get("latitude") or info.get("latitude"))
+            reservoir_row = {
+                "stcd": stcd,
+                "name": item.get("stnm") or info.get("name"),
+                "scale_code": info.get("scale_code"),
+                "scale_name": info.get("scale_name"),
+                "storage_10k_m3": storage,
+                "storage_display": storage if storage is not None else "缺测",
+                "outflow_m3_s": outflow,
+                "outflow_display": outflow if outflow is not None else "缺测",
+                "inflow_m3_s": SumReservoirCurrentStorageTool._to_float(item.get("inq")),
+                "inflow_display": SumReservoirCurrentStorageTool._to_float(item.get("inq")) if SumReservoirCurrentStorageTool._to_float(item.get("inq")) is not None else "缺测",
+                "water_level_m": SumReservoirCurrentStorageTool._to_float(item.get("rz")),
+                "water_level_display": SumReservoirCurrentStorageTool._to_float(item.get("rz")) if SumReservoirCurrentStorageTool._to_float(item.get("rz")) is not None else "缺测",
+                "data_time": item.get("tm"),
+                "longitude": longitude,
+                "latitude": latitude,
+            }
+            reservoirs.append(reservoir_row)
+
+        reservoirs.sort(key=lambda row: (row.get("scale_code") or "", row.get("name") or ""))
+        missing_outflow.sort(key=lambda row: (row.get("scale_code") or "", row.get("name") or ""))
+
+        data_time_values = sorted({
+            str(row.get("data_time")) for row in reservoirs if row.get("data_time")
+        })
+        total_storage_10k = round(total_storage, 3)
+        total_storage_100m = round(total_storage / 10000, 6)
+        total_outflow_rounded = round(total_outflow, 3)
+        conclusion_text = (
+            f"本次统计大型、中型水库{len(reservoirs)}座，"
+            f"当前总库容{total_storage_10k}万m³"
+            f"（{total_storage_100m}亿m³），"
+            f"当前总出流{total_outflow_rounded}m³/s；"
+            f"其中{valid_outflow_count}座有有效出流数据，"
+            f"{len(missing_outflow)}座缺少出流数据。"
+        )
+        map_markers = []
+        for row in reservoirs:
+            if row.get("longitude") is None or row.get("latitude") is None:
+                continue
+            outflow_text = row.get("outflow_display")
+            map_markers.append({
+                "lng": row.get("longitude"),
+                "lat": row.get("latitude"),
+                "name": row.get("name"),
+                "title": row.get("name"),
+                "status": "warning" if row.get("outflow_m3_s") is None else "normal",
+                "content": (
+                    f"规模：{row.get('scale_name', '')}<br>"
+                    f"当前库容：{row.get('storage_display')}万m³<br>"
+                    f"当前出流：{outflow_text}m³/s<br>"
+                    f"数据时间：{row.get('data_time') or '--'}"
+                )
+            })
+        map_lngs = [m["lng"] for m in map_markers]
+        map_lats = [m["lat"] for m in map_markers]
+        map_center = [
+            round(sum(map_lngs) / len(map_lngs), 6),
+            round(sum(map_lats) / len(map_lats), 6)
+        ] if map_markers else [114.057818, 35.826884]
+
+        return ToolResult(
+            success=True,
+            data={
+                "summary": "已按当前水库水情w和otq字段汇总大型、中型水库当前库容与当前出流",
+                "scale_codes": sorted(scale_codes),
+                "scale_names": [SumReservoirCurrentStorageTool._scale_name(code) for code in sorted(scale_codes)],
+                "reservoir_count": len(reservoirs),
+                "target_reservoir_count": len(target_info),
+                "valid_outflow_count": valid_outflow_count,
+                "missing_outflow_count": len(missing_outflow),
+                "missing_current_count": len(target_info) - len(seen_codes),
+                "total_storage_10k_m3": total_storage_10k,
+                "total_storage_100m_m3": total_storage_100m,
+                "total_outflow_m3_s": total_outflow_rounded,
+                "data_time_range": {
+                    "earliest": data_time_values[0] if data_time_values else None,
+                    "latest": data_time_values[-1] if data_time_values else None,
+                },
+                "unit": {
+                    "source_storage_field": "query_reservoir_last.w",
+                    "source_outflow_field": "query_reservoir_last.otq",
+                    "storage_10k_m3": "万m³",
+                    "storage_100m_m3": "亿m³",
+                    "outflow_m3_s": "m³/s"
+                },
+                "conclusion_text": conclusion_text,
+                "conclusion_markdown": [
+                    f"本次统计大型、中型水库{len(reservoirs)}座，当前总库容 **{total_storage_10k}万m³**（{total_storage_100m}亿m³），当前总出流 **{total_outflow_rounded}m³/s**。",
+                    "- 数据口径：大型、中型水库按基础信息 `eng_scal/eng_grad = 2 或 3` 筛选。",
+                    f"- 有效出流：{valid_outflow_count}座；出流缺测：{len(missing_outflow)}座。",
+                    f"- 时间范围：{data_time_values[0] if data_time_values else '--'} 至 {data_time_values[-1] if data_time_values else '--'}。"
+                ],
+                "reservoirs": reservoirs,
+                "reservoirs_brief": reservoirs[:20],
+                "latest_water_brief": reservoirs,
+                "missing_outflow": missing_outflow,
+                "map_info": {
+                    "name": "卫共流域大型、中型水库",
+                    "center": map_center,
+                    "markers": map_markers,
+                },
+                "markers": map_markers,
+            },
+            metadata={
+                "calculation": "sum(query_reservoir_last.w, query_reservoir_last.otq) where get_reservoir_info.eng_scal in scale_codes"
+            }
+        )
 
 
 # =============================================================================
@@ -1519,6 +1913,8 @@ def register_hydro_monitor_tools():
     # 二、水库水情监测接口
     register_tool(QueryReservoirLastTool())
     register_tool(QueryReservoirProcessTool())
+    register_tool(SumReservoirCurrentStorageTool())
+    register_tool(SumReservoirCurrentOutflowTool())
     
     # 三、河道水情监测接口
     register_tool(QueryRiverLastTool())
@@ -1542,7 +1938,7 @@ def register_hydro_monitor_tools():
     # 八、告警短信接口
     register_tool(SendSmsTool())
     
-    logger.info("水雨情监测工具注册完成，共15个工具")
+    logger.info("水雨情监测工具注册完成，共17个工具")
 
 
 # 模块加载时自动注册

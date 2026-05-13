@@ -1,2 +1,167 @@
-2026-05-12 17:19:21.712 | INFO     | src.agents.graph:run_agent_stream:877 | 流式运行智能体 - 会话: 09404cfd-b37d-4f70-bbe5-9793a544b8b8
-2026-05-12 17:19:21.717 | INFO     | src.agents.planner:analyze_intent:712 | 开始分析用户意图: 告诉我2023年7月29日那场降雨人工预报的洪水结果...
+2026-05-13 13:57:13.610 | INFO     | src.agents.graph:run_agent_stream:877 | 流式运行智能体 - 会话: dbbec347-96ec-4319-bab8-2ac4225f3db0
+2026-05-13 13:57:13.613 | INFO     | src.agents.planner:analyze_intent:712 | 开始分析用户意图: 对2023年7月29日的那场降雨进行一次人工预报，最后告诉我盘石头水库洪水预报结果。...
+2026-05-13 13:57:14.987 | INFO     | src.agents.planner:analyze_intent:743 | 意图分析结果: {'intent_category': 'business', 'confidence': 0.95, 'entities': {'object': '盘石头水库', 'object_type': '水库', 'action': '启动人工预报并查询洪水预报结果', 'time': '2023年7月29日'}, 'target_kbs': ['catchment_basin', 'water_project', 'monitor_site', 'history_flood', 'hydro_model', 'business_workflow']}
+2026-05-13 13:57:14.987 | INFO     | src.agents.planner:planner_node:2108 | 意图类别: business，进入第2阶段子意图分类
+2026-05-13 13:57:14.988 | INFO     | src.agents.planner:sub_intent_node:2125 | 执行第2阶段：业务子意图分类
+2026-05-13 13:57:14.989 | INFO     | src.agents.planner:classify_business_sub_intent:1235 | 执行业务子意图分类...
+2026-05-13 13:57:16.321 | INFO     | src.agents.planner:classify_business_sub_intent:1263 | 业务子意图分类结果: {'business_sub_intent': 'flood_forecast', 'confidence': 0.95, 'reason': '用户消息明确要求对2023年7月29日的降雨进行人工预报，并查询盘石头水库的洪水预报结果，涉及启动洪水预报计算和查询预报结果，符合flood_forecast意图。'}
+2026-05-13 13:57:16.321 | INFO     | src.agents.planner:sub_intent_node:2130 | 子意图分类结果: flood_forecast
+2026-05-13 13:57:16.322 | INFO     | src.agents.planner:workflow_match_node:2146 | 执行第3阶段：工作流匹配
+2026-05-13 13:57:16.322 | INFO     | src.agents.planner:check_workflow_match:1294 | 执行第3阶段：业务工作流选择...
+2026-05-13 13:57:16.322 | INFO     | src.agents.planner:check_workflow_match:1305 | 使用已分类的子意图: flood_forecast
+2026-05-13 13:57:16.322 | INFO     | src.agents.planner:check_workflow_match:1336 | 对象类型已知: 水库，但仍需获取stcd...
+2026-05-13 13:57:16.322 | INFO     | src.agents.planner:_resolve_object_type:949 | 对象类型已知(水库)但缺少stcd，查询数据库获取stcd...
+2026-05-13 13:57:16.333 | INFO     | src.agents.planner:_resolve_object_type:994 | 数据库返回多种类型: ['无人机', '视频监测', '雨量站', '水库水文站', '河道水文站']，需要LLM判断
+2026-05-13 13:57:16.694 | INFO     | src.agents.planner:_llm_select_station_type:874 | LLM选择站点类型: 水库水文站 (匹配: 水库水文站)
+2026-05-13 13:57:16.694 | INFO     | src.agents.planner:_resolve_object_type:1007 | LLM选择类型: 盘石头水库 -> 水库水文站 (stcd: 31005650)
+2026-05-13 13:57:16.694 | INFO     | src.agents.planner:check_workflow_match:1344 | 根据子意图 flood_forecast 筛选预定义工作流
+2026-05-13 13:57:16.735 | INFO     | src.workflows.workflow_vector_index:search:242 | 工作流向量检索完成，查询: '对2023年7月29日的那场降雨进行一次人工预报，最后告诉我盘石头水库洪水预报结果。...', 子意图: flood_forecast, 返回 0 个结果
+2026-05-13 13:57:16.736 | INFO     | src.agents.planner:_get_saved_workflows_description:1687 | 向量检索无结果，回退到数据库查询
+2026-05-13 13:57:16.740 | INFO     | src.agents.planner:check_workflow_match:1351 | 根据子意图 flood_forecast 和用户消息进行工作流检索
+2026-05-13 13:57:19.256 | INFO     | src.agents.planner:check_workflow_match:1379 | 工作流选择结果: {'matched_workflow': 'flood_manualforecast_getresult', 'saved_workflow_id': None, 'output_type': 'text'}
+2026-05-13 13:57:19.257 | INFO     | src.agents.planner:check_workflow_match:1390 | LLM选择工作流: flood_manualforecast_getresult
+2026-05-13 13:57:19.257 | INFO     | src.agents.planner:check_workflow_match:1397 | 工作流 flood_manualforecast_getresult 包含 15 个步骤
+2026-05-13 13:57:19.257 | INFO     | src.agents.planner:workflow_match_node:2161 | 匹配到工作流: flood_manualforecast_getresult，直接执行
+2026-05-13 13:57:19.258 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:19.258 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:19.259 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:19.259 | INFO     | src.agents.graph:_execute_workflow_step:287 | 初始化工作流 flood_manualforecast_getresult 执行环境
+2026-05-13 13:57:19.259 | INFO     | src.workflows.flood_manualforecast_getresult:prepare_execution:1780 | 初始化人工预报工作流执行环境
+2026-05-13 13:57:19.259 | INFO     | src.workflows.flood_manualforecast_getresult:_parse_date_from_message:966 | 解析到完整日期: 2023年7月29日
+2026-05-13 13:57:19.260 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:19.260 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:19.260 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:19.261 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 1/15: 登录系统获取认证token
+2026-05-13 13:57:19.261 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 1
+2026-05-13 13:57:19.261 | INFO     | src.workflows.flood_manualforecast_getresult:_step_1_login:1894 | 执行步骤1: 登录系统获取认证token
+2026-05-13 13:57:19.261 | INFO     | src.workflows.flood_manualforecast_getresult:_step_1_login:1909 | 登录成功，获取到认证token
+2026-05-13 13:57:19.464 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:19.465 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:19.465 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:19.465 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 2/15: 解析会话参数
+2026-05-13 13:57:19.465 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 2
+2026-05-13 13:57:19.465 | INFO     | src.workflows.flood_manualforecast_getresult:_step_2_parse_params:1920 | 解析到会话参数: {'forecast_target': {'type': 'reservoir', 'name': '盘石头水库', 'id': None}, 'rain_start_time': '2023-07-27 00:00:00', 'rain_end_time': '2023-08-01 00:00:00', 'forecast_start_time': '2023-07-29 00:00:00', 'forecast_end_time': '2023-08-02 00:00:00', 'rain_condition': '对2023年7月29日的那场降雨进行一次人工预报，最后告诉我盘石头水库洪水预报结果。', 'total_rainfall': None, 'is_future_forecast': False}
+2026-05-13 13:57:19.668 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:19.668 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:19.668 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:19.668 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 3/15: 获取历史面雨量过程
+2026-05-13 13:57:19.668 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 3
+2026-05-13 13:57:20.100 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:20.100 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:20.100 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:20.100 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 4/15: 获取具体降雨起止时间
+2026-05-13 13:57:20.100 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 4
+2026-05-13 13:57:20.101 | INFO     | src.workflows.flood_manualforecast_getresult:_analyze_rain_time_range:1161 | _analyze_rain_time_range: 数据类型: dict, 数据预览: {'t': ['2023-07-27 00:00:00', '2023-07-27 01:00:00', '2023-07-27 02:00:00', '2023-07-27 03:00:00', '2023-07-27 04:00:00', '2023-07-27 05:00:00', '2023-07-27 06:00:00', '2023-07-27 07:00:00', '2023-07-27 08:00:00', '2023-07-27 09:00:00', '2023-07-27 10:00:00', '2023-07-27 11:00:00', '2023-07-27 12:00:00', '2023-07-27 13:00:00', '2023-07-27 14:00:00', '2023-07-27 15:00:00', '2023-07-27 16:00:00', '2023-07-27 17:00:00', '2023-07-27 18:00:00', '2023-07-27 19:00:00', '2023-07-27 20:00:00', '2023-07-2
+2026-05-13 13:57:20.101 | INFO     | src.workflows.flood_manualforecast_getresult:_analyze_rain_time_range:1198 | _analyze_rain_time_range: 检测到并行数组格式: 时间数组长度=121, 值数组长度=121
+2026-05-13 13:57:20.101 | INFO     | src.workflows.flood_manualforecast_getresult:_analyze_rain_time_range:1248 | _analyze_rain_time_range: 解析得到 121 个时间点
+2026-05-13 13:57:20.101 | INFO     | src.workflows.flood_manualforecast_getresult:_analyze_rain_time_range:1269 | _analyze_rain_time_range: 降雨核心时间索引=53, 时间=2023-07-29 05:00:00, 3小时累积=22.36mm
+2026-05-13 13:57:20.101 | INFO     | src.workflows.flood_manualforecast_getresult:_analyze_rain_time_range:1327 | _analyze_rain_time_range: 分析成功，降雨时间段: 2023-07-28 20:00:00 ~ 2023-08-01 00:00:00, 时间点数量: 77, 总降雨量: 209.80mm
+2026-05-13 13:57:20.313 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:20.313 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:20.313 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:20.313 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 5/15: 新建人工预报方案
+2026-05-13 13:57:20.313 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 5
+2026-05-13 13:57:21.740 | INFO     | src.workflows.flood_manualforecast_getresult:_step_5_create_plan:2024 | 创建方案成功，方案ID: model_20260513135722
+2026-05-13 13:57:21.741 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:21.741 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:21.742 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:21.742 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 6/15: 解析指定降雨过程
+2026-05-13 13:57:21.742 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 6
+2026-05-13 13:57:21.742 | INFO     | src.workflows.flood_manualforecast_getresult:_step_6_get_rain_pattern:2039 | 未指定降雨总量，逐小时降雨过程输出为null
+2026-05-13 13:57:21.951 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:21.951 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:21.951 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:21.951 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 7/15: 预报方案降雨设置
+2026-05-13 13:57:21.952 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 7
+2026-05-13 13:57:24.006 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:24.006 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:24.007 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:24.007 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 8/15: 预报方案边界条件设置
+2026-05-13 13:57:24.007 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 8
+2026-05-13 13:57:41.219 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:41.219 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:41.220 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:41.220 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 9/15: 预报方案初始条件设置
+2026-05-13 13:57:41.220 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 9
+2026-05-13 13:57:43.128 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:43.128 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:43.129 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:43.129 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 10/15: 预报方案闸站调度设置
+2026-05-13 13:57:43.129 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 10
+2026-05-13 13:57:44.251 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:44.252 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:44.252 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:44.252 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 11/15: 计算该人工预报方案
+2026-05-13 13:57:44.252 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 11
+2026-05-13 13:57:45.465 | INFO     | src.workflows.flood_manualforecast_getresult:_step_11_start_calc:2170 | 步骤11返回数据: None
+2026-05-13 13:57:45.466 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:45.466 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:45.466 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:45.466 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 12/15: 获取模型预计计算时间
+2026-05-13 13:57:45.466 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 12
+2026-05-13 13:57:45.508 | INFO     | src.workflows.flood_manualforecast_getresult:_step_12_get_expect_time:2199 | 模型预计计算时间: 115秒，最大轮询次数: 53
+2026-05-13 13:57:45.691 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:57:45.691 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:57:45.691 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:57:45.691 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 13/15: 监视人工预报方案计算状态
+2026-05-13 13:57:45.692 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 13
+2026-05-13 13:57:50.742 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (1/53): state=计算中
+2026-05-13 13:57:55.790 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (2/53): state=计算中
+2026-05-13 13:58:00.852 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (3/53): state=计算中
+2026-05-13 13:58:05.898 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (4/53): state=计算中
+2026-05-13 13:58:10.941 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (5/53): state=计算中
+2026-05-13 13:58:15.986 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (6/53): state=计算中
+2026-05-13 13:58:21.033 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (7/53): state=计算中
+2026-05-13 13:58:26.093 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (8/53): state=计算中
+2026-05-13 13:58:31.143 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (9/53): state=计算中
+2026-05-13 13:58:36.193 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (10/53): state=计算中
+2026-05-13 13:58:41.239 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (11/53): state=计算中
+2026-05-13 13:58:46.303 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (12/53): state=计算中
+2026-05-13 13:58:51.364 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (13/53): state=计算中
+2026-05-13 13:58:56.414 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (14/53): state=计算中
+2026-05-13 13:59:01.463 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (15/53): state=计算中
+2026-05-13 13:59:06.529 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (16/53): state=计算中
+2026-05-13 13:59:11.576 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (17/53): state=计算中
+2026-05-13 13:59:16.623 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (18/53): state=计算中
+2026-05-13 13:59:21.672 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (19/53): state=计算中
+2026-05-13 13:59:26.715 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (20/53): state=计算中
+2026-05-13 13:59:31.759 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (21/53): state=计算中
+2026-05-13 13:59:36.814 | INFO     | src.workflows.flood_manualforecast_getresult:_step_13_poll_status:2231 | 人工预报计算进度查询 (22/53): state=已完成
+2026-05-13 13:59:36.816 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:59:36.816 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:59:36.816 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:59:36.816 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 14/15: 获取该人工预报方案结果
+2026-05-13 13:59:36.816 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 14
+2026-05-13 13:59:37.046 | INFO     | src.agents.graph:workflow_executor_node:208 | 检查工作流执行...
+2026-05-13 13:59:37.046 | INFO     | src.agents.graph:workflow_executor_node:213 | DEBUG: matched_workflow=flood_manualforecast_getresult, saved_workflow_id=None
+2026-05-13 13:59:37.046 | INFO     | src.agents.graph:workflow_executor_node:219 | 执行工作流: flood_manualforecast_getresult
+2026-05-13 13:59:37.047 | INFO     | src.agents.graph:_execute_workflow_step:314 | 执行工作流 flood_manualforecast_getresult 步骤 15/15: 结果信息提取整理
+2026-05-13 13:59:37.047 | INFO     | src.workflows.flood_manualforecast_getresult:execute_step:1825 | 执行人工预报工作流步骤 15
+2026-05-13 13:59:37.249 | INFO     | src.agents.graph:_execute_workflow_step:382 | 工作流 flood_manualforecast_getresult 最后一步执行完成，执行收尾
+2026-05-13 13:59:37.249 | INFO     | src.workflows.flood_manualforecast_getresult:finalize_execution:1879 | 人工预报工作流执行完成，生成最终响应
+2026-05-13 13:59:37.254 | INFO     | src.agents.controller:synthesize_response:396 | 开始合成最终响应...
+2026-05-13 13:59:37.267 | INFO     | src.output.template_match_service:match_template:134 | 开始模板匹配，用户问题: 对2023年7月29日的那场降雨进行一次人工预报，最后告诉我盘石头水库洪水预报结果。..., 子意图: flood_forecast, 对象类型: 水库
+2026-05-13 13:59:37.313 | INFO     | src.output.template_vector_index:search:320 | 模板向量检索完成，查询: '对2023年7月29日的那场降雨进行一次人工预报，最后告诉我盘石头水库洪水预报结果。 flood_f...', 子意图: flood_forecast, 返回 3 个结果
+2026-05-13 13:59:37.313 | INFO     | src.output.template_match_service:match_template:149 | 向量检索返回 3 个候选模板
+2026-05-13 13:59:37.314 | INFO     | src.agents.graph:generate_text_node:536 | 执行文字生成节点...
+2026-05-13 13:59:39.115 | INFO     | src.output.template_match_service:match_template:184 | LLM选择模板: 单一水库的洪水预报、预演结果展示, 置信度: 0.92
+2026-05-13 13:59:39.115 | INFO     | src.agents.controller:generate_page_only:266 | 匹配到模板: 单一水库的洪水预报、预演结果展示
+2026-05-13 13:59:39.115 | INFO     | src.agents.controller:_prepare_template_data:769 | 提取 planCode: plan_id=model_20260513135722
+2026-05-13 13:59:39.115 | INFO     | src.output.page_generator:generate_page_with_template:859 | 使用模板生成页面: res_flood_resultshow, 模板路径: res_module/index.html, is_dynamic: False
+2026-05-13 13:59:39.115 | INFO     | src.output.page_generator:_update_predefined_template:944 | 更新预定义模板参数: res_flood_resultshow
+2026-05-13 13:59:39.116 | INFO     | src.output.page_generator:_update_predefined_template:1007 | 准备更新参数: ['planCode', 'stcd', 'reservoirName', 'token']
+2026-05-13 13:59:39.116 | INFO     | src.output.page_generator:_update_predefined_template:1044 | 更新参数 planCode = 'model_20260513135722'...
+2026-05-13 13:59:39.116 | INFO     | src.output.page_generator:_update_predefined_template:1044 | 更新参数 stcd = '31005650'...
+2026-05-13 13:59:39.116 | INFO     | src.output.page_generator:_update_predefined_template:1044 | 更新参数 reservoirName = '盘石头水库'...
+2026-05-13 13:59:39.117 | INFO     | src.output.page_generator:_update_predefined_template:1044 | 更新参数 token = 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5...
+2026-05-13 13:59:39.117 | INFO     | src.output.page_generator:_update_predefined_template:1050 | 预定义模板参数更新完成: web\web_templates\res_module\js\main.js
+2026-05-13 13:59:39.118 | INFO     | src.output.page_generator:_update_predefined_template:1067 | 更新 index.html 中 main.js 引用的缓存时间戳: 1778651979117
+2026-05-13 13:59:39.118 | INFO     | src.output.page_generator:_update_predefined_template:1081 | 预定义模板复用成功: /ui/res_module/index.html?_t=1778651979118
+2026-05-13 13:59:39.123 | INFO     | src.agents.controller:generate_page_only:311 | 使用模板生成页面成功: /ui/res_module/index.html?_t=1778651979118
+2026-05-13 13:59:40.206 | INFO     | src.agents.controller:generate_text_only:220 | LLM生成文字回复成功
+2026-05-13 13:59:40.206 | INFO     | src.agents.graph:generate_text_node:549 | 文字生成节点完成
+2026-05-13 13:59:41.073 | INFO     | src.api.proxy:get_map_location:84 | 代理请求地图坐标: ref_table=geo_res_base, stcd=31005650
+2026-05-13 13:59:41.129 | INFO     | src.api.proxy:get_map_location:108 | 获取到坐标: 经度=114.053761, 纬度=35.841512
+2026-05-13 14:30:43.602 | INFO     | src.api.system_info:get_tools_list:106 | 返回工具列表，共 179 个工具
+2026-05-13 14:31:20.763 | INFO     | src.main:lifespan:80 | 智能体正在关闭...
+2026-05-13 14:31:20.763 | INFO     | src.main:lifespan:81 | 智能体已关闭

@@ -10,7 +10,163 @@
 </head>
 <body>
     <div class="layout-grid">
-        <div class="iframe-container collapsed">
+        <div class="iframe-container">
+            <section id="questionExamplesPanel" class="question-examples-panel" aria-label="提问案例">
+                <div class="examples-hero">
+                    <div>
+                        <h1>智能体提问案例</h1>
+                        <div class="examples-kicker">点击问题后，智能体将直接回答该问题</div>
+                    </div>
+                </div>
+                <div class="examples-scroll">
+                    <div class="examples-row examples-row-top">
+                    <article class="example-category category-chat">
+                        <div class="category-heading">
+                            <span class="category-accent"></span>
+                            <span class="category-icon" aria-hidden="true">☲</span>
+                            <span class="category-dash"></span>
+                            <span class="category-index">一、</span>
+                            <h2>日常闲聊</h2>
+                        </div>
+                        <div class="question-grid compact-grid">
+                            <button class="example-question" data-question="你好">你好</button>
+                            <button class="example-question" data-question="你叫什么">你叫什么</button>
+                            <button class="example-question" data-question="你能做什么">你能做什么</button>
+                            <button class="example-question" data-question="介绍一下你自己">介绍一下你自己</button>
+                        </div>
+                    </article>
+
+                    <article class="example-category category-knowledge">
+                        <div class="category-heading">
+                            <span class="category-accent"></span>
+                            <span class="category-icon" aria-hidden="true">▣</span>
+                            <span class="category-dash"></span>
+                            <span class="category-index">二、</span>
+                            <h2>固有知识问答</h2>
+                        </div>
+                        <section class="example-subcategory">
+                            <h3>（1）流域知识</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="详细介绍一下河南省卫共流域">详细介绍一下河南省卫共流域</button>
+                                <button class="example-question" data-question="河南省卫共流域有多少座大中型水库？">河南省卫共流域有多少座大中型水库？</button>
+                                <button class="example-question" data-question="河南省卫共流域有多少蓄滞洪区？">河南省卫共流域有多少蓄滞洪区？</button>
+                                <button class="example-question" data-question="河南省卫共流域各主要河道的防洪标准？">河南省卫共流域各主要河道的防洪标准？</button>
+                                <button class="example-question" data-question="卫共流域有多少水文监测站点？">卫共流域有多少水文监测站点？</button>
+                            </div>
+                        </section>
+                        <section class="example-subcategory">
+                            <h3>（2）工程特性</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="告诉我盘石头水库水力特性？">告诉我盘石头水库水力特性？</button>
+                                <button class="example-question" data-question="盘石头水库设计水位是多少？小南海呢？">盘石头水库设计水位是多少？小南海呢？</button>
+                                <button class="example-question" data-question="图文并茂的介绍一下长虹渠分洪闸">图文并茂的介绍一下长虹渠分洪闸</button>
+                                <button class="example-question" data-question="图文并茂的介绍盐土庄闸">图文并茂的介绍盐土庄闸</button>
+                                <button class="example-question" data-question="告诉我小河口闸的详细信息？">告诉我小河口闸的详细信息？</button>
+                            </div>
+                        </section>
+                        <section class="example-subcategory">
+                            <h3>（3）历史洪水</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="卫共流域发生了哪些典型的特大历史洪水？">卫共流域发生了哪些典型的特大历史洪水？</button>
+                                <button class="example-question" data-question="&quot;21.7&quot;历史洪水启用了几个蓄滞洪区？哪些位置发生了决堤？">"21.7"历史洪水启用了几个蓄滞洪区？哪些位置发生了决堤？</button>
+                                <button class="example-question" data-question="&quot;23.7&quot;历史洪水启用了几个蓄滞洪区？哪些水库和河道发生了风险？">"23.7"历史洪水启用了几个蓄滞洪区？哪些水库和河道发生了风险？</button>
+                            </div>
+                        </section>
+                        <section class="example-subcategory">
+                            <h3>（4）其他知识</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="卫共流域防洪四预系统有哪些功能？">卫共流域防洪四预系统有哪些功能？</button>
+                                <button class="example-question" data-question="卫共流域防洪四预系统用的水文模型是什么？">卫共流域防洪四预系统用的水文模型是什么？</button>
+                                <button class="example-question" data-question="共产主义渠近年来进行了哪些工程治理？主要治理什么？">共产主义渠近年来进行了哪些工程治理？主要治理什么？</button>
+                                <button class="example-question" data-question="告诉我2025年河南省卫共流域、海河流域防洪方面的新闻。">告诉我2025年河南省卫共流域、海河流域防洪方面的新闻。</button>
+                                <button class="example-question" data-question="通过网络搜索，告诉我河南省卫共流域最新的新闻。">通过网络搜索，告诉我河南省卫共流域最新的新闻。</button>
+                            </div>
+                        </section>
+                    </article>
+                    </div>
+
+                    <div class="examples-row examples-row-bottom">
+                    <article class="example-category category-monitor">
+                        <div class="category-heading">
+                            <span class="category-accent"></span>
+                            <span class="category-icon" aria-hidden="true">◎</span>
+                            <span class="category-dash"></span>
+                            <span class="category-index">三、</span>
+                            <h2>实时监测数据查询</h2>
+                        </div>
+                        <section class="example-subcategory">
+                            <h3>（1）监测数据直接查询</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="查询盘石头水库当前水情">查询盘石头水库当前水情</button>
+                                <button class="example-question" data-question="查询修武站最新水情">查询修武站最新水情</button>
+                                <button class="example-question" data-question="小南海水库当前正在泄洪吗？">小南海水库当前正在泄洪吗？</button>
+                                <button class="example-question" data-question="查看月山水库视频监控">查看月山水库视频监控</button>
+                            </div>
+                        </section>
+                        <section class="example-subcategory">
+                            <h3>（2）监测数据查询分析</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="当前新村站水位超过警戒水位了吗？">当前新村站水位超过警戒水位了吗？</button>
+                                <button class="example-question" data-question="统计一下卫共流域各大型、中型水库的当前库容总和。">统计一下卫共流域各大型、中型水库的当前库容总和。</button>
+                                <button class="example-question" data-question="统计一下卫共流域各大型、中型水库的当前泄洪流量总和。">统计一下卫共流域各大型、中型水库的当前泄洪流量总和。</button>
+                                <button class="example-question" data-question="盘石头水库当前水位超过&quot;23.7&quot;历史洪水的最高水位了吗？">盘石头水库当前水位超过"23.7"历史洪水的最高水位了吗？</button>
+                            </div>
+                        </section>
+                    </article>
+
+                    <article class="example-category category-forecast">
+                        <div class="category-heading">
+                            <span class="category-accent"></span>
+                            <span class="category-icon" aria-hidden="true">☁</span>
+                            <span class="category-dash"></span>
+                            <span class="category-index">四、</span>
+                            <h2>洪水预报业务</h2>
+                        </div>
+                        <section class="example-subcategory">
+                            <h3>（1）查询最新洪水自动预报结果</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="卫共流域当前洪水预报结果？">卫共流域当前洪水预报结果？</button>
+                                <button class="example-question" data-question="盘石头水库最新的洪水预报结果？">盘石头水库最新的洪水预报结果？</button>
+                                <button class="example-question" data-question="修武站当前最新的洪水预报结果？">修武站当前最新的洪水预报结果？</button>
+                            </div>
+                        </section>
+                        <section class="example-subcategory">
+                            <h3>（2）查询历史自动预报洪水结果</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="告诉我2025年7月1日那场降雨全流域洪水预报结果？">告诉我2025年7月1日那场降雨全流域洪水预报结果？</button>
+                                <button class="example-question" data-question="告诉我2025年7月1日那场降雨的盘石头水库洪水预报结果？">告诉我2025年7月1日那场降雨的盘石头水库洪水预报结果？</button>
+                                <button class="example-question" data-question="告诉我2025年7月1日那场降雨的修武站洪水预报结果？">告诉我2025年7月1日那场降雨的修武站洪水预报结果？</button>
+                            </div>
+                        </section>
+                        <section class="example-subcategory">
+                            <h3>（3）查询人工预报洪水结果</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="2025年7月1日那场降雨人工预报的流域洪水结果？">2025年7月1日那场降雨人工预报的流域洪水结果？</button>
+                                <button class="example-question" data-question="2023年7月29日那场降雨人工预报的修武站洪水结果？">2023年7月29日那场降雨人工预报的修武站洪水结果？</button>
+                                <button class="example-question" data-question="2023年7月29日那场降雨人工预报的盘石头水库洪水结果？">2023年7月29日那场降雨人工预报的盘石头水库洪水结果？</button>
+                            </div>
+                        </section>
+                        <section class="example-subcategory">
+                            <h3>（4）进行自动预报并查询结果</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="进行一次自动预报，告诉我洪水预报结果。">进行一次自动预报，告诉我洪水预报结果。</button>
+                                <button class="example-question" data-question="进行一次自动预报，告诉我盘石头水库洪水预报结果。">进行一次自动预报，告诉我盘石头水库洪水预报结果。</button>
+                                <button class="example-question" data-question="进行一次自动预报，告诉我新村站洪水预报结果。">进行一次自动预报，告诉我新村站洪水预报结果。</button>
+                            </div>
+                        </section>
+                        <section class="example-subcategory">
+                            <h3>（5）进行人工预报并查询结果</h3>
+                            <div class="question-grid">
+                                <button class="example-question" data-question="进行一次人工预报，假设未来24小时降雨200mm，告诉我全流域洪水预报结果。">进行一次人工预报，假设未来24小时降雨200mm，告诉我全流域洪水预报结果。</button>
+                                <button class="example-question" data-question="进行一次人工预报，假设未来24小时降雨200mm，告诉我安阳站洪水预报结果。">进行一次人工预报，假设未来24小时降雨200mm，告诉我安阳站洪水预报结果。</button>
+                                <button class="example-question" data-question="进行一次人工预报，采用2025年7月1日那场降雨，最后告诉我修武站洪水结果。">进行一次人工预报，采用2025年7月1日那场降雨，最后告诉我修武站洪水结果。</button>
+                                <button class="example-question" data-question="对2023年7月29日的那场降雨进行一次人工预报，最后告诉我盘石头水库洪水预报结果。">对2023年7月29日的那场降雨进行一次人工预报，最后告诉我盘石头水库洪水预报结果。</button>
+                            </div>
+                        </section>
+                    </article>
+                    </div>
+                </div>
+            </section>
             <iframe id="mainContentFrame" src="about:blank" frameborder="0"></iframe>
         </div>
         <div class="resizer resizer-h" id="resizer-sidebar"></div>
@@ -91,9 +247,14 @@
             const chatSendBtn = document.getElementById('chatSendBtn');
             const logList = document.getElementById('logList');
             const mainContentFrame = document.getElementById('mainContentFrame');
+            const questionExamplesPanel = document.getElementById('questionExamplesPanel');
             const historyModal = document.getElementById('historyModal');
             const historyListContainer = document.getElementById('historyListContainer');
+            const alertModal = document.getElementById('alertModal');
+            const alertMessage = document.getElementById('alertMessage');
+            const alertOk = document.getElementById('alertOk');
             const avatarVideo = document.getElementById('avatarVideo');
+            let isProcessing = false;
             const defaultAvatarVideoSources = [
                 'img/lens/lens1.mp4',
                 'img/lens/lens2.mp4',
@@ -177,6 +338,47 @@
                 }, 50);
             }
 
+            function showAlert(message) {
+                if (!alertModal || !alertMessage) {
+                    window.alert(message);
+                    return;
+                }
+                alertMessage.textContent = message;
+                alertModal.style.display = 'flex';
+            }
+
+            if (alertOk) {
+                alertOk.addEventListener('click', () => {
+                    alertModal.style.display = 'none';
+                });
+            }
+
+            function setProcessing(processing) {
+                isProcessing = processing;
+                document.body.classList.toggle('is-processing', processing);
+                chatSendBtn.setAttribute('aria-disabled', processing ? 'true' : 'false');
+            }
+
+            function showQuestionExamples() {
+                if (questionExamplesPanel) {
+                    questionExamplesPanel.classList.remove('is-hidden');
+                }
+            }
+
+            function hideQuestionExamples() {
+                if (questionExamplesPanel) {
+                    questionExamplesPanel.classList.add('is-hidden');
+                }
+            }
+
+            function displayWebPage(pageUrl) {
+                hideQuestionExamples();
+                mainContentFrame.src = pageUrl;
+                if (window.expandIframePanel) {
+                    window.expandIframePanel();
+                }
+            }
+
             window.addLog = function(text, type = 'system') {
                 const li = document.createElement('li');
                 li.className = 'message-item message-' + type;
@@ -192,9 +394,20 @@
                 return li;
             };
 
-            async function sendMessage() {
+            async function sendMessage(presetMessage) {
+                if (isProcessing) {
+                    showAlert('当前还有问题正在处理，请等待回答完成后再提交。');
+                    return;
+                }
+
+                if (typeof presetMessage === 'string') {
+                    chatInput.value = presetMessage;
+                }
+
                 const message = chatInput.value.trim();
                 if (!message) return;
+
+                setProcessing(true);
 
                 addLog(message, 'user');
                 chatInput.value = '';
@@ -263,6 +476,8 @@
                     }
                 } catch (err) {
                     uiElements.finalAnswer.innerHTML = '<div style="color:#ff4d4f">连接异常: ' + err.message + '</div>';
+                } finally {
+                    setProcessing(false);
                 }
             }
 
@@ -472,11 +687,7 @@
                             ui.finalAnswer.innerHTML = renderMarkdown(data.data);
                         }
                         if (data.page_url) {
-                            mainContentFrame.src = data.page_url;
-                            // 触发展开动画
-                            if (window.expandIframePanel) {
-                                window.expandIframePanel();
-                            }
+                            displayWebPage(data.page_url);
                         }
                         break;
                     case 'page_generating':
@@ -492,11 +703,7 @@
                     case 'final_page':
                         // 页面生成完成，更新iframe并展开
                         if (data.page_url) {
-                            mainContentFrame.src = data.page_url;
-                            // 触发展开动画
-                            if (window.expandIframePanel) {
-                                window.expandIframePanel();
-                            }
+                            displayWebPage(data.page_url);
                         }
                         break;
                     case 'page_error':
@@ -514,7 +721,19 @@
                 }
             }
 
-            chatSendBtn.addEventListener('click', sendMessage);
+            document.querySelectorAll('.example-question').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const question = btn.getAttribute('data-question') || btn.textContent.trim();
+                    if (isProcessing) {
+                        showAlert('当前还有问题正在处理，请等待回答完成后再提交。');
+                        return;
+                    }
+                    chatInput.value = question;
+                    sendMessage(question);
+                });
+            });
+
+            chatSendBtn.addEventListener('click', () => sendMessage());
             chatInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
             });
@@ -523,9 +742,9 @@
                 currentConversationId = null;
                 logList.innerHTML = '<li class="message-item message-system"><span class="message-text">> 开启新对话...</span></li>';
                 mainContentFrame.src = 'about:blank';
-                // 新对话时折叠左侧iframe
-                if (window.collapseIframePanel) {
-                    window.collapseIframePanel();
+                showQuestionExamples();
+                if (window.expandIframePanel) {
+                    window.expandIframePanel();
                 }
             });
 

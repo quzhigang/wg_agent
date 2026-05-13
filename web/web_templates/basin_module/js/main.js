@@ -3,13 +3,15 @@ const API_URLS = {
     floodResult: 'http://172.16.16.253/wg_modelserver/hd_mike11server/Model_Ser.ashx',
     rainProcess: 'http://10.20.2.153/api/basin/modelPlatf/model/modelRainArea/getByRsvr',
     stationInfo: '/proxy/mike11/station_info',
-    mapLocation: '/proxy/map/location'
+    mapLocation: '/proxy/map/location',
+    reservoirProcess: '/proxy/hydro/reservoir_process',
+    riverProcess: '/proxy/hydro/river_process'
 };
 
 // 全流域模板只依赖方案ID获取结果。token 可选，用于部分受保护接口。
 const DEFAULT_PARAMS = {
-    planCode: 'model_20260127101007',
-    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiI1YTdlMjU1OC0zYmQwLTQ5NTMtYTNkMy0xY2NjZGVmOGY1MDkiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzkxODE2ODYyMTgsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc3ODU3Njg4NiwiZXhwIjoxNzc5MTgxNjg2fQ.p0yWuyNq1lxVxBYyrczJie10K1d6N6OYHRkxSAmGGpt5IYYFD_megCprbqIgfc5YFmeM1rDwCFbKkoLFAfVJTw'
+    planCode: 'model_auto',
+    token: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VySWQiOjEzMzk1NTA0Njc5Mzk2MzkyOTksImFjY291bnQiOiJhZG1pbiIsInV1aWQiOiJjNTZhMmVmMS1iOTlmLTQ0MzItODhmZi05ODc5ODk0ODY2ZDMiLCJyZW1lbWJlck1lIjpmYWxzZSwiZXhwaXJhdGlvbkRhdGUiOjE3NzkyNTYyOTI2NzUsImNhVG9rZW4iOm51bGwsIm90aGVycyI6bnVsbCwic3ViIjoiMTMzOTU1MDQ2NzkzOTYzOTI5OSIsImlhdCI6MTc3ODY1MTQ5MiwiZXhwIjoxNzc5MjU2MjkyfQ.6HbLHqMgFWE_ccSTKNcY5MbwZQXYQboSAhXs9OMluCdKN1wxraVXGGUiW4XD6CCE2yOm4-XNKx5KwJBAzRq6Cg'
 };
 
 const state = {
@@ -197,6 +199,10 @@ function resolvePlanName(candidate, floodData) {
     return candidate || DEFAULT_PARAMS.planCode;
 }
 
+function isLatestAutoForecast() {
+    return DEFAULT_PARAMS.planCode === 'model_auto';
+}
+
 async function fetchRainProcess(stcd) {
     if (!stcd) return [];
 
@@ -217,6 +223,56 @@ async function fetchRainProcess(stcd) {
         console.warn('降雨过程获取失败:', error);
     }
     return [];
+}
+
+async function fetchObservedProcess(type, stcd, forecastStartTime) {
+    if (!isLatestAutoForecast() || !stcd || !forecastStartTime) return [];
+
+    const startTimestamp = toTimestamp(forecastStartTime);
+    if (!Number.isFinite(startTimestamp)) return [];
+
+    const endTime = formatDateTime(startTimestamp);
+    const startTime = formatDateTime(startTimestamp - 48 * 60 * 60 * 1000);
+    const endpoint = type === 'reservoir' ? API_URLS.reservoirProcess : API_URLS.riverProcess;
+    const params = new URLSearchParams({
+        stcd,
+        start_time: startTime,
+        end_time: endTime
+    });
+
+    try {
+        const headers = { 'Accept': '*/*' };
+        if (DEFAULT_PARAMS.token) headers.Authorization = DEFAULT_PARAMS.token;
+        const response = await fetch(`${endpoint}?${params}`, { headers, cache: 'no-cache' });
+        if (!response.ok) return [];
+        const result = await response.json();
+        const data = extractProcessRows(result);
+        return data
+            .map(row => normalizeObservedRow(type, row))
+            .filter(row => row.time && Number.isFinite(row.timestamp) && row.timestamp <= startTimestamp)
+            .sort((a, b) => a.timestamp - b.timestamp);
+    } catch (error) {
+        console.warn('实测过程获取失败:', error);
+        return [];
+    }
+}
+
+function extractProcessRows(result) {
+    if (Array.isArray(result)) return result;
+    const candidates = [
+        result?.data,
+        result?.result,
+        result?.rows,
+        result?.records,
+        result?.list,
+        result?.data?.records,
+        result?.data?.rows,
+        result?.data?.list,
+        result?.result?.records,
+        result?.result?.rows,
+        result?.result?.list
+    ];
+    return candidates.find(Array.isArray) || [];
 }
 
 function buildCollections(raw) {
@@ -458,10 +514,12 @@ async function selectItem(item) {
     try {
         if (item.type === 'reservoir') {
             const rainData = await fetchRainProcess(item.stcd);
-            renderReservoirChart(item.data, rainData);
+            const observedData = await fetchObservedProcess('reservoir', item.stcd, getForecastStartTime(item.data));
+            renderReservoirChart(item.data, rainData, observedData);
         } else if (item.type === 'reach') {
             const rainData = await fetchRainProcess(item.stcd);
-            renderReachChart(item.data, rainData);
+            const observedData = await fetchObservedProcess('reach', item.stcd, getForecastStartTime(item.data));
+            renderReachChart(item.data, rainData, observedData);
         } else {
             renderDetentionChart(item.data);
         }
@@ -515,53 +573,61 @@ function renderDetailMetrics(item) {
     `).join('');
 }
 
-function renderReservoirChart(data, rainData) {
+function renderReservoirChart(data, rainData, observedData = []) {
     const timeKeys = objectKeys(data.InQ_Dic || data.OutQ_Dic || data.Level_Dic);
     const inflowData = seriesFromMap(data.InQ_Dic, timeKeys);
     const outflowData = seriesFromMap(data.OutQ_Dic, timeKeys);
     const waterLevelData = seriesFromMap(data.Level_Dic, timeKeys);
     const processedRainData = rainSeries(rainData);
+    const forecastStartTime = getForecastStartTime(data);
+    const useObservedSplit = isLatestAutoForecast() && observedData.length > 0 && forecastStartTime;
+    const observedSeries = useObservedSplit ? buildObservedReservoirSeries(observedData) : null;
 
     const option = buildRainFlowLevelOption({
         legend: ['降雨量', '入库流量', '出库流量', '库水位', '汛限水位', '防洪高水位'],
         rainData: processedRainData,
         flowSeries: [
-            { name: '入库流量', data: inflowData, color: '#fb7185' },
-            { name: '出库流量', data: outflowData, color: '#4ade80' }
+            { name: '入库流量', data: inflowData, observedData: observedSeries?.inflow, color: '#fb7185' },
+            { name: '出库流量', data: outflowData, observedData: observedSeries?.outflow, color: '#4ade80' }
         ],
         levelSeries: [
-            { name: '库水位', data: waterLevelData, color: '#22d3ee', fill: true }
+            { name: '库水位', data: waterLevelData, observedData: observedSeries?.level, color: '#22d3ee', fill: true }
         ],
         markLines: [
             { name: '汛限水位', value: getActiveThreshold('Level1', data.Flood_Limit_Level), color: '#fbbf24' },
             { name: '防洪高水位', value: getActiveThreshold('Level2', data.Flood_High_Level), color: '#fb7185', selected: false }
-        ].filter(m => m.value !== undefined && m.value !== null && m.value !== '' && Number(m.value) > 0)
+        ].filter(m => m.value !== undefined && m.value !== null && m.value !== '' && Number(m.value) > 0),
+        splitTime: useObservedSplit ? forecastStartTime : null
     });
 
     getChart().setOption(option, true);
 }
 
-function renderReachChart(data, rainData) {
+function renderReachChart(data, rainData, observedData = []) {
     const zMap = data.Level_Dic || data.Z_Dic || {};
     const qMap = data.Discharge_Dic || data.Q_Dic || data.InQ_Dic || data.OutQ_Dic || {};
     const timeKeys = objectKeys(zMap).length ? objectKeys(zMap) : objectKeys(qMap);
     const waterLevelData = seriesFromMap(zMap, timeKeys);
     const flowData = seriesFromMap(qMap, timeKeys);
     const processedRainData = rainSeries(rainData);
+    const forecastStartTime = getForecastStartTime(data);
+    const useObservedSplit = isLatestAutoForecast() && observedData.length > 0 && forecastStartTime;
+    const observedSeries = useObservedSplit ? buildObservedReachSeries(observedData) : null;
 
     const option = buildRainFlowLevelOption({
         legend: ['降雨量', '水位', '流量', '警戒水位', '保证水位'],
         rainData: processedRainData,
         flowSeries: [
-            { name: '流量', data: flowData, color: '#4ade80' }
+            { name: '流量', data: flowData, observedData: observedSeries?.flow, color: '#4ade80' }
         ],
         levelSeries: [
-            { name: '水位', data: waterLevelData, color: '#22d3ee', fill: true }
+            { name: '水位', data: waterLevelData, observedData: observedSeries?.level, color: '#22d3ee', fill: true }
         ],
         markLines: [
             { name: '警戒水位', value: getActiveThreshold('Level1', data.Warning_Level || data.Level1), color: '#fbbf24' },
             { name: '保证水位', value: getActiveThreshold('Level3', data.Guarantee_Level || data.Level3), color: '#fb7185', selected: false }
-        ].filter(m => m.value !== undefined && m.value !== null && m.value !== '' && Number(m.value) > 0)
+        ].filter(m => m.value !== undefined && m.value !== null && m.value !== '' && Number(m.value) > 0),
+        splitTime: useObservedSplit ? forecastStartTime : null
     });
 
     getChart().setOption(option, true);
@@ -696,17 +762,20 @@ function renderDetentionChart(data) {
     }, true);
 }
 
-function buildRainFlowLevelOption({ legend, rainData, flowSeries, levelSeries, markLines }) {
+function buildRainFlowLevelOption({ legend, rainData, flowSeries, levelSeries, markLines, splitTime = null }) {
+    const normalizedFlowSeries = flowSeries.flatMap(s => splitForecastSeries(s, 1));
+    const normalizedLevelSeries = levelSeries.flatMap(s => splitForecastSeries(s, 2));
     const allTimestamps = [
         ...rainData,
-        ...flowSeries.flatMap(s => s.data),
-        ...levelSeries.flatMap(s => s.data)
+        ...normalizedFlowSeries.flatMap(s => s.data),
+        ...normalizedLevelSeries.flatMap(s => s.data),
+        ...(splitTime ? [[toTimestamp(splitTime), 0]] : [])
     ].map(d => d[0]);
     const minTime = allTimestamps.length ? Math.min(...allTimestamps) : undefined;
     const maxTime = allTimestamps.length ? Math.max(...allTimestamps) : undefined;
     const rainRange = calcAxisRange([rainData], 10, 5);
-    const flowRange = calcAxisRange(flowSeries.map(s => s.data), 50, 10);
-    const levelRange = calcAxisRange(levelSeries.map(s => s.data), 5, 2, markLines.map(m => num(m.value)).filter(Boolean));
+    const flowRange = calcAxisRange(normalizedFlowSeries.map(s => s.data), 50, 10);
+    const levelRange = calcAxisRange(normalizedLevelSeries.map(s => s.data), 5, 2, markLines.map(m => num(m.value)).filter(Boolean));
 
     const selected = {};
     markLines.forEach(m => {
@@ -754,7 +823,7 @@ function buildRainFlowLevelOption({ legend, rainData, flowSeries, levelSeries, m
                 itemStyle: { color: '#5470c6' },
                 markPoint: peakMark(rainData, '#fbbf24', 'mm')
             },
-            ...flowSeries.map(s => ({
+            ...normalizedFlowSeries.map(s => ({
                 name: s.name,
                 type: 'line',
                 xAxisIndex: 1,
@@ -762,11 +831,11 @@ function buildRainFlowLevelOption({ legend, rainData, flowSeries, levelSeries, m
                 data: s.data,
                 smooth: true,
                 symbol: 'none',
-                lineStyle: { width: 2, color: s.color },
+                lineStyle: { width: 2, color: s.color, type: s.lineType || 'solid' },
                 itemStyle: { color: s.color },
-                markPoint: peakMark(s.data, s.color, 'm3/s')
+                markPoint: s.showPeak === false ? {} : peakMark(s.data, s.color, 'm3/s')
             })),
-            ...levelSeries.map(s => ({
+            ...normalizedLevelSeries.map(s => ({
                 name: s.name,
                 type: 'line',
                 xAxisIndex: 1,
@@ -774,11 +843,12 @@ function buildRainFlowLevelOption({ legend, rainData, flowSeries, levelSeries, m
                 data: s.data,
                 smooth: true,
                 symbol: 'none',
-                lineStyle: { width: 2, color: s.color },
+                lineStyle: { width: 2, color: s.color, type: s.lineType || 'solid' },
                 itemStyle: { color: s.color },
                 areaStyle: s.fill ? { color: 'rgba(34,211,238,0.14)' } : undefined,
-                markPoint: peakMark(s.data, s.color, 'm')
+                markPoint: s.showPeak === false ? {} : peakMark(s.data, s.color, 'm')
             })),
+            ...(splitTime ? [buildForecastSplitLine(splitTime)] : []),
             ...markLines.map(m => ({
                 name: m.name,
                 type: 'line',
@@ -797,6 +867,65 @@ function buildRainFlowLevelOption({ legend, rainData, flowSeries, levelSeries, m
                 }
             }))
         ]
+    };
+}
+
+function splitForecastSeries(series, yAxisIndex) {
+    if (!series.observedData || !series.observedData.length) {
+        return [{ ...series, yAxisIndex }];
+    }
+
+    const forecastData = Array.isArray(series.data) ? series.data : [];
+    const observedData = connectObservedToForecast(series.observedData, forecastData);
+
+    return [
+        {
+            ...series,
+            name: series.name,
+            data: observedData,
+            lineType: 'solid',
+            showPeak: false,
+            yAxisIndex
+        },
+        {
+            ...series,
+            name: series.name,
+            data: forecastData,
+            lineType: 'dashed',
+            yAxisIndex
+        }
+    ];
+}
+
+function connectObservedToForecast(observedData, forecastData) {
+    if (!observedData.length || !forecastData.length) return observedData;
+
+    const connected = [...observedData];
+    const firstForecast = forecastData[0];
+    const lastObserved = connected[connected.length - 1];
+    if (firstForecast && lastObserved && firstForecast[0] !== lastObserved[0]) {
+        connected.push([firstForecast[0], lastObserved[1]]);
+    }
+    return connected;
+}
+
+function buildForecastSplitLine(splitTime) {
+    return {
+        name: '预报起点',
+        type: 'line',
+        xAxisIndex: 1,
+        yAxisIndex: 2,
+        data: [],
+        tooltip: { show: false },
+        markLine: {
+            silent: true,
+            symbol: 'none',
+            data: [{
+                xAxis: toTimestamp(splitTime),
+                lineStyle: { color: 'rgba(255, 255, 255, 0.42)', width: 1, type: 'dashed' },
+                label: { show: true, position: 'insideEndTop', formatter: '预报起点', color: '#c0c8d0' }
+            }]
+        }
     };
 }
 
@@ -1085,24 +1214,24 @@ function asObject(value) {
 }
 
 function objectKeys(map) {
-    return Object.keys(asObject(map)).filter(key => key !== '...').sort((a, b) => new Date(a) - new Date(b));
+    return Object.keys(asObject(map)).filter(key => key !== '...').sort((a, b) => toTimestamp(a) - toTimestamp(b));
 }
 
 function uniqueSortedKeys(maps) {
-    return [...new Set(maps.flatMap(map => objectKeys(map)))].sort((a, b) => new Date(a) - new Date(b));
+    return [...new Set(maps.flatMap(map => objectKeys(map)))].sort((a, b) => toTimestamp(a) - toTimestamp(b));
 }
 
 function seriesFromMap(map, keys) {
     const source = asObject(map);
     return (keys || objectKeys(source))
         .filter(t => source[t] !== undefined && source[t] !== null && source[t] !== '')
-        .map(t => [new Date(t).getTime(), Number(source[t])])
+        .map(t => [toTimestamp(t), Number(source[t])])
         .filter(d => !Number.isNaN(d[0]) && !Number.isNaN(d[1]));
 }
 
 function rainSeries(rainData) {
     return Array.isArray(rainData)
-        ? rainData.map(d => [new Date(d.time).getTime(), Number(d.value)]).filter(d => !Number.isNaN(d[0]) && !Number.isNaN(d[1]))
+        ? rainData.map(d => [toTimestamp(d.time), Number(d.value)]).filter(d => !Number.isNaN(d[0]) && !Number.isNaN(d[1]))
         : [];
 }
 
@@ -1124,8 +1253,89 @@ function stateSeriesFromMap(map, keys) {
     return (keys || objectKeys(source)).map(t => {
         const value = source[t];
         const enabled = typeof value === 'string' ? !value.includes('未') : Boolean(value);
-        return [new Date(t).getTime(), enabled ? 1 : 0];
+        return [toTimestamp(t), enabled ? 1 : 0];
     }).filter(d => !Number.isNaN(d[0]));
+}
+
+function getForecastStartTime(data) {
+    const timeKeys = uniqueSortedKeys([
+        data?.InQ_Dic,
+        data?.OutQ_Dic,
+        data?.Level_Dic,
+        data?.Z_Dic,
+        data?.Discharge_Dic,
+        data?.Q_Dic
+    ]);
+    return timeKeys[0] || data?.ForecastStartTime || data?.StartTime || null;
+}
+
+function normalizeObservedRow(type, row) {
+    const time = pickFirst(row, ['tm', 'TM', 'time', 'Time', 'dataTime', 'data_time']);
+    const timestamp = toTimestamp(time);
+    if (type === 'reservoir') {
+        return {
+            time,
+            timestamp,
+            level: pickFirst(row, ['rz', 'RZ', 'z', 'Z']),
+            inflow: pickFirst(row, ['inq', 'INQ', 'inQ', 'InQ']),
+            outflow: pickFirst(row, ['otq', 'OTQ', 'outq', 'OutQ'])
+        };
+    }
+    return {
+        time,
+        timestamp,
+        level: pickFirst(row, ['z', 'Z', 'rz', 'RZ']),
+        flow: pickFirst(row, ['q', 'Q', 'flow', 'Flow'])
+    };
+}
+
+function buildObservedReservoirSeries(rows) {
+    return {
+        level: observedSeries(rows, 'level'),
+        inflow: observedSeries(rows, 'inflow'),
+        outflow: observedSeries(rows, 'outflow')
+    };
+}
+
+function buildObservedReachSeries(rows) {
+    return {
+        level: observedSeries(rows, 'level'),
+        flow: observedSeries(rows, 'flow')
+    };
+}
+
+function observedSeries(rows, field) {
+    return (rows || [])
+        .filter(row => row[field] !== undefined && row[field] !== null && row[field] !== '')
+        .map(row => [row.timestamp, Number(row[field])])
+        .filter(d => Number.isFinite(d[0]) && Number.isFinite(d[1]));
+}
+
+function toTimestamp(value) {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === 'number') return value;
+    if (!value) return NaN;
+    const normalized = String(value).replace(/\//g, '-');
+    let timestamp = new Date(normalized).getTime();
+    if (!Number.isNaN(timestamp)) return timestamp;
+
+    const compactMatch = normalized.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+    if (compactMatch) {
+        const [, y, m, d, h, min, s] = compactMatch;
+        timestamp = new Date(`${y}-${m}-${d} ${h}:${min}:${s}`).getTime();
+    }
+    return timestamp;
+}
+
+function formatDateTime(value) {
+    const date = new Date(value);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const h = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    const s = String(date.getSeconds()).padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:${min}:${s}`;
 }
 
 function calcAxisRange(dataList, interval, padding = 1, extraValues = []) {

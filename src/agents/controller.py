@@ -504,6 +504,14 @@ class Controller:
         Returns:
             是否需要生成Web页面
         """
+        user_message = state.get('user_message', '') or ''
+        explicit_page_keywords = [
+            '图文并茂', '页面展示'
+        ]
+        if any(keyword in user_message for keyword in explicit_page_keywords):
+            logger.info("检测到用户明确要求图文并茂/页面展示，生成Web页面")
+            return True
+
         # 1. 检查执行结果（意图3：BUSINESS）
         execution_results = state.get('execution_results', [])
         for result in execution_results:

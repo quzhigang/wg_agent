@@ -13,13 +13,12 @@ document.addEventListener('DOMContentLoaded', function () {
     toggleBtn.title = '折叠/展开左侧区域';
     leftSidebar.appendChild(toggleBtn);
 
-    // 默认折叠状态
-    let isCollapsed = true;
+    // 默认展开状态：展示提问案例面板
+    let isCollapsed = false;
 
-    // 初始化：默认折叠左侧iframe
-    iframeContainer.classList.add('collapsed');
-    // 初始图标：指向左 (表示点击后向左侧展开)
-    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
+    iframeContainer.classList.remove('collapsed');
+    // 初始图标：指向右 (表示点击后向右折叠)
+    toggleBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>';
 
     // 折叠/展开功能
     toggleBtn.addEventListener('click', function (e) {

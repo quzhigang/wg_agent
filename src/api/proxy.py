@@ -7,6 +7,7 @@ import httpx
 from fastapi import APIRouter, Query, Header, HTTPException
 from typing import Optional
 from ..config.logging_config import get_logger
+from ..config.settings import settings
 
 logger = get_logger(__name__)
 
@@ -15,6 +16,41 @@ router = APIRouter(prefix="/proxy", tags=["代理"])
 # 外部API基础URL
 MIKE11_API_BASE = "http://10.20.2.153/api/model/proxy/mike11"
 MAP_DATA_API = "http://10.20.2.153/api/basin/map/dataSource/table/map"
+HYDRO_DATA_API_BASE = settings.wg_data_server_url.rstrip("/")
+
+
+async def _proxy_hydro_process(
+    endpoint: str,
+    stcd: str,
+    start_time: str,
+    end_time: str,
+    authorization: Optional[str] = None
+):
+    """代理水雨情过程接口，供静态模板跨域访问。"""
+    url = f"{HYDRO_DATA_API_BASE}{endpoint}"
+    params = {
+        "STCD": stcd,
+        "searchBeginTime": start_time,
+        "searchEndTime": end_time
+    }
+
+    headers = {"Accept": "*/*"}
+    if authorization:
+        headers["Authorization"] = authorization
+
+    logger.info(f"代理请求水情过程: endpoint={endpoint}, stcd={stcd}, {start_time} ~ {end_time}")
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"水情过程接口HTTP错误: {e.response.status_code} - {e.response.text}")
+            raise HTTPException(status_code=e.response.status_code, detail=str(e))
+        except Exception as e:
+            logger.error(f"水情过程接口请求失败: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"代理请求失败: {str(e)}")
 
 
 @router.get("/map/location")
@@ -114,6 +150,46 @@ async def get_station_info(
         except Exception as e:
             logger.error(f"站点信息接口请求失败: {str(e)}")
             raise HTTPException(status_code=500, detail=f"代理请求失败: {str(e)}")
+
+
+@router.get("/hydro/reservoir_process")
+async def get_reservoir_process(
+    stcd: str = Query(..., description="水库测站编码"),
+    start_time: str = Query(..., description="查询开始时间，格式 yyyy-MM-dd HH:mm:ss"),
+    end_time: str = Query(..., description="查询结束时间，格式 yyyy-MM-dd HH:mm:ss"),
+    authorization: Optional[str] = Header(None)
+):
+    """
+    获取水库实测水情过程。
+    代理转发到: /api/basin/rwdb/rsvr/processList
+    """
+    return await _proxy_hydro_process(
+        endpoint="/api/basin/rwdb/rsvr/processList",
+        stcd=stcd,
+        start_time=start_time,
+        end_time=end_time,
+        authorization=authorization
+    )
+
+
+@router.get("/hydro/river_process")
+async def get_river_process(
+    stcd: str = Query(..., description="河道测站编码"),
+    start_time: str = Query(..., description="查询开始时间，格式 yyyy-MM-dd HH:mm:ss"),
+    end_time: str = Query(..., description="查询结束时间，格式 yyyy-MM-dd HH:mm:ss"),
+    authorization: Optional[str] = Header(None)
+):
+    """
+    获取河道实测水情过程。
+    代理转发到: /api/basin/rwdb/river/processList
+    """
+    return await _proxy_hydro_process(
+        endpoint="/api/basin/rwdb/river/processList",
+        stcd=stcd,
+        start_time=start_time,
+        end_time=end_time,
+        authorization=authorization
+    )
 
 
 @router.get("/mike11/section_data")

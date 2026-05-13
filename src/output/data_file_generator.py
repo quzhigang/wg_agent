@@ -211,7 +211,93 @@ class DataFileGenerator:
                 # 知识库数据覆盖工具调用数据（知识库数据通常更完整）
                 processed['key_metrics'].update(key_metrics)
 
+        self._apply_target_realtime_water(processed)
         return processed
+
+    def _apply_target_realtime_water(self, processed: Dict[str, Any]) -> None:
+        """
+        根据实体识别到的 stcd，从实时水情列表中提取目标站点数据。
+
+        动态模板常用于单站点页面。如果 query_reservoir_last 返回全量列表，
+        不能直接使用第一条记录，否则卡片、地图和明细会展示成其他水库。
+        """
+        entities = (processed.get('intent') or {}).get('entities') or {}
+        target_stcd = str(entities.get('stcd') or '').strip()
+        if not target_stcd:
+            return
+
+        tool_results = processed.get('tool_results') or {}
+        reservoir_result = tool_results.get('query_reservoir_last') or {}
+        rows = reservoir_result.get('data') if isinstance(reservoir_result, dict) else None
+        if not isinstance(rows, list):
+            return
+
+        target = None
+        for row in rows:
+            if isinstance(row, dict) and str(row.get('stcd') or '').strip() == target_stcd:
+                target = row
+                break
+        if not target:
+            return
+
+        def fmt_num(value: Any) -> str:
+            if value is None or value == '':
+                return '缺测'
+            try:
+                return f"{float(value):.2f}"
+            except (TypeError, ValueError):
+                return str(value)
+
+        info_table = [
+            {'label': '水库名称', 'value': target.get('stnm') or entities.get('object') or ''},
+            {'label': '站点编码', 'value': target.get('stcd') or ''},
+            {'label': '当前水位', 'value': fmt_num(target.get('rz'))},
+            {'label': '蓄水量', 'value': fmt_num(target.get('w'))},
+            {'label': '入库流量', 'value': fmt_num(target.get('inq'))},
+            {'label': '出库流量', 'value': fmt_num(target.get('otq'))},
+            {'label': '数据时间', 'value': target.get('tm') or ''},
+            {'label': '河流名称', 'value': target.get('rvnm') or ''},
+        ]
+
+        lgtd = target.get('lgtd')
+        lttd = target.get('lttd')
+        target_geo = None
+        try:
+            lng = float(lgtd)
+            lat = float(lttd)
+            if 73 <= lng <= 136 and 18 <= lat <= 54:
+                target_geo = {
+                    'latitude': lat,
+                    'longitude': lng,
+                    'center': [lng, lat],
+                    'name': target.get('stnm') or entities.get('object') or ''
+                }
+                info_table.extend([
+                    {'label': '经度', 'value': str(lng)},
+                    {'label': '纬度', 'value': str(lat)},
+                ])
+        except (TypeError, ValueError):
+            pass
+
+        target_metrics = {
+            'water_level': target.get('rz'),
+            'storage': target.get('w'),
+            'inflow': target.get('inq'),
+            'outflow': target.get('otq'),
+            'data_time': target.get('tm'),
+        }
+
+        processed['target_realtime_water'] = target
+        processed['target_realtime_info_table'] = info_table
+        processed['target_key_metrics'] = target_metrics
+        if target_geo:
+            processed['target_geo_info'] = target_geo
+
+        # 兼容旧模板：当存在明确目标站点时，通用字段也指向目标站点。
+        processed['parsed_info_table'] = info_table
+        processed['key_metrics'] = target_metrics
+        if target_geo:
+            processed['geo_info'] = target_geo
 
     def _extract_tool_call_data(self, tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
         """

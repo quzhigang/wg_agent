@@ -383,8 +383,38 @@ class DynamicPageEngine {
         `;
     }
 
+    normalizeLatexUnits(text) {
+        if (!text) return text;
+
+        return String(text)
+            .replace(/\$\s*([^$]*?)\\mathrm\{m\}\s*\^\s*\{3\}\s*\/\s*\\mathrm\{s\}([^$]*?)\s*\$/g, '$1m³/s$2')
+            .replace(/\$\s*([^$]*?)\\mathrm\{m\^\{3\}\}\s*\/\s*\\mathrm\{s\}([^$]*?)\s*\$/g, '$1m³/s$2')
+            .replace(/\$\s*([^$]*?)\\mathrm\{km\}\s*\^\s*\{2\}([^$]*?)\s*\$/g, '$1km²$2')
+            .replace(/\$\s*([^$]*?)\\mathrm\{m\}\s*\^\s*\{3\}([^$]*?)\s*\$/g, '$1m³$2')
+            .replace(/\$\s*([^$]*?)\\mathrm\{m\^\{3\}\}([^$]*?)\s*\$/g, '$1m³$2')
+            .replace(/\$\s*([^$]*?)\\mathrm\{mm\}([^$]*?)\s*\$/g, '$1mm$2')
+            .replace(/\$\s*([^$]*?)\\mathrm\{m\}([^$]*?)\s*\$/g, '$1m$2')
+            .replace(/\\cdot/g, '\u00B7')
+            .replace(/\{\\sim\}|\\sim/g, '~')
+            .replace(/\{\}/g, '')
+            .replace(/\\mathrm\{\^\{\\prime\}([0-9]+)\}/g, '$1')
+            .replace(/\^\{\\mathrm\{,\}\\mathrm\{\}\}/g, '')
+            .replace(/\^\{\\mathrm\{,\}\\mathrm\{\}?\}?/g, '')
+            .replace(/\^\{[^}]*\\[a-zA-Z]+[^}]*\}/g, '')
+            .replace(/\\mathrm\{([a-zA-Z]+)\}/g, '$1')
+            .replace(/\^\{\\star\}/g, '')
+            .replace(/\^\{\\prime\\prime\}/g, '')
+            .replace(/\^\{\\prime\}/g, '')
+            .replace(/\^\{[0-9,，'"\s]*\}/g, '')
+            .replace(/\$/g, '');
+    }
+
     renderHtmlContent(container, data, config) {
-        const content = data || config.content || '';
+        let content = data || config.content || '';
+        if (Array.isArray(content)) {
+            content = content.join('\n');
+        }
+        content = this.normalizeLatexUnits(content);
 
         // 检测是否为Markdown格式（包含##、**、- 等标记）
         const isMarkdown = /^#{1,6}\s|^\*\*|^-\s|^>\s|\n#{1,6}\s|\n-\s|\*\*[^*]+\*\*/.test(content);
@@ -432,7 +462,21 @@ class DynamicPageEngine {
             html += '<tr>';
             finalCols.forEach(c => {
                 const key = c.dataIndex || c.key;
-                html += `<td>${row[key] !== undefined ? row[key] : ''}</td>`;
+                let value = row[key];
+                if (value === undefined && key && key.endsWith('_display')) {
+                    const displayFallbacks = {
+                        storage_display: 'storage_10k_m3',
+                        outflow_display: 'outflow_m3_s',
+                        inflow_display: 'inflow_m3_s',
+                        water_level_display: 'water_level_m'
+                    };
+                    const fallbackKey = displayFallbacks[key] || key.replace('_display', '');
+                    value = row[fallbackKey];
+                }
+                if (value === undefined || value === null || value === '') {
+                    value = '缺测';
+                }
+                html += `<td>${value}</td>`;
             });
             html += '</tr>';
         });
@@ -715,11 +759,12 @@ class DynamicPageEngine {
         // 2. 加载 ArcGIS 模块 - 使用 Portal WebMap (与预定义模板一致)
         require([
             "esri/WebMap",
+            "esri/Map",
             "esri/views/MapView",
             "esri/config",
             "esri/layers/GraphicsLayer",
             "esri/Graphic"
-        ], (WebMap, MapView, esriConfig, GraphicsLayer, Graphic) => {
+        ], (WebMap, Map, MapView, esriConfig, GraphicsLayer, Graphic) => {
             console.log('[GISMap] ArcGIS modules loaded successfully');
 
             // ========== 使用固定的 Portal WebMap (河南省水利厅地图服务) ==========
@@ -741,6 +786,41 @@ class DynamicPageEngine {
             // 1. data (从 data_source 绑定，可能是数组 [lng, lat] 或对象 {center: [lng, lat]})
             // 2. config.center (静态配置)
             let center = [114.057818, 35.826884];  // 默认河南省中心
+            if ((!data || !data.markers) && window.PAGE_DATA && window.PAGE_DATA.context) {
+                const ctx = window.PAGE_DATA.context;
+                const summary = ctx.tool_results?.sum_reservoir_current_outflow?.data;
+                const infoList = ctx.tool_results?.get_reservoir_info?.data || [];
+                if (summary && Array.isArray(summary.reservoirs) && Array.isArray(infoList)) {
+                    const infoByStcd = new Map(infoList.map(item => [String(item.stcd || ''), item]));
+                    const markers = summary.reservoirs
+                        .map(row => {
+                            const info = infoByStcd.get(String(row.stcd || '')) || {};
+                            const lng = Number(row.longitude ?? info.longitude ?? info.lgtd);
+                            const lat = Number(row.latitude ?? info.latitude ?? info.lttd);
+                            if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+                            const outflow = row.outflow_m3_s ?? row.outflow_display ?? '缺测';
+                            return {
+                                lng,
+                                lat,
+                                name: row.name,
+                                title: row.name,
+                                status: row.outflow_m3_s == null ? 'warning' : 'normal',
+                                content: `规模：${row.scale_name || ''}<br>当前库容：${row.storage_10k_m3 ?? '缺测'}万m³<br>当前出流：${outflow}m³/s<br>数据时间：${row.data_time || '--'}`
+                            };
+                        })
+                        .filter(Boolean);
+                    if (markers.length) {
+                        data = {
+                            name: '卫共流域大型、中型水库',
+                            center: [
+                                markers.reduce((sum, item) => sum + item.lng, 0) / markers.length,
+                                markers.reduce((sum, item) => sum + item.lat, 0) / markers.length
+                            ],
+                            markers
+                        };
+                    }
+                }
+            }
             if (data) {
                 if (Array.isArray(data) && data.length === 2) {
                     center = data;  // data 直接是 [lng, lat]
@@ -762,8 +842,8 @@ class DynamicPageEngine {
 
             // 4. 添加标记图层
             const graphicsLayer = new GraphicsLayer();
-            webmap.when(() => {
-                webmap.add(graphicsLayer);
+            const addReservoirMarkers = (map) => {
+                map.add(graphicsLayer);
 
                 // ========== 自动在中心点添加标记和文字标注 ==========
                 // 获取标注名称：多种来源尝试
@@ -859,7 +939,9 @@ class DynamicPageEngine {
                 // 支持两种数据来源：
                 // 1. config.markers (新格式，直接在 props 中)
                 // 2. data (旧格式，通过 data_source 获取)
-                const markers = config.markers || [];
+                const markers = (config.markers && config.markers.length)
+                    ? config.markers
+                    : ((data && data.markers) || []);
 
                 markers.forEach(item => {
                     // 尝试识别经纬度字段
@@ -914,6 +996,12 @@ class DynamicPageEngine {
                         graphicsLayer.add(pointGraphic);
                     }
                 });
+            };
+            webmap.when(() => addReservoirMarkers(webmap)).catch((error) => {
+                console.warn('[GISMap] Portal WebMap load failed, fallback to standard basemap:', error);
+                const fallbackMap = new Map({ basemap: "topo-vector" });
+                view.map = fallbackMap;
+                addReservoirMarkers(fallbackMap);
             });
         });
     }
